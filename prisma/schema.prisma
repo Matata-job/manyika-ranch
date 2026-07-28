@@ -1,0 +1,518 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  FARM_MANAGER
+  CAMP_SUPERVISOR
+  VETERINARIAN
+  RECORDS_CLERK
+  EXTERNAL_OWNER
+  VIEWER
+}
+
+enum Sex {
+  MALE
+  FEMALE
+}
+
+enum AnimalStatus {
+  ACTIVE
+  SOLD
+  DECEASED
+  MISSING
+  QUARANTINE
+}
+
+enum AcquisitionType {
+  BORN_ON_FARM
+  PURCHASED
+  GIFT
+}
+
+enum HealthType {
+  ILLNESS
+  INJURY
+  CHECKUP
+  OTHER
+}
+
+enum TreatmentType {
+  DEWORMING
+  DIPPING
+  ANTIBIOTIC
+  OTHER
+}
+
+enum BreedingMethod {
+  NATURAL
+  AI
+}
+
+enum AlertType {
+  VACCINATION_DUE
+  WEIGHT_BELOW_TARGET
+  MOVEMENT_PENDING
+  MEDICINE_LOW
+  OTHER
+}
+
+enum AlertStatus {
+  PENDING
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+enum DeathCause {
+  DISEASE
+  INJURY
+  PREDATION
+  DROUGHT_STARVATION
+  BIRTHING
+  OLD_AGE
+  CULLING
+  UNKNOWN
+  OTHER
+}
+
+enum DisposalMethod {
+  BURIED
+  BURNED
+  SOLD_CARCASS
+  REMOVED
+  OTHER
+}
+
+enum AnimalEventType {
+  REGISTERED
+  WEIGHT
+  HEALTH
+  VACCINATION
+  TREATMENT
+  MOVEMENT
+  BREEDING
+  CALVING
+  OWNERSHIP_TRANSFER
+  STATUS_CHANGE
+  QUARANTINE
+  SALE
+  DEATH
+  CULLING
+  NOTE
+  OTHER
+}
+
+model Ranch {
+  id        String   @id @default(cuid())
+  name      String
+  location  String   @default("Singida, Tanzania")
+  timezone  String   @default("Africa/Dar_es_Salaam")
+  settings  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  camps     Camp[]
+  users     User[]
+}
+
+model User {
+  id            String               @id @default(cuid())
+  email         String               @unique
+  name          String
+  passwordHash  String
+  role          Role                 @default(VIEWER)
+  ranchId       String
+  ranch         Ranch                @relation(fields: [ranchId], references: [id])
+  isActive      Boolean              @default(true)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  campAssignments UserCampAssignment[]
+  ownedAnimals  Animal[]             @relation("AnimalOwner")
+  accounts      Account[]
+  sessions      Session[]
+  weightLogs    WeightLog[]
+  healthRecords HealthRecord[]
+  vaccinations  Vaccination[]
+  treatments    Treatment[]
+  movements     Movement[]           @relation("MovementAuthorizer")
+  ownershipTransfers OwnershipTransfer[]
+  breedingEvents BreedingEvent[]
+  auditLogs     AuditLog[]
+  alerts        Alert[]              @relation("AlertAssignee")
+  deathRecords  DeathRecord[]
+  animalEvents  AnimalEvent[]
+}
+
+model UserCampAssignment {
+  id        String   @id @default(cuid())
+  userId    String
+  campId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  camp      Camp     @relation(fields: [campId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, campId])
+}
+
+model Camp {
+  id           String               @id @default(cuid())
+  ranchId      String
+  ranch        Ranch                @relation(fields: [ranchId], references: [id])
+  name         String
+  latitude     Float?
+  longitude    Float?
+  capacity     Int?
+  waterSources String?
+  notes        String?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  animals      Animal[]
+  assignments  UserCampAssignment[]
+  movementsFrom Movement[]          @relation("MovementFrom")
+  movementsTo   Movement[]          @relation("MovementTo")
+  medicineInventory MedicineInventory[]
+  rainfallLogs RainfallLog[]
+}
+
+model PastureBlock {
+  id        String   @id @default(cuid())
+  campId    String
+  name      String
+  capacity  Int?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Animal {
+  id               String          @id @default(cuid())
+  eartag           String          @unique
+  rfidChip         String?
+  photoUrl         String?
+  photoGallery     String[]        @default([])
+  breed            String
+  sex              Sex
+  dob              DateTime?
+  ageMonths        Int?
+  ownerId          String
+  owner            User            @relation("AnimalOwner", fields: [ownerId], references: [id])
+  sireId           String?
+  sire             Animal?         @relation("PedigreeSire", fields: [sireId], references: [id])
+  sireOffspring    Animal[]        @relation("PedigreeSire")
+  damId            String?
+  dam              Animal?         @relation("PedigreeDam", fields: [damId], references: [id])
+  damOffspring     Animal[]        @relation("PedigreeDam")
+  campId           String
+  camp             Camp            @relation(fields: [campId], references: [id])
+  status           AnimalStatus    @default(ACTIVE)
+  acquisitionType  AcquisitionType @default(BORN_ON_FARM)
+  acquisitionDate  DateTime?
+  colorMarkings    String?
+  notes            String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  weightLogs       WeightLog[]
+  healthRecords    HealthRecord[]
+  vaccinations     Vaccination[]
+  treatments       Treatment[]
+  movements        Movement[]
+  ownershipTransfers OwnershipTransfer[]
+  breedingEventsAsDam BreedingEvent[] @relation("BreedingDam")
+  breedingEventsAsSire BreedingEvent[] @relation("BreedingSire")
+  calvingAsDam     CalvingRecord[] @relation("CalvingDam")
+  calvingAsCalf    CalvingRecord?  @relation("CalvingCalf")
+  sales            Sale[]
+  alerts           Alert[]
+  deathRecord      DeathRecord?
+  events           AnimalEvent[]
+
+  @@index([campId])
+  @@index([ownerId])
+  @@index([status])
+}
+
+model WeightLog {
+  id          String   @id @default(cuid())
+  animalId    String
+  animal      Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  date        DateTime @default(now())
+  weightKg    Float
+  method      String   @default("scale")
+  recordedById String
+  recordedBy  User     @relation(fields: [recordedById], references: [id])
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@index([animalId, date])
+}
+
+model HealthRecord {
+  id          String     @id @default(cuid())
+  animalId    String
+  animal      Animal     @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  date        DateTime   @default(now())
+  type        HealthType
+  diagnosis   String?
+  treatment   String?
+  outcome     String?
+  vetId       String?
+  vet         User?      @relation(fields: [vetId], references: [id])
+  notes       String?
+  createdAt   DateTime   @default(now())
+
+  @@index([animalId, date])
+}
+
+model VaccineCatalog {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  intervalDays Int?
+  species      String        @default("cattle")
+  description  String?
+  createdAt    DateTime      @default(now())
+  vaccinations Vaccination[]
+}
+
+model Vaccination {
+  id              String          @id @default(cuid())
+  animalId        String
+  animal          Animal          @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  vaccineCatalogId String?
+  vaccineCatalog  VaccineCatalog? @relation(fields: [vaccineCatalogId], references: [id])
+  vaccineName     String
+  batchNo         String?
+  date            DateTime        @default(now())
+  nextDue         DateTime?
+  administeredById String
+  administeredBy  User            @relation(fields: [administeredById], references: [id])
+  notes           String?
+  createdAt       DateTime        @default(now())
+
+  @@index([animalId, date])
+  @@index([nextDue])
+}
+
+model Treatment {
+  id                String        @id @default(cuid())
+  animalId          String
+  animal            Animal        @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  date              DateTime      @default(now())
+  type              TreatmentType
+  product           String
+  dose              String?
+  withdrawalPeriod  Int?
+  administeredById  String
+  administeredBy    User          @relation(fields: [administeredById], references: [id])
+  notes             String?
+  createdAt         DateTime      @default(now())
+
+  @@index([animalId, date])
+}
+
+model BreedingEvent {
+  id                 String         @id @default(cuid())
+  damId              String
+  dam                Animal         @relation("BreedingDam", fields: [damId], references: [id])
+  sireId             String?
+  sire               Animal?        @relation("BreedingSire", fields: [sireId], references: [id])
+  matingDate         DateTime
+  method             BreedingMethod @default(NATURAL)
+  pregnancyConfirmed Boolean        @default(false)
+  recordedById       String
+  recordedBy         User           @relation(fields: [recordedById], references: [id])
+  notes              String?
+  createdAt          DateTime       @default(now())
+  calving            CalvingRecord?
+}
+
+model CalvingRecord {
+  id              String        @id @default(cuid())
+  breedingEventId String?       @unique
+  breedingEvent   BreedingEvent? @relation(fields: [breedingEventId], references: [id])
+  damId           String
+  dam             Animal        @relation("CalvingDam", fields: [damId], references: [id])
+  calfId          String?       @unique
+  calf            Animal?       @relation("CalvingCalf", fields: [calfId], references: [id])
+  date            DateTime
+  birthWeightKg   Float?
+  complications   String?
+  notes           String?
+  createdAt       DateTime      @default(now())
+}
+
+model Movement {
+  id             String   @id @default(cuid())
+  animalId       String
+  animal         Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  fromCampId     String
+  fromCamp       Camp     @relation("MovementFrom", fields: [fromCampId], references: [id])
+  toCampId       String
+  toCamp         Camp     @relation("MovementTo", fields: [toCampId], references: [id])
+  date           DateTime @default(now())
+  reason         String?
+  authorizedById String
+  authorizedBy   User     @relation("MovementAuthorizer", fields: [authorizedById], references: [id])
+  createdAt      DateTime @default(now())
+
+  @@index([animalId, date])
+}
+
+model OwnershipTransfer {
+  id          String   @id @default(cuid())
+  animalId    String
+  animal      Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  fromOwnerId String
+  toOwnerId   String
+  date        DateTime @default(now())
+  price       Float?
+  recordedById String
+  recordedBy  User     @relation(fields: [recordedById], references: [id])
+  notes       String?
+  createdAt   DateTime @default(now())
+}
+
+model Sale {
+  id          String   @id @default(cuid())
+  animalId    String
+  animal      Animal   @relation(fields: [animalId], references: [id])
+  buyer       String
+  priceTzs    Float
+  weightAtSale Float?
+  saleDate    DateTime @default(now())
+  transport   String?
+  notes       String?
+  createdAt   DateTime @default(now())
+}
+
+model DeathRecord {
+  id              String         @id @default(cuid())
+  animalId        String         @unique
+  animal          Animal         @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  date            DateTime       @default(now())
+  cause           DeathCause     @default(UNKNOWN)
+  causeDetail     String?
+  disposalMethod  DisposalMethod @default(BURIED)
+  disposalNotes   String?
+  location        String?
+  weightKg        Float?
+  insuranceClaim  Boolean        @default(false)
+  claimAmountTzs  Float?
+  claimReference  String?
+  isCulling       Boolean        @default(false)
+  recordedById    String
+  recordedBy      User           @relation(fields: [recordedById], references: [id])
+  notes           String?
+  createdAt       DateTime       @default(now())
+
+  @@index([date])
+  @@index([cause])
+}
+
+model AnimalEvent {
+  id           String          @id @default(cuid())
+  animalId     String
+  animal       Animal          @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  type         AnimalEventType
+  title        String
+  description  String?
+  occurredAt   DateTime        @default(now())
+  metadata     Json?
+  recordedById String?
+  recordedBy   User?           @relation(fields: [recordedById], references: [id])
+  createdAt    DateTime        @default(now())
+
+  @@index([animalId, occurredAt])
+  @@index([type, occurredAt])
+}
+
+model MedicineInventory {
+  id        String   @id @default(cuid())
+  campId    String?
+  camp      Camp?    @relation(fields: [campId], references: [id])
+  name      String
+  quantity  Float
+  unit      String   @default("doses")
+  expiry    DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RainfallLog {
+  id        String   @id @default(cuid())
+  campId    String
+  camp      Camp     @relation(fields: [campId], references: [id])
+  date      DateTime
+  mm        Float
+  notes     String?
+  createdAt DateTime @default(now())
+}
+
+model Alert {
+  id           String      @id @default(cuid())
+  type         AlertType
+  status       AlertStatus @default(PENDING)
+  title        String
+  message      String
+  animalId     String?
+  animal       Animal?     @relation(fields: [animalId], references: [id])
+  assigneeId   String?
+  assignee     User?       @relation("AlertAssignee", fields: [assigneeId], references: [id])
+  dueDate      DateTime?
+  createdAt    DateTime    @default(now())
+  resolvedAt   DateTime?
+
+  @@index([status, dueDate])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  action     String
+  entityType String
+  entityId   String
+  changes    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId, createdAt])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
