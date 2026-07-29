@@ -8,7 +8,7 @@ import {
 import { createAuditLog, withComputedAge } from "@/lib/services/animal-service";
 import { computeAgeMonths } from "@/lib/utils";
 import { logAnimalEvent } from "@/lib/services/event-service";
-import type { Role } from "@prisma/client";
+import type { Role, Sex, AnimalStatus, Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
   const result = await requirePermission("viewAnimal");
@@ -19,37 +19,98 @@ export async function GET(req: NextRequest) {
   const ownerId = searchParams.get("owner");
   const status = searchParams.get("status");
   const search = searchParams.get("search");
+  const sex = searchParams.get("sex");
+  const breed = searchParams.get("breed");
+  const castrated = searchParams.get("castrated");
+  const pregnant = searchParams.get("pregnant");
+  const ageGroup = searchParams.get("ageGroup");
+  const sort = searchParams.get("sort") || "eartag_asc";
 
   const scope = await buildAnimalScope(result.user.id, result.user.role as Role, {
-    campId,
+    campId: campId && campId !== "all" ? campId : null,
   });
   if ("error" in scope) return scope.error;
 
-  const animals = await prisma.animal.findMany({
-    where: {
-      ...scope,
-      ...(ownerId && result.user.role !== "EXTERNAL_OWNER" ? { ownerId } : {}),
-      ...(status ? { status: status as "ACTIVE" } : {}),
-      ...(search
-        ? {
-            OR: [
-              { eartag: { contains: search, mode: "insensitive" } },
-              { breed: { contains: search, mode: "insensitive" } },
-            ],
-          }
+  const where: Prisma.AnimalWhereInput = {
+    ...scope,
+    ...(ownerId && ownerId !== "all" && result.user.role !== "EXTERNAL_OWNER"
+      ? { ownerId }
+      : {}),
+    ...(status && status !== "ALL" ? { status: status as AnimalStatus } : {}),
+    ...(sex === "MALE" || sex === "FEMALE" ? { sex: sex as Sex } : {}),
+    ...(breed && breed !== "all" ? { breed } : {}),
+    ...(castrated === "true"
+      ? { sex: "MALE" as Sex, isCastrated: true }
+      : castrated === "false"
+        ? { sex: "MALE" as Sex, isCastrated: false }
         : {}),
-    },
+    ...(pregnant === "true"
+      ? { sex: "FEMALE" as Sex, isPregnant: true }
+      : pregnant === "false"
+        ? { sex: "FEMALE" as Sex, isPregnant: false }
+        : {}),
+    ...(search
+      ? {
+          OR: [
+            { eartag: { contains: search, mode: "insensitive" } },
+            { breed: { contains: search, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
+
+  const orderBy: Prisma.AnimalOrderByWithRelationInput =
+    sort === "eartag_desc"
+      ? { eartag: "desc" }
+      : sort === "breed_asc"
+        ? { breed: "asc" }
+        : sort === "sex_asc"
+          ? { sex: "asc" }
+          : sort === "sex_desc"
+            ? { sex: "desc" }
+            : sort === "newest"
+              ? { createdAt: "desc" }
+              : { eartag: "asc" };
+
+  const animals = await prisma.animal.findMany({
+    where,
     include: {
       camp: { select: { id: true, name: true } },
       owner: { select: { id: true, name: true } },
       sire: { select: { id: true, eartag: true } },
       dam: { select: { id: true, eartag: true } },
     },
-    orderBy: { eartag: "asc" },
-    take: 200,
+    orderBy,
+    take: 300,
   });
 
-  return NextResponse.json(animals.map(withComputedAge));
+  let mapped = animals.map(withComputedAge);
+
+  if (ageGroup === "calf") {
+    mapped = mapped.filter((a) => (a.ageMonths ?? 999) < 12);
+  } else if (ageGroup === "yearling") {
+    mapped = mapped.filter((a) => {
+      const m = a.ageMonths ?? -1;
+      return m >= 12 && m < 24;
+    });
+  } else if (ageGroup === "adult") {
+    mapped = mapped.filter((a) => {
+      const m = a.ageMonths ?? -1;
+      return m >= 24 && m < 60;
+    });
+  } else if (ageGroup === "mature") {
+    mapped = mapped.filter((a) => (a.ageMonths ?? -1) >= 60);
+  }
+
+  if (sort === "age_asc") {
+    mapped.sort((a, b) => (a.ageMonths ?? 0) - (b.ageMonths ?? 0));
+  } else if (sort === "age_desc") {
+    mapped.sort((a, b) => (b.ageMonths ?? 0) - (a.ageMonths ?? 0));
+  } else if (sort === "camp_asc") {
+    mapped.sort((a, b) => a.camp.name.localeCompare(b.camp.name));
+  }
+
+  return NextResponse.json(mapped);
 }
 
 export async function POST(req: NextRequest) {
