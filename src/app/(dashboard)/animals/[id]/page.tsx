@@ -13,7 +13,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatDate } from "@/lib/utils";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { PedigreeTree } from "@/components/pedigree-tree";
+import { AnimalPhotoGallery, type AnimalPhoto } from "@/components/animal-photo-gallery";
 import { ArrowLeft } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { hasPermission } from "@/lib/auth/rbac";
+import type { Role } from "@prisma/client";
 
 interface AnimalEvent {
   id: string;
@@ -63,6 +67,7 @@ interface AnimalDetail {
   movements: { id: string; date: string; fromCamp: { name: string }; toCamp: { name: string }; authorizedBy: { name: string } }[];
   events: AnimalEvent[];
   deathRecord: DeathRecord | null;
+  photos: AnimalPhoto[];
 }
 
 const DEATH_CAUSES = [
@@ -81,6 +86,9 @@ const DISPOSAL_METHODS = ["BURIED", "BURNED", "SOLD_CARCASS", "REMOVED", "OTHER"
 
 export default function AnimalDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { data: session } = useSession();
+  const role = session?.user?.role as Role | undefined;
+  const canEdit = role ? hasPermission(role, "editAnimal") : false;
   const [animal, setAnimal] = useState<AnimalDetail | null>(null);
   const [pedigree, setPedigree] = useState<Record<string, unknown> | null>(null);
   const [camps, setCamps] = useState<{ id: string; name: string }[]>([]);
@@ -212,14 +220,13 @@ export default function AnimalDetailPage() {
       </Link>
 
       <div className="flex flex-col md:flex-row gap-6">
-        <div className="w-full md:w-48 h-48 rounded-lg bg-muted flex items-center justify-center overflow-hidden shrink-0">
-          {animal.photoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={animal.photoUrl} alt={animal.eartag} className="w-full h-full object-cover" />
-          ) : (
-            <span className="text-6xl">🐄</span>
-          )}
-        </div>
+        <AnimalPhotoGallery
+          animalId={id}
+          initialPhotos={animal.photos || []}
+          coverUrl={animal.photoUrl}
+          canEdit={canEdit && !isDeceased}
+          onPhotosChange={loadAnimal}
+        />
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2 flex-wrap">
             <h1 className="text-3xl font-bold">{animal.eartag}</h1>

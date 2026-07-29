@@ -61,6 +61,10 @@ export async function GET(
         take: 50,
         include: { recordedBy: { select: { id: true, name: true } } },
       },
+      photos: {
+        orderBy: { takenAt: "desc" },
+        include: { uploadedBy: { select: { name: true } } },
+      },
     },
   });
 

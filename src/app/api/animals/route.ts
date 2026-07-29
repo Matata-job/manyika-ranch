@@ -71,11 +71,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Eartag already exists" }, { status: 409 });
   }
 
+  const photoUrls: string[] = Array.isArray(body.photoUrls)
+    ? body.photoUrls
+    : body.photoUrl
+      ? [body.photoUrl]
+      : [];
+  const primaryPhoto = photoUrls[0] || body.photoUrl || null;
+
   const animal = await prisma.animal.create({
     data: {
       eartag: body.eartag,
       rfidChip: body.rfidChip,
-      photoUrl: body.photoUrl,
+      photoUrl: primaryPhoto,
       breed: body.breed,
       sex: body.sex,
       dob,
@@ -95,6 +102,17 @@ export async function POST(req: NextRequest) {
       owner: { select: { id: true, name: true } },
     },
   });
+
+  if (photoUrls.length > 0) {
+    await prisma.animalPhoto.createMany({
+      data: photoUrls.map((url: string) => ({
+        animalId: animal.id,
+        url,
+        takenAt: new Date(),
+        uploadedById: result.user.id,
+      })),
+    });
+  }
 
   await createAuditLog(result.user.id, "CREATE", "Animal", animal.id, { eartag: body.eartag });
   await logAnimalEvent({

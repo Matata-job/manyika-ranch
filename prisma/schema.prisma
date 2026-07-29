@@ -118,6 +118,7 @@ model Ranch {
   updatedAt DateTime @updatedAt
   camps     Camp[]
   users     User[]
+  breeds    BreedCatalog[]
 }
 
 model User {
@@ -151,6 +152,7 @@ model User {
   alerts        Alert[]              @relation("AlertAssignee")
   deathRecords  DeathRecord[]
   animalEvents  AnimalEvent[]
+  uploadedAnimalPhotos AnimalPhoto[]
 }
 
 model UserCampAssignment {
@@ -199,7 +201,6 @@ model Animal {
   eartag           String          @unique
   rfidChip         String?
   photoUrl         String?
-  photoGallery     String[]        @default([])
   breed            String
   sex              Sex
   dob              DateTime?
@@ -235,10 +236,36 @@ model Animal {
   alerts           Alert[]
   deathRecord      DeathRecord?
   events           AnimalEvent[]
+  photos           AnimalPhoto[]
 
   @@index([campId])
   @@index([ownerId])
   @@index([status])
+}
+
+model AnimalPhoto {
+  id           String   @id @default(cuid())
+  animalId     String
+  animal       Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  url          String
+  caption      String?
+  takenAt      DateTime @default(now())
+  uploadedById String?
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([animalId])
+}
+
+model BreedCatalog {
+  id          String   @id @default(cuid())
+  ranchId     String
+  ranch       Ranch    @relation(fields: [ranchId], references: [id])
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+
+  @@unique([ranchId, name])
 }
 
 model WeightLog {

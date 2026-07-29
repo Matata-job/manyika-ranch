@@ -131,7 +131,16 @@ async function main() {
     });
   }
 
-  const breeds = ["Boran", "Sahiwal", "Brahman", "Crossbreed", "Ankole"];
+  const breedNames = ["Boran", "Sahiwal", "Brahman", "Crossbreed", "Ankole"];
+  for (const name of breedNames) {
+    await prisma.breedCatalog.upsert({
+      where: { ranchId_name: { ranchId: ranch.id, name } },
+      update: {},
+      create: { ranchId: ranch.id, name },
+    });
+  }
+
+  const breeds = breedNames;
   const bulls: string[] = [];
   const cows: string[] = [];
 
