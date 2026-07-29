@@ -65,7 +65,8 @@ git push -u origin main
 
 | Name | Value |
 |------|--------|
-| `DATABASE_URL` | Neon connection string |
+| `DATABASE_URL` | Neon **pooled** connection string (`-pooler` in hostname) |
+| `DIRECT_URL` | Neon **direct** connection string (no `-pooler`) — required for migrations |
 | `AUTH_SECRET` | `openssl rand -base64 32` |
 | `NEXTAUTH_SECRET` | same as `AUTH_SECRET` |
 | `AUTH_URL` | `https://YOUR_PROJECT.vercel.app` (update after first deploy if needed) |
@@ -139,7 +140,8 @@ Without Supabase vars, photos save to `public/uploads` (fine for local only).
 
 | Problem | Fix |
 |---------|-----|
-| Build fails on `migrate deploy` | Check `DATABASE_URL` is reachable from Vercel (Neon allows all IPs by default) |
+| Build fails on `migrate deploy` | Add `DIRECT_URL` (Neon direct, not pooled). Avoid running `migrate deploy` locally while Vercel is building. |
+| Advisory lock timeout | Use `DIRECT_URL` for migrations; wait for in-progress Vercel deploy to finish, then redeploy |
 | Login redirects loop | `AUTH_URL` / `NEXTAUTH_URL` must match the live HTTPS URL exactly |
 | Photo upload fails | Bucket missing or wrong service role key; run `npm run storage:setup` |
 | PWA not updating | Hard refresh; Serwist is enabled in production builds only |
