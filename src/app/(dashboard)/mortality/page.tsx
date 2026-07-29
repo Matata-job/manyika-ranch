@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
+import { useT } from "@/components/providers/locale-provider";
 
 interface MortalityReport {
   total: number;
@@ -31,6 +32,7 @@ interface MortalityReport {
 }
 
 export default function MortalityPage() {
+  const t = useT();
   const [data, setData] = useState<MortalityReport | null>(null);
 
   useEffect(() => {
@@ -42,8 +44,8 @@ export default function MortalityPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Mortality & Culling</h1>
-        <p className="text-muted-foreground">Death records, causes, and insurance claims</p>
+        <h1 className="text-3xl font-bold">{t("mortalityTitle")}</h1>
+        <p className="text-muted-foreground">{t("mortalitySubtitle")}</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -78,7 +80,7 @@ export default function MortalityPage() {
         <CardHeader><CardTitle>Death Records</CardTitle></CardHeader>
         <CardContent>
           {!data?.records?.length ? (
-            <p className="text-sm text-muted-foreground">No death records yet</p>
+            <p className="text-sm text-muted-foreground">{t("noMortality")}</p>
           ) : (
             <div className="rounded-lg border overflow-x-auto">
               <table className="w-full text-sm">

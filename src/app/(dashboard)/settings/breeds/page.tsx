@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Plus } from "lucide-react";
+import { useT } from "@/components/providers/locale-provider";
 
 interface Breed {
   id: string;
@@ -16,6 +17,7 @@ interface Breed {
 }
 
 export default function BreedsPage() {
+  const t = useT();
   const [breeds, setBreeds] = useState<Breed[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", description: "" });
@@ -50,26 +52,26 @@ export default function BreedsPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <Link href="/animals/new" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4 mr-1" /> Back to register animal
+        <ArrowLeft className="h-4 w-4 mr-1" /> {t("backToRegister")}
       </Link>
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Breeds</h1>
-          <p className="text-muted-foreground">Manage breeds available when registering animals</p>
+          <h1 className="text-3xl font-bold">{t("breedsTitle")}</h1>
+          <p className="text-muted-foreground">{t("breedsSubtitle")}</p>
         </div>
         <Button onClick={() => setShowForm(!showForm)}>
-          <Plus className="h-4 w-4 mr-2" />Add Breed
+          <Plus className="h-4 w-4 mr-2" />{t("addBreed")}
         </Button>
       </div>
 
       {showForm && (
         <Card>
-          <CardHeader><CardTitle>New Breed</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t("newBreed")}</CardTitle></CardHeader>
           <CardContent>
             <form onSubmit={addBreed} className="space-y-4">
               <div className="space-y-2">
-                <Label>Breed name *</Label>
+                <Label>{t("breedName")} *</Label>
                 <Input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -86,7 +88,7 @@ export default function BreedsPage() {
                 />
               </div>
               <Button type="submit" disabled={saving}>
-                {saving ? "Saving..." : "Add Breed"}
+                {saving ? t("saving") : t("addBreed")}
               </Button>
             </form>
           </CardContent>
@@ -94,10 +96,10 @@ export default function BreedsPage() {
       )}
 
       <Card>
-        <CardHeader><CardTitle>{breeds.length} breeds</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("breedsCount", { n: breeds.length })}</CardTitle></CardHeader>
         <CardContent>
           {breeds.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No breeds yet. Add your first breed above.</p>
+            <p className="text-sm text-muted-foreground">{t("noBreeds")}</p>
           ) : (
             <ul className="divide-y">
               {breeds.map((b) => (

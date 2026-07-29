@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ROLE_LABELS } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 import { formatDate } from "@/lib/utils";
+import { useT } from "@/components/providers/locale-provider";
 
 interface AuditRow {
   id: string;
@@ -43,6 +44,7 @@ const ACTIONS = [
 ] as const;
 
 export default function AuditLogPage() {
+  const t = useT();
   const [logs, setLogs] = useState<AuditRow[]>([]);
   const [users, setUsers] = useState<StaffUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,10 +89,8 @@ export default function AuditLogPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Activity log</h1>
-        <p className="text-muted-foreground">
-          Track who changed what — edits, moves, sales, deaths, imports, and more
-        </p>
+        <h1 className="text-3xl font-bold">{t("activityLogTitle")}</h1>
+        <p className="text-muted-foreground">{t("activityLogSubtitle")}</p>
       </div>
 
       <Card>
@@ -138,7 +138,7 @@ export default function AuditLogPage() {
             <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="From" />
             <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} aria-label="To" />
             <Button onClick={load} disabled={loading}>
-              {loading ? "Loading..." : "Apply"}
+              {loading ? t("loading") : t("apply")}
             </Button>
           </div>
         </CardContent>
@@ -146,11 +146,11 @@ export default function AuditLogPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{loading ? "Loading..." : `${logs.length} entries`}</CardTitle>
+          <CardTitle>{loading ? t("loading") : `${logs.length} entries`}</CardTitle>
         </CardHeader>
         <CardContent>
           {logs.length === 0 && !loading ? (
-            <p className="text-sm text-muted-foreground">No activity found</p>
+            <p className="text-sm text-muted-foreground">{t("noActivity")}</p>
           ) : (
             <div className="rounded-lg border overflow-x-auto">
               <table className="w-full text-sm">

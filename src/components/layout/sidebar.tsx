@@ -26,28 +26,95 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
-import { ROLE_LABELS } from "@/lib/auth/rbac";
+import { LanguageSwitcher } from "@/components/providers/language-switcher";
+import { useT, useLocale } from "@/components/providers/locale-provider";
+import { roleLabel, type TranslationKey } from "@/lib/i18n/translations";
 import type { Role } from "@prisma/client";
 import { useState } from "react";
 
-const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: "all" },
-  { href: "/camps", label: "Camps", icon: Tent, roles: "all" },
-  { href: "/animals", label: "Animals", icon: Beef, roles: "all" },
-  { href: "/health", label: "Health", icon: HeartPulse, roles: ["OWNER", "FARM_MANAGER", "CAMP_SUPERVISOR", "VETERINARIAN", "RECORDS_CLERK"] },
-  { href: "/events", label: "Events", icon: Activity, roles: "all" },
-  { href: "/mortality", label: "Mortality", icon: Skull, roles: ["OWNER", "FARM_MANAGER", "CAMP_SUPERVISOR", "VETERINARIAN", "RECORDS_CLERK", "VIEWER"] },
-  { href: "/sales", label: "Sales", icon: CircleDollarSign, roles: ["OWNER", "FARM_MANAGER", "RECORDS_CLERK", "VIEWER"] },
-  { href: "/buyers", label: "Buyers", icon: Contact, roles: ["OWNER", "FARM_MANAGER", "RECORDS_CLERK"] },
-  { href: "/finance", label: "Finance", icon: Wallet, roles: ["OWNER", "FARM_MANAGER", "RECORDS_CLERK", "VIEWER"] },
-  { href: "/movements", label: "Movements", icon: ArrowLeftRight, roles: ["OWNER", "FARM_MANAGER"] },
-  { href: "/breeding", label: "Breeding", icon: Dna, roles: ["OWNER", "FARM_MANAGER", "CAMP_SUPERVISOR", "RECORDS_CLERK"] },
-  { href: "/reports", label: "Reports", icon: BarChart3, roles: ["OWNER", "FARM_MANAGER", "CAMP_SUPERVISOR", "VETERINARIAN", "RECORDS_CLERK", "VIEWER"] },
-  { href: "/alerts", label: "Alerts", icon: Bell, roles: "all" },
-  { href: "/settings/users", label: "Users", icon: Users, roles: ["OWNER", "FARM_MANAGER"] },
-  { href: "/settings/audit", label: "Activity log", icon: Activity, roles: ["OWNER", "FARM_MANAGER"] },
-  { href: "/settings/breeds", label: "Breeds", icon: Dna, roles: ["OWNER", "FARM_MANAGER"] },
-  { href: "/settings/ranch", label: "Settings", icon: Settings, roles: ["OWNER", "FARM_MANAGER"] },
+const navItems: {
+  href: string;
+  labelKey: TranslationKey;
+  icon: typeof LayoutDashboard;
+  roles: "all" | string[];
+}[] = [
+  { href: "/", labelKey: "navDashboard", icon: LayoutDashboard, roles: "all" },
+  { href: "/camps", labelKey: "navCamps", icon: Tent, roles: "all" },
+  { href: "/animals", labelKey: "navAnimals", icon: Beef, roles: "all" },
+  {
+    href: "/health",
+    labelKey: "navHealth",
+    icon: HeartPulse,
+    roles: ["OWNER", "FARM_MANAGER", "CAMP_SUPERVISOR", "VETERINARIAN", "RECORDS_CLERK"],
+  },
+  { href: "/events", labelKey: "navEvents", icon: Activity, roles: "all" },
+  {
+    href: "/mortality",
+    labelKey: "navMortality",
+    icon: Skull,
+    roles: ["OWNER", "FARM_MANAGER", "CAMP_SUPERVISOR", "VETERINARIAN", "RECORDS_CLERK", "VIEWER"],
+  },
+  {
+    href: "/sales",
+    labelKey: "navSales",
+    icon: CircleDollarSign,
+    roles: ["OWNER", "FARM_MANAGER", "RECORDS_CLERK", "VIEWER"],
+  },
+  {
+    href: "/buyers",
+    labelKey: "navBuyers",
+    icon: Contact,
+    roles: ["OWNER", "FARM_MANAGER", "RECORDS_CLERK"],
+  },
+  {
+    href: "/finance",
+    labelKey: "navFinance",
+    icon: Wallet,
+    roles: ["OWNER", "FARM_MANAGER", "RECORDS_CLERK", "VIEWER"],
+  },
+  {
+    href: "/movements",
+    labelKey: "navMovements",
+    icon: ArrowLeftRight,
+    roles: ["OWNER", "FARM_MANAGER"],
+  },
+  {
+    href: "/breeding",
+    labelKey: "navBreeding",
+    icon: Dna,
+    roles: ["OWNER", "FARM_MANAGER", "CAMP_SUPERVISOR", "RECORDS_CLERK"],
+  },
+  {
+    href: "/reports",
+    labelKey: "navReports",
+    icon: BarChart3,
+    roles: ["OWNER", "FARM_MANAGER", "CAMP_SUPERVISOR", "VETERINARIAN", "RECORDS_CLERK", "VIEWER"],
+  },
+  { href: "/alerts", labelKey: "navAlerts", icon: Bell, roles: "all" },
+  {
+    href: "/settings/users",
+    labelKey: "navUsers",
+    icon: Users,
+    roles: ["OWNER", "FARM_MANAGER"],
+  },
+  {
+    href: "/settings/audit",
+    labelKey: "navActivityLog",
+    icon: Activity,
+    roles: ["OWNER", "FARM_MANAGER"],
+  },
+  {
+    href: "/settings/breeds",
+    labelKey: "navBreeds",
+    icon: Dna,
+    roles: ["OWNER", "FARM_MANAGER"],
+  },
+  {
+    href: "/settings/ranch",
+    labelKey: "navSettings",
+    icon: Settings,
+    roles: ["OWNER", "FARM_MANAGER"],
+  },
 ];
 
 interface SidebarProps {
@@ -57,6 +124,8 @@ interface SidebarProps {
 export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const t = useT();
+  const { locale } = useLocale();
 
   const filteredNav = navItems.filter((item) => {
     if (item.roles === "all") return true;
@@ -71,10 +140,12 @@ export function Sidebar({ user }: SidebarProps) {
           <span>Manyika Ranch</span>
         </Link>
       </div>
-      <nav className="flex-1 space-y-1 p-4">
+      <nav className="flex-1 space-y-1 p-4 overflow-y-auto">
         {filteredNav.map((item) => {
           const Icon = item.icon;
-          const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+          const isActive =
+            pathname === item.href ||
+            (item.href !== "/" && pathname.startsWith(item.href));
           return (
             <Link
               key={item.href}
@@ -82,25 +153,28 @@ export function Sidebar({ user }: SidebarProps) {
               onClick={() => setMobileOpen(false)}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                active
+                isActive
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
               <Icon className="h-4 w-4" />
-              {item.label}
+              {t(item.labelKey)}
             </Link>
           );
         })}
       </nav>
       <div className="border-t p-4 space-y-3">
+        <LanguageSwitcher />
         <Link
           href={user.id ? `/settings/users/${user.id}` : "#"}
           onClick={() => setMobileOpen(false)}
           className="block px-3 rounded-lg hover:bg-muted transition-colors py-1"
         >
           <p className="text-sm font-medium">{user.name}</p>
-          <p className="text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</p>
+          <p className="text-xs text-muted-foreground">
+            {roleLabel(locale, user.role)}
+          </p>
         </Link>
         <SyncStatusBadge />
         <Button
@@ -109,7 +183,7 @@ export function Sidebar({ user }: SidebarProps) {
           onClick={() => signOut({ callbackUrl: "/login" })}
         >
           <LogOut className="h-4 w-4" />
-          Sign out
+          {t("signOut")}
         </Button>
       </div>
     </>

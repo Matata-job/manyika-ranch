@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatCurrency } from "@/lib/utils";
 import { ArrowLeft, Download } from "lucide-react";
+import { useT } from "@/components/providers/locale-provider";
 
 interface PnLData {
   summary: {
@@ -38,11 +39,27 @@ interface PnLData {
   }[];
 }
 
-function labelCat(c: string) {
-  return c.replace(/_/g, " ");
+function labelCat(c: string, t: (key: import("@/lib/i18n/translations").TranslationKey) => string) {
+  const map: Record<string, import("@/lib/i18n/translations").TranslationKey> = {
+    FEED: "catFeed",
+    VET_MEDICINE: "catVetMedicine",
+    WAGES: "catWages",
+    TRANSPORT: "transport",
+    EQUIPMENT: "catEquipment",
+    MAINTENANCE: "catMaintenance",
+    FUEL: "catFuel",
+    WATER: "catWater",
+    INSURANCE: "catInsurance",
+    GRAZING_FEES: "catGrazingFees",
+    MANURE: "catManure",
+    SERVICES: "catServices",
+    SUBSIDY: "catSubsidy",
+  };
+  return t(map[c] || "other");
 }
 
 export default function PnLPage() {
+  const t = useT();
   const [data, setData] = useState<PnLData | null>(null);
   const [camps, setCamps] = useState<{ id: string; name: string }[]>([]);
   const [from, setFrom] = useState("");
@@ -113,15 +130,15 @@ export default function PnLPage() {
             href="/finance"
             className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-2"
           >
-            <ArrowLeft className="h-4 w-4 mr-1" /> Finance
+            <ArrowLeft className="h-4 w-4 mr-1" /> {t("financeTitle")}
           </Link>
-          <h1 className="text-3xl font-bold">Profit &amp; loss</h1>
+          <h1 className="text-3xl font-bold">{t("pnl")}</h1>
           <p className="text-muted-foreground">
-            Animal sales + other income − expenses
+            {t("pnlSubtitle")}
           </p>
         </div>
         <Button variant="outline" onClick={exportCsv} disabled={!data}>
-          <Download className="h-4 w-4 mr-2" /> Export CSV
+          <Download className="h-4 w-4 mr-2" /> {t("exportCsv")}
         </Button>
       </div>
 
@@ -135,7 +152,7 @@ export default function PnLPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All camps</SelectItem>
+                <SelectItem value="all">{t("allCamps")}</SelectItem>
                 {camps.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.name}
@@ -144,7 +161,7 @@ export default function PnLPage() {
               </SelectContent>
             </Select>
             <Button onClick={load} disabled={loading}>
-              {loading ? "Loading..." : "Apply"}
+              {loading ? t("loading") : t("apply")}
             </Button>
           </div>
         </CardContent>
@@ -153,20 +170,22 @@ export default function PnLPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Sales revenue</CardTitle>
+            <CardTitle className="text-sm">{t("salesRevenue")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
               {data ? formatCurrency(data.summary.salesRevenue) : "—"}
             </p>
             {data && (
-              <p className="text-xs text-muted-foreground">{data.summary.saleCount} sales</p>
+              <p className="text-xs text-muted-foreground">
+                {t("salesCountLabel", { n: data.summary.saleCount })}
+              </p>
             )}
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Other income</CardTitle>
+            <CardTitle className="text-sm">{t("otherIncomeTitle")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
@@ -176,7 +195,7 @@ export default function PnLPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Expenses</CardTitle>
+            <CardTitle className="text-sm">{t("expenses")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
@@ -186,7 +205,7 @@ export default function PnLPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Net</CardTitle>
+            <CardTitle className="text-sm">{t("net")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
@@ -200,15 +219,15 @@ export default function PnLPage() {
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>Expenses by category</CardTitle>
+              <CardTitle>{t("expensesByCategory")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {data.expensesByCategory.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No expenses</p>
+                <p className="text-sm text-muted-foreground">{t("noExpenses")}</p>
               ) : (
                 data.expensesByCategory.map((r) => (
                   <div key={r.name} className="flex justify-between text-sm border-b pb-2">
-                    <span>{labelCat(r.name)}</span>
+                    <span>{labelCat(r.name, t)}</span>
                     <span className="font-medium">{formatCurrency(r.amount)}</span>
                   </div>
                 ))
@@ -217,15 +236,15 @@ export default function PnLPage() {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Other income by category</CardTitle>
+              <CardTitle>{t("otherIncomeByCategory")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {data.incomeByCategory.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No other income</p>
+                <p className="text-sm text-muted-foreground">{t("noOtherIncome")}</p>
               ) : (
                 data.incomeByCategory.map((r) => (
                   <div key={r.name} className="flex justify-between text-sm border-b pb-2">
-                    <span>{labelCat(r.name)}</span>
+                    <span>{labelCat(r.name, t)}</span>
                     <span className="font-medium">{formatCurrency(r.amount)}</span>
                   </div>
                 ))
@@ -234,21 +253,21 @@ export default function PnLPage() {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>By month</CardTitle>
+              <CardTitle>{t("byMonth")}</CardTitle>
             </CardHeader>
             <CardContent>
               {data.monthly.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No data</p>
+                <p className="text-sm text-muted-foreground">{t("noData")}</p>
               ) : (
                 <div className="rounded-lg border overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b bg-muted/50">
-                        <th className="p-2 text-left">Month</th>
-                        <th className="p-2 text-right">Sales</th>
-                        <th className="p-2 text-right">Other</th>
-                        <th className="p-2 text-right">Expenses</th>
-                        <th className="p-2 text-right">Net</th>
+                        <th className="p-2 text-left">{t("month")}</th>
+                        <th className="p-2 text-right">{t("salesTitle")}</th>
+                        <th className="p-2 text-right">{t("other")}</th>
+                        <th className="p-2 text-right">{t("expenses")}</th>
+                        <th className="p-2 text-right">{t("net")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -271,21 +290,21 @@ export default function PnLPage() {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>By camp</CardTitle>
+              <CardTitle>{t("byCamp")}</CardTitle>
             </CardHeader>
             <CardContent>
               {data.byCamp.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No data</p>
+                <p className="text-sm text-muted-foreground">{t("noData")}</p>
               ) : (
                 <div className="rounded-lg border overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b bg-muted/50">
-                        <th className="p-2 text-left">Camp</th>
-                        <th className="p-2 text-right">Sales</th>
-                        <th className="p-2 text-right">Other</th>
-                        <th className="p-2 text-right">Expenses</th>
-                        <th className="p-2 text-right">Net</th>
+                        <th className="p-2 text-left">{t("camp")}</th>
+                        <th className="p-2 text-right">{t("salesTitle")}</th>
+                        <th className="p-2 text-right">{t("other")}</th>
+                        <th className="p-2 text-right">{t("expenses")}</th>
+                        <th className="p-2 text-right">{t("net")}</th>
                       </tr>
                     </thead>
                     <tbody>

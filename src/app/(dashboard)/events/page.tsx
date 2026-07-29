@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatDate } from "@/lib/utils";
+import { useT } from "@/components/providers/locale-provider";
 
 interface RanchEvent {
   id: string;
@@ -46,6 +47,7 @@ function monthOptions(count = 24): { value: string; label: string }[] {
 }
 
 export default function EventsPage() {
+  const t = useT();
   const months = useMemo(() => monthOptions(), []);
   const [events, setEvents] = useState<RanchEvent[]>([]);
   const [type, setType] = useState("");
@@ -73,10 +75,8 @@ export default function EventsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Cattle Events</h1>
-        <p className="text-muted-foreground">
-          Ranch-wide activity timeline · filter by type, month, or date range
-        </p>
+        <h1 className="text-3xl font-bold">{t("eventsTitle")}</h1>
+        <p className="text-muted-foreground">{t("eventsSubtitle")}</p>
       </div>
 
       <Card>
@@ -142,7 +142,7 @@ export default function EventsPage() {
                   setTo("");
                 }}
               >
-                Clear filters
+                {t("clearFilters")}
               </Button>
             )}
           </div>
@@ -151,11 +151,11 @@ export default function EventsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{loading ? "Loading..." : `${events.length} events`}</CardTitle>
+          <CardTitle>{loading ? t("loading") : `${events.length} events`}</CardTitle>
         </CardHeader>
         <CardContent>
           {events.length === 0 && !loading ? (
-            <p className="text-sm text-muted-foreground">No events found</p>
+            <p className="text-sm text-muted-foreground">{t("noEvents")}</p>
           ) : (
             <div className="space-y-3">
               {events.map((ev) => (

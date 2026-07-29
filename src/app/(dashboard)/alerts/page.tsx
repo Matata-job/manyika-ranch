@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
+import { useT } from "@/components/providers/locale-provider";
 
 interface Alert {
   id: string;
@@ -18,6 +19,7 @@ interface Alert {
 }
 
 export default function AlertsPage() {
+  const t = useT();
   const [alerts, setAlerts] = useState<Alert[]>([]);
 
   async function loadAlerts() {
@@ -40,15 +42,15 @@ export default function AlertsPage() {
     
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Alerts</h1>
-          <p className="text-muted-foreground">{alerts.length} active alerts</p>
+          <h1 className="text-3xl font-bold">{t("alertsTitle")}</h1>
+          <p className="text-muted-foreground">{t("alertsSubtitle")}</p>
         </div>
 
         <Card>
           <CardHeader><CardTitle>Pending Alerts</CardTitle></CardHeader>
           <CardContent>
             {alerts.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No pending alerts</p>
+              <p className="text-muted-foreground text-sm">{t("noAlerts")}</p>
             ) : (
               <div className="space-y-3">
                 {alerts.map((alert) => (
@@ -71,7 +73,7 @@ export default function AlertsPage() {
                       )}
                     </div>
                     <Button size="sm" variant="outline" onClick={() => resolveAlert(alert.id)}>
-                      Resolve
+                      {t("markResolved")}
                     </Button>
                   </div>
                 ))}

@@ -8,10 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Beef } from "lucide-react";
+import { LanguageSwitcher } from "@/components/providers/language-switcher";
+import { useT } from "@/components/providers/locale-provider";
 
 function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
+  const t = useT();
   const [email, setEmail] = useState("owner@manyikaranch.co.tz");
   const [password, setPassword] = useState("admin123");
   const [error, setError] = useState("");
@@ -30,12 +33,11 @@ function LoginForm() {
     });
 
     if (result?.error) {
-      setError("Invalid email or password");
+      setError(t("invalidCredentials"));
       setLoading(false);
       return;
     }
 
-    // Hard navigation so middleware picks up the new session cookie
     window.location.href = result?.url || callbackUrl;
   }
 
@@ -43,16 +45,19 @@ function LoginForm() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-amber-50 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
+          <div className="flex justify-end mb-2">
+            <LanguageSwitcher compact />
+          </div>
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
             <Beef className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-2xl">Manyika Ranch</CardTitle>
-          <CardDescription>Livestock Management — Singida</CardDescription>
+          <CardTitle className="text-2xl">{t("loginTitle")}</CardTitle>
+          <CardDescription>{t("loginSubtitle")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("email")}</Label>
               <Input
                 id="email"
                 type="email"
@@ -63,7 +68,7 @@ function LoginForm() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t("password")}</Label>
               <Input
                 id="password"
                 type="password"
@@ -74,11 +79,11 @@ function LoginForm() {
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in..." : "Sign in"}
+              {loading ? t("signingIn") : t("signIn")}
             </Button>
           </form>
           <p className="mt-4 text-center text-xs text-muted-foreground">
-            Demo: owner@manyikaranch.co.tz / admin123
+            {t("demoCredentials")}
           </p>
         </CardContent>
       </Card>
@@ -88,7 +93,13 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          Loading...
+        </div>
+      }
+    >
       <LoginForm />
     </Suspense>
   );

@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useT } from "@/components/providers/locale-provider";
 
 export default function NewCampPage() {
+  const t = useT();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
@@ -49,16 +51,16 @@ export default function NewCampPage() {
     
       <Card className="max-w-lg">
         <CardHeader>
-          <CardTitle>Add New Camp</CardTitle>
+          <CardTitle>{t("addCamp")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Camp Name</Label>
+              <Label htmlFor="name">{t("campName")}</Label>
               <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="capacity">Capacity</Label>
+              <Label htmlFor="capacity">{t("capacity")}</Label>
               <Input id="capacity" type="number" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -80,8 +82,8 @@ export default function NewCampPage() {
               <Textarea id="notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </div>
             <div className="flex gap-2">
-              <Button type="submit" disabled={loading}>{loading ? "Saving..." : "Save Camp"}</Button>
-              <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
+              <Button type="submit" disabled={loading}>{loading ? t("saving") : t("save")}</Button>
+              <Button type="button" variant="outline" onClick={() => router.back()}>{t("cancel")}</Button>
             </div>
           </form>
         </CardContent>

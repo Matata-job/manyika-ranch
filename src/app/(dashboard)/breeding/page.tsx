@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import { Plus } from "lucide-react";
+import { useT } from "@/components/providers/locale-provider";
 
 interface BreedingEvent {
   id: string;
@@ -22,6 +23,7 @@ interface BreedingEvent {
 }
 
 export default function BreedingPage() {
+  const t = useT();
   const [events, setEvents] = useState<BreedingEvent[]>([]);
   const [animals, setAnimals] = useState<{ id: string; eartag: string; sex: string }[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -83,8 +85,8 @@ export default function BreedingPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Breeding Program</h1>
-            <p className="text-muted-foreground">Mating records and calving</p>
+            <h1 className="text-3xl font-bold">{t("breedingTitle")}</h1>
+            <p className="text-muted-foreground">{t("breedingSubtitle")}</p>
           </div>
           <Button onClick={() => setShowForm(!showForm)}>
             <Plus className="h-4 w-4 mr-2" />Record Mating
@@ -97,7 +99,7 @@ export default function BreedingPage() {
             <CardContent>
               <form onSubmit={submitBreeding} className="grid gap-4 sm:grid-cols-2 max-w-lg">
                 <div className="space-y-2">
-                  <Label>Dam</Label>
+                  <Label>{t("dam")}</Label>
                   <Select value={form.damId} onValueChange={(v) => setForm({ ...form, damId: v })}>
                     <SelectTrigger><SelectValue placeholder="Select dam" /></SelectTrigger>
                     <SelectContent>
@@ -106,7 +108,7 @@ export default function BreedingPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Sire</Label>
+                  <Label>{t("sire")}</Label>
                   <Select value={form.sireId} onValueChange={(v) => setForm({ ...form, sireId: v })}>
                     <SelectTrigger><SelectValue placeholder="Select sire" /></SelectTrigger>
                     <SelectContent>
@@ -115,7 +117,7 @@ export default function BreedingPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Mating Date</Label>
+                  <Label>{t("matingDate")}</Label>
                   <Input type="date" value={form.matingDate} onChange={(e) => setForm({ ...form, matingDate: e.target.value })} required />
                 </div>
                 <div className="space-y-2">
@@ -173,6 +175,9 @@ export default function BreedingPage() {
         <Card>
           <CardHeader><CardTitle>Breeding Events</CardTitle></CardHeader>
           <CardContent>
+            {events.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("noBreeding")}</p>
+            ) : (
             <div className="space-y-3">
               {events.map((ev) => (
                 <div key={ev.id} className="flex items-center justify-between border-b pb-3">
@@ -183,7 +188,7 @@ export default function BreedingPage() {
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {formatDate(ev.matingDate)} · {ev.method}
-                      {ev.pregnancyConfirmed && " · Pregnant"}
+                      {ev.pregnancyConfirmed && ` · ${t("pregnant")}`}
                     </p>
                     {ev.calving && (
                       <p className="text-sm text-green-600">
@@ -203,6 +208,7 @@ export default function BreedingPage() {
                 </div>
               ))}
             </div>
+            )}
           </CardContent>
         </Card>
       </div>

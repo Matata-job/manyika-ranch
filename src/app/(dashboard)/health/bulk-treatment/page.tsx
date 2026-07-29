@@ -10,6 +10,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
+import { useT } from "@/components/providers/locale-provider";
+import type { TranslationKey } from "@/lib/i18n/translations";
+
+function treatmentTypeKey(type: string): TranslationKey {
+  switch (type) {
+    case "DEWORMING":
+      return "deworming";
+    case "DIPPING":
+      return "dipping";
+    case "ANTIBIOTIC":
+      return "antibiotic";
+    default:
+      return "other";
+  }
+}
 
 interface Camp {
   id: string;
@@ -25,14 +40,19 @@ interface AnimalRow {
   camp: { id: string; name: string };
 }
 
-const TREATMENT_TYPES = [
-  { value: "DEWORMING", label: "Deworming" },
-  { value: "DIPPING", label: "Dipping" },
-  { value: "ANTIBIOTIC", label: "Antibiotic" },
-  { value: "OTHER", label: "Other" },
+const TREATMENT_TYPE_VALUES = [
+  "DEWORMING",
+  "DIPPING",
+  "ANTIBIOTIC",
+  "OTHER",
 ] as const;
 
 export default function BulkTreatmentPage() {
+  const t = useT();
+  const TREATMENT_TYPES = TREATMENT_TYPE_VALUES.map((value) => ({
+    value,
+    label: t(treatmentTypeKey(value)),
+  }));
   const [camps, setCamps] = useState<Camp[]>([]);
   const [campId, setCampId] = useState("");
   const [sex, setSex] = useState("all");
@@ -115,23 +135,26 @@ export default function BulkTreatmentPage() {
   }
 
   const selectedLabel = useMemo(
-    () => `${selected.size} of ${animals.length} selected`,
-    [selected.size, animals.length]
+    () => t("selectedOf", { selected: selected.size, total: animals.length }),
+    [selected.size, animals.length, t]
   );
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (selected.size === 0) {
-      alert("Select at least one animal");
+      alert(t("selectAtLeastOneAnimal"));
       return;
     }
     if (!form.product.trim()) {
-      alert("Product is required");
+      alert(t("productRequired"));
       return;
     }
     if (
       !confirm(
-        `Apply ${form.type.replace(/_/g, " ").toLowerCase()} to ${selected.size} animal(s)?`
+        t("confirmApplyTreatment", {
+          type: t(treatmentTypeKey(form.type)),
+          n: selected.size,
+        })
       )
     ) {
       return;
@@ -157,7 +180,7 @@ export default function BulkTreatmentPage() {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      alert(err.error || "Bulk treatment failed");
+      alert(err.error || t("bulkTreatmentFailed"));
       return;
     }
 
@@ -181,16 +204,15 @@ export default function BulkTreatmentPage() {
           href="/health"
           className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-2"
         >
-          <ArrowLeft className="h-4 w-4 mr-1" /> Health
+          <ArrowLeft className="h-4 w-4 mr-1" /> {t("backToHealth")}
         </Link>
-        <h1 className="text-3xl font-bold">Bulk treatment</h1>
+        <h1 className="text-3xl font-bold">{t("bulkTreatmentTitle")}</h1>
         <p className="text-muted-foreground">
-          Apply one treatment to many animals in a camp (dip, deworm, etc.). Use a
-          schedule from{" "}
+          {t("bulkTreatmentSubtitle")} {t("useScheduleFrom")}{" "}
           <Link href="/health/schedules" className="text-primary hover:underline">
-            Health schedules
+            {t("healthSchedules")}
           </Link>{" "}
-          to set next due automatically.
+          {t("toSetNextDueAuto")}
         </p>
       </div>
 
@@ -198,12 +220,10 @@ export default function BulkTreatmentPage() {
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm">
-              Applied to <strong>{result.applied}</strong> animal
-              {result.applied === 1 ? "" : "s"}
+              {t("appliedToN", { n: result.applied })}
               {result.skipped > 0 && (
-                <> · skipped {result.skipped} (inaccessible or not active)</>
+                <> · {t("skippedInaccessible", { n: result.skipped })}</>
               )}
-              .
             </p>
           </CardContent>
         </Card>
@@ -211,12 +231,12 @@ export default function BulkTreatmentPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>1. Choose animals</CardTitle>
+          <CardTitle>{t("chooseAnimals")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Camp *</Label>
+              <Label>{t("camp")} *</Label>
               <Select
                 value={campId || undefined}
                 onValueChange={(v) => {
@@ -225,7 +245,7 @@ export default function BulkTreatmentPage() {
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select camp" />
+                  <SelectValue placeholder={t("selectCamp")} />
                 </SelectTrigger>
                 <SelectContent>
                   {camps.map((c) => (
@@ -237,26 +257,28 @@ export default function BulkTreatmentPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Sex filter</Label>
+              <Label>{t("sexFilter")}</Label>
               <Select value={sex} onValueChange={setSex}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="MALE">Male</SelectItem>
-                  <SelectItem value="FEMALE">Female</SelectItem>
+                  <SelectItem value="all">{t("all")}</SelectItem>
+                  <SelectItem value="MALE">{t("male")}</SelectItem>
+                  <SelectItem value="FEMALE">{t("female")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
           {!campId ? (
-            <p className="text-sm text-muted-foreground">Select a camp to load animals</p>
+            <p className="text-sm text-muted-foreground">{t("selectCampLoad")}</p>
           ) : loadingAnimals ? (
-            <p className="text-sm text-muted-foreground">Loading animals...</p>
+            <p className="text-sm text-muted-foreground">{t("loadingAnimals")}</p>
           ) : animals.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No active animals in this camp</p>
+            <p className="text-sm text-muted-foreground">
+              {t("noActiveAnimalsCamp")}
+            </p>
           ) : (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -269,7 +291,7 @@ export default function BulkTreatmentPage() {
                     }}
                     onChange={toggleAll}
                   />
-                  Select all
+                  {t("selectAll")}
                 </label>
                 <Badge variant="secondary">{selectedLabel}</Badge>
               </div>
@@ -298,13 +320,13 @@ export default function BulkTreatmentPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>2. Treatment details</CardTitle>
+          <CardTitle>{t("treatmentDetails")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
             {schedules.length > 0 && (
               <div className="space-y-2 sm:col-span-2">
-                <Label>From schedule</Label>
+                <Label>{t("fromSchedule")}</Label>
                 <Select
                   value={form.treatmentCatalogId || "__custom__"}
                   onValueChange={(v) => {
@@ -326,25 +348,29 @@ export default function BulkTreatmentPage() {
                   }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Optional schedule…" />
+                    <SelectValue placeholder={t("optionalSchedule")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__custom__">Custom / one-off</SelectItem>
+                    <SelectItem value="__custom__">
+                      {t("customOneOff")}
+                    </SelectItem>
                     {schedules.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
                         {s.name}
-                        {s.intervalDays ? ` (every ${s.intervalDays}d)` : ""}
+                        {s.intervalDays
+                          ? ` (${t("everyNDays", { n: s.intervalDays })})`
+                          : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Schedule interval sets next due automatically for each animal.
+                  {t("scheduleAutoDue")}
                 </p>
               </div>
             )}
             <div className="space-y-2">
-              <Label>Type *</Label>
+              <Label>{t("type")} *</Label>
               <Select
                 value={form.type}
                 onValueChange={(v) => setForm({ ...form, type: v })}
@@ -354,16 +380,16 @@ export default function BulkTreatmentPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {TREATMENT_TYPES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>
-                      {t.label}
+                  {TREATMENT_TYPES.map((tt) => (
+                    <SelectItem key={tt.value} value={tt.value}>
+                      {tt.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Product *</Label>
+              <Label>{t("product")} *</Label>
               <Input
                 value={form.product}
                 onChange={(e) =>
@@ -378,7 +404,7 @@ export default function BulkTreatmentPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Dose</Label>
+              <Label>{t("dose")}</Label>
               <Input
                 value={form.dose}
                 onChange={(e) => setForm({ ...form, dose: e.target.value })}
@@ -386,7 +412,7 @@ export default function BulkTreatmentPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Withdrawal (days)</Label>
+              <Label>{t("withdrawalDays")}</Label>
               <Input
                 type="number"
                 min={0}
@@ -398,7 +424,7 @@ export default function BulkTreatmentPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Date</Label>
+              <Label>{t("date")}</Label>
               <Input
                 type="date"
                 value={form.date}
@@ -406,7 +432,7 @@ export default function BulkTreatmentPage() {
               />
             </div>
             <div className="space-y-2 sm:col-span-2">
-              <Label>Notes</Label>
+              <Label>{t("notes")}</Label>
               <Textarea
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
@@ -419,8 +445,8 @@ export default function BulkTreatmentPage() {
               className="sm:col-span-2"
             >
               {saving
-                ? "Applying..."
-                : `Apply to ${selected.size} animal${selected.size === 1 ? "" : "s"}`}
+                ? t("applying")
+                : t("applyToN", { n: selected.size })}
             </Button>
           </form>
         </CardContent>

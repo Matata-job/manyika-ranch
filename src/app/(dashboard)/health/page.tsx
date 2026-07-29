@@ -10,6 +10,21 @@ import { formatDate } from "@/lib/utils";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 import { CalendarClock, Syringe } from "lucide-react";
+import { useT } from "@/components/providers/locale-provider";
+import type { TranslationKey } from "@/lib/i18n/translations";
+
+function treatmentTypeKey(type: string): TranslationKey {
+  switch (type) {
+    case "DEWORMING":
+      return "deworming";
+    case "DIPPING":
+      return "dipping";
+    case "ANTIBIOTIC":
+      return "antibiotic";
+    default:
+      return "other";
+  }
+}
 
 interface Vaccine {
   id: string;
@@ -41,6 +56,7 @@ interface DueTreatment {
 }
 
 export default function HealthPage() {
+  const t = useT();
   const { data: session } = useSession();
   const role = session?.user?.role as Role | undefined;
   const canManage = role ? hasPermission(role, "manageHealth") : false;
@@ -71,23 +87,21 @@ export default function HealthPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Health Management</h1>
-          <p className="text-muted-foreground">
-            Vaccinations, treatments, and health records
-          </p>
+          <h1 className="text-3xl font-bold">{t("healthTitle")}</h1>
+          <p className="text-muted-foreground">{t("healthSubtitle")}</p>
         </div>
         {canManage && (
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
               <Link href="/health/schedules">
                 <CalendarClock className="h-4 w-4 mr-2" />
-                Manage schedules
+                {t("manageSchedules")}
               </Link>
             </Button>
             <Button asChild>
               <Link href="/health/bulk-treatment">
                 <Syringe className="h-4 w-4 mr-2" />
-                Bulk treatment
+                {t("bulkTreatment")}
               </Link>
             </Button>
           </div>
@@ -96,11 +110,13 @@ export default function HealthPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Vaccinations Due (30 days)</CardTitle>
+          <CardTitle>{t("vaccinationsDue30")}</CardTitle>
         </CardHeader>
         <CardContent>
           {due.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No vaccinations due</p>
+            <p className="text-muted-foreground text-sm">
+              {t("noVaccinationsDue")}
+            </p>
           ) : (
             <div className="space-y-2">
               {due.map((v) => (
@@ -129,31 +145,33 @@ export default function HealthPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Treatments Due (30 days)</CardTitle>
+          <CardTitle>{t("treatmentsDue30")}</CardTitle>
         </CardHeader>
         <CardContent>
           {dueTreatments.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No treatments due</p>
+            <p className="text-muted-foreground text-sm">
+              {t("noTreatmentsDue")}
+            </p>
           ) : (
             <div className="space-y-2">
-              {dueTreatments.map((t) => (
+              {dueTreatments.map((dt) => (
                 <div
-                  key={t.id}
+                  key={dt.id}
                   className="flex items-center justify-between border-b pb-2"
                 >
                   <div>
                     <Link
-                      href={`/animals/${t.animal.id}`}
+                      href={`/animals/${dt.animal.id}`}
                       className="font-medium text-primary hover:underline"
                     >
-                      {t.animal.eartag}
+                      {dt.animal.eartag}
                     </Link>
                     <p className="text-sm text-muted-foreground">
-                      {t.product} ({t.type.replace(/_/g, " ")}) ·{" "}
-                      {t.animal.camp.name}
+                      {dt.product} ({t(treatmentTypeKey(dt.type))}) ·{" "}
+                      {dt.animal.camp.name}
                     </p>
                   </div>
-                  <Badge variant="warning">{formatDate(t.nextDue)}</Badge>
+                  <Badge variant="warning">{formatDate(dt.nextDue)}</Badge>
                 </div>
               ))}
             </div>
@@ -164,17 +182,17 @@ export default function HealthPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle>Vaccine Catalog</CardTitle>
+            <CardTitle>{t("vaccineCatalog")}</CardTitle>
             {canManage && (
               <Button asChild size="sm" variant="outline">
-                <Link href="/health/schedules">Edit</Link>
+                <Link href="/health/schedules">{t("edit")}</Link>
               </Button>
             )}
           </CardHeader>
           <CardContent>
             {vaccines.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No vaccines defined yet.
+                {t("noVaccinesYet")}
                 {canManage && (
                   <>
                     {" "}
@@ -182,7 +200,7 @@ export default function HealthPage() {
                       href="/health/schedules"
                       className="text-primary hover:underline"
                     >
-                      Add schedules
+                      {t("addSchedules")}
                     </Link>
                   </>
                 )}
@@ -194,7 +212,7 @@ export default function HealthPage() {
                     <h3 className="font-medium">{v.name}</h3>
                     {v.intervalDays && (
                       <p className="text-sm text-muted-foreground">
-                        Every {v.intervalDays} days
+                        {t("everyNDays", { n: v.intervalDays })}
                       </p>
                     )}
                     {v.description && (
@@ -211,17 +229,17 @@ export default function HealthPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle>Treatment Schedules</CardTitle>
+            <CardTitle>{t("treatmentSchedules")}</CardTitle>
             {canManage && (
               <Button asChild size="sm" variant="outline">
-                <Link href="/health/schedules">Edit</Link>
+                <Link href="/health/schedules">{t("edit")}</Link>
               </Button>
             )}
           </CardHeader>
           <CardContent>
             {treatmentSchedules.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No treatment schedules yet.
+                {t("noTreatmentSchedulesYet")}
                 {canManage && (
                   <>
                     {" "}
@@ -229,19 +247,21 @@ export default function HealthPage() {
                       href="/health/schedules"
                       className="text-primary hover:underline"
                     >
-                      Add schedules
+                      {t("addSchedules")}
                     </Link>
                   </>
                 )}
               </p>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
-                {treatmentSchedules.map((t) => (
-                  <div key={t.id} className="rounded-lg border p-4">
-                    <h3 className="font-medium">{t.name}</h3>
+                {treatmentSchedules.map((ts) => (
+                  <div key={ts.id} className="rounded-lg border p-4">
+                    <h3 className="font-medium">{ts.name}</h3>
                     <p className="text-sm text-muted-foreground">
-                      {t.type.replace(/_/g, " ")}
-                      {t.intervalDays ? ` · every ${t.intervalDays} days` : ""}
+                      {t(treatmentTypeKey(ts.type))}
+                      {ts.intervalDays
+                        ? ` · ${t("everyNDays", { n: ts.intervalDays })}`
+                        : ""}
                     </p>
                   </div>
                 ))}

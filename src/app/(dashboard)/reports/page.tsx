@@ -10,6 +10,7 @@ import Link from "next/link";
 import { Upload, Download } from "lucide-react";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
+import { useT } from "@/components/providers/locale-provider";
 
 interface CampInventory {
   id: string;
@@ -28,6 +29,7 @@ interface DueVaccination {
 }
 
 export default function ReportsPage() {
+  const t = useT();
   const { data: session } = useSession();
   const role = session?.user?.role as Role | undefined;
   const canViewSales = role ? hasPermission(role, "viewSales") : false;
@@ -86,15 +88,15 @@ export default function ReportsPage() {
     
       <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Reports</h1>
+        <h1 className="text-3xl font-bold">{t("reportsTitle")}</h1>
         <p className="text-muted-foreground">
-          Camp inventory, vaccination due
+          {t("reportsSubtitle")}
           {canImport && ", bulk import"}
           {canViewSales && (
             <>
               {" · "}
               <Link href="/sales" className="text-primary hover:underline">
-                Sales report
+                {t("salesReport")}
               </Link>
             </>
           )}
@@ -110,13 +112,13 @@ export default function ReportsPage() {
             <>
               {" · "}
               <Link href="/buyers" className="text-primary hover:underline">
-                Buyers
+                {t("buyersTitle")}
               </Link>
             </>
           )}
           {" · "}
           <Link href="/mortality" className="text-primary hover:underline">
-            Mortality report
+            {t("mortalityReport")}
           </Link>
           {" · "}
           <Link href="/events" className="text-primary hover:underline">
@@ -127,7 +129,7 @@ export default function ReportsPage() {
 
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
-            <CardHeader><CardTitle>Camp Inventory</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{t("campInventory")}</CardTitle></CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {inventory.map((camp) => (
@@ -153,7 +155,7 @@ export default function ReportsPage() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle>Vaccination Due</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{t("vaccinationDueReport")}</CardTitle></CardHeader>
             <CardContent>
               {due.length === 0 ? (
                 <p className="text-muted-foreground text-sm">All vaccinations up to date</p>

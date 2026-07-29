@@ -12,6 +12,8 @@ import { formatDate, formatCurrency } from "@/lib/utils";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { useT } from "@/components/providers/locale-provider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 const INCOME_CATEGORIES = [
   "GRAZING_FEES",
@@ -21,8 +23,19 @@ const INCOME_CATEGORIES = [
   "OTHER",
 ] as const;
 
-function labelCat(c: string) {
-  return c.replace(/_/g, " ");
+function incomeCategoryKey(c: string): TranslationKey {
+  switch (c) {
+    case "GRAZING_FEES":
+      return "catGrazingFees";
+    case "MANURE":
+      return "catManure";
+    case "SERVICES":
+      return "catServices";
+    case "SUBSIDY":
+      return "catSubsidy";
+    default:
+      return "other";
+  }
 }
 
 interface IncomeRow {
@@ -36,6 +49,7 @@ interface IncomeRow {
 }
 
 export default function OtherIncomePage() {
+  const t = useT();
   const { data: session } = useSession();
   const role = session?.user?.role as Role | undefined;
   const canManage = role ? hasPermission(role, "manageFinance") : false;
@@ -93,7 +107,7 @@ export default function OtherIncomePage() {
     setSaving(false);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      alert(err.error || "Failed to save");
+      alert(err.error || t("failedToSave"));
       return;
     }
     setShowForm(false);
@@ -108,7 +122,7 @@ export default function OtherIncomePage() {
   }
 
   async function remove(id: string) {
-    if (!confirm("Delete this income record?")) return;
+    if (!confirm(t("confirmDeleteIncome"))) return;
     const res = await fetch(`/api/finance/income/${id}`, { method: "DELETE" });
     if (res.ok) load();
   }
@@ -121,16 +135,16 @@ export default function OtherIncomePage() {
             href="/finance"
             className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-2"
           >
-            <ArrowLeft className="h-4 w-4 mr-1" /> Finance
+            <ArrowLeft className="h-4 w-4 mr-1" /> {t("financeTitle")}
           </Link>
-          <h1 className="text-3xl font-bold">Other income</h1>
+          <h1 className="text-3xl font-bold">{t("otherIncomeTitle")}</h1>
           <p className="text-muted-foreground">
-            Non-sale income · Total: {formatCurrency(total)}
+            {t("otherIncomeSubtitle", { total: formatCurrency(total) })}
           </p>
         </div>
         {canManage && (
           <Button onClick={() => setShowForm(!showForm)}>
-            <Plus className="h-4 w-4 mr-2" /> Add income
+            <Plus className="h-4 w-4 mr-2" /> {t("addIncome")}
           </Button>
         )}
       </div>
@@ -138,12 +152,12 @@ export default function OtherIncomePage() {
       {showForm && (
         <Card>
           <CardHeader>
-            <CardTitle>New income</CardTitle>
+            <CardTitle>{t("newIncome")}</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={createIncome} className="grid gap-4 sm:grid-cols-2 max-w-2xl">
               <div className="space-y-2">
-                <Label>Category</Label>
+                <Label>{t("category")}</Label>
                 <Select
                   value={form.category}
                   onValueChange={(v) => setForm({ ...form, category: v })}
@@ -154,14 +168,14 @@ export default function OtherIncomePage() {
                   <SelectContent>
                     {INCOME_CATEGORIES.map((c) => (
                       <SelectItem key={c} value={c}>
-                        {labelCat(c)}
+                        {t(incomeCategoryKey(c))}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Amount (TZS)</Label>
+                <Label>{t("amountTzs")}</Label>
                 <Input
                   type="number"
                   required
@@ -170,7 +184,7 @@ export default function OtherIncomePage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Date</Label>
+                <Label>{t("date")}</Label>
                 <Input
                   type="date"
                   value={form.date}
@@ -178,16 +192,16 @@ export default function OtherIncomePage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Camp (optional)</Label>
+                <Label>{t("campOptional")}</Label>
                 <Select
                   value={form.campId || "none"}
                   onValueChange={(v) => setForm({ ...form, campId: v === "none" ? "" : v })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Ranch-wide" />
+                    <SelectValue placeholder={t("ranchWide")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Ranch-wide</SelectItem>
+                    <SelectItem value="none">{t("ranchWide")}</SelectItem>
                     {camps.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.name}
@@ -197,14 +211,14 @@ export default function OtherIncomePage() {
                 </Select>
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label>Description</Label>
+                <Label>{t("description")}</Label>
                 <Input
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                 />
               </div>
               <Button type="submit" disabled={saving} className="sm:col-span-2">
-                {saving ? "Saving..." : "Save income"}
+                {saving ? t("saving") : t("saveIncome")}
               </Button>
             </form>
           </CardContent>
@@ -221,7 +235,7 @@ export default function OtherIncomePage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All camps</SelectItem>
+                <SelectItem value="all">{t("allCamps")}</SelectItem>
                 {camps.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.name}
@@ -234,29 +248,29 @@ export default function OtherIncomePage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All categories</SelectItem>
+                <SelectItem value="all">{t("allCategories")}</SelectItem>
                 {INCOME_CATEGORIES.map((c) => (
                   <SelectItem key={c} value={c}>
-                    {labelCat(c)}
+                    {t(incomeCategoryKey(c))}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Button onClick={load}>Apply</Button>
+            <Button onClick={load}>{t("apply")}</Button>
           </div>
 
           {incomes.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No income records in range</p>
+            <p className="text-sm text-muted-foreground">{t("noIncomeInRange")}</p>
           ) : (
             <div className="rounded-lg border overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="p-3 text-left">Date</th>
-                    <th className="p-3 text-left">Category</th>
-                    <th className="p-3 text-left">Description</th>
-                    <th className="p-3 text-left">Camp</th>
-                    <th className="p-3 text-right">Amount</th>
+                    <th className="p-3 text-left">{t("date")}</th>
+                    <th className="p-3 text-left">{t("category")}</th>
+                    <th className="p-3 text-left">{t("description")}</th>
+                    <th className="p-3 text-left">{t("camp")}</th>
+                    <th className="p-3 text-right">{t("amount")}</th>
                     {canManage && <th className="p-3" />}
                   </tr>
                 </thead>
@@ -264,7 +278,7 @@ export default function OtherIncomePage() {
                   {incomes.map((row) => (
                     <tr key={row.id} className="border-b">
                       <td className="p-3">{formatDate(row.date)}</td>
-                      <td className="p-3">{labelCat(row.category)}</td>
+                      <td className="p-3">{t(incomeCategoryKey(row.category))}</td>
                       <td className="p-3">{row.description || "—"}</td>
                       <td className="p-3">{row.camp?.name || "—"}</td>
                       <td className="p-3 text-right font-medium">

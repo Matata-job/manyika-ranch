@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { Download } from "lucide-react";
+import { useT } from "@/components/providers/locale-provider";
 
 interface SalesReport {
   summary: {
@@ -43,6 +44,7 @@ interface SalesReport {
 }
 
 export default function SalesPage() {
+  const t = useT();
   const [data, setData] = useState<SalesReport | null>(null);
   const [camps, setCamps] = useState<{ id: string; name: string }[]>([]);
   const [breedOptions, setBreedOptions] = useState<string[]>([]);
@@ -141,14 +143,12 @@ export default function SalesPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Sales</h1>
-          <p className="text-muted-foreground">
-            Record sales on animal profiles · revenue and buyer analysis
-          </p>
+          <h1 className="text-3xl font-bold">{t("salesTitle")}</h1>
+          <p className="text-muted-foreground">{t("salesSubtitle")}</p>
         </div>
         <Button variant="outline" onClick={exportCsv} disabled={!data?.sales?.length}>
           <Download className="h-4 w-4 mr-2" />
-          Export CSV
+          {t("exportCsv")}
         </Button>
       </div>
 
@@ -184,7 +184,7 @@ export default function SalesPage() {
               </SelectContent>
             </Select>
             <Button onClick={load} disabled={loading}>
-              {loading ? "Loading..." : "Apply"}
+              {loading ? t("loading") : t("apply")}
             </Button>
           </div>
         </CardContent>
@@ -321,19 +321,19 @@ export default function SalesPage() {
         <CardContent>
           {!data?.sales?.length ? (
             <p className="text-sm text-muted-foreground">
-              No sales yet. Open an animal and use the Sales tab to record a sale.
+              {t("noSales")}
             </p>
           ) : (
             <div className="rounded-lg border overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="p-3 text-left">Date</th>
+                    <th className="p-3 text-left">{t("saleDate")}</th>
                     <th className="p-3 text-left">Animal</th>
-                    <th className="p-3 text-left">Camp</th>
-                    <th className="p-3 text-left">Buyer</th>
-                    <th className="p-3 text-right">Price</th>
-                    <th className="p-3 text-right">Weight</th>
+                    <th className="p-3 text-left">{t("camp")}</th>
+                    <th className="p-3 text-left">{t("buyer")}</th>
+                    <th className="p-3 text-right">{t("price")}</th>
+                    <th className="p-3 text-right">{t("weight")}</th>
                     <th className="p-3 text-right">TZS/kg</th>
                   </tr>
                 </thead>

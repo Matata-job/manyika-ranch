@@ -12,6 +12,7 @@ import { ROLE_LABELS } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 import { Plus, Pencil, Check, X, UserCircle, Search, KeyRound } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { useT } from "@/components/providers/locale-provider";
 
 interface Camp { id: string; name: string }
 interface User {
@@ -28,6 +29,7 @@ interface User {
 type SortKey = "name" | "role" | "status";
 
 export default function UsersPage() {
+  const t = useT();
   const { data: session } = useSession();
   const isOwner = session?.user?.role === "OWNER";
   const isManager =
@@ -169,11 +171,11 @@ export default function UsersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">User Management</h1>
-          <p className="text-muted-foreground">{users.length} users · Manage roles, profiles & camp assignments</p>
+          <h1 className="text-3xl font-bold">{t("usersTitle")}</h1>
+          <p className="text-muted-foreground">{t("usersSubtitle")}</p>
         </div>
         <Button onClick={() => setShowForm(!showForm)}>
-          <Plus className="h-4 w-4 mr-2" />Add User
+          <Plus className="h-4 w-4 mr-2" />{t("addUser")}
         </Button>
       </div>
 
@@ -243,10 +245,10 @@ export default function UsersPage() {
             <CardTitle>Edit account</CardTitle>
             <div className="flex gap-2">
               <Button size="sm" onClick={() => saveAccountEdit(accountEditId)} disabled={accountSaving}>
-                {accountSaving ? "Saving..." : "Save"}
+                {accountSaving ? t("saving") : t("save")}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setAccountEditId(null)}>
-                Cancel
+                {t("cancel")}
               </Button>
             </div>
           </CardHeader>
@@ -296,7 +298,7 @@ export default function UsersPage() {
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by name, email, phone..."
+            placeholder={t("search")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"

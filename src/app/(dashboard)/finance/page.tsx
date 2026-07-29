@@ -9,6 +9,7 @@ import { formatCurrency } from "@/lib/utils";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 import { ArrowRight, Receipt, TrendingUp, Wallet } from "lucide-react";
+import { useT } from "@/components/providers/locale-provider";
 
 interface PnLSummary {
   salesRevenue: number;
@@ -18,6 +19,7 @@ interface PnLSummary {
 }
 
 export default function FinanceHubPage() {
+  const t = useT();
   const { data: session } = useSession();
   const role = session?.user?.role as Role | undefined;
   const canManage = role ? hasPermission(role, "manageFinance") : false;
@@ -37,9 +39,9 @@ export default function FinanceHubPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Finance</h1>
+        <h1 className="text-3xl font-bold">{t("financeTitle")}</h1>
         <p className="text-muted-foreground">
-          Ranch ledger · expenses, other income, and profit &amp; loss (this month)
+          {t("financeSubtitle")}
           {!canManage && " · view only"}
         </p>
       </div>
@@ -67,7 +69,7 @@ export default function FinanceHubPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Expenses</CardTitle>
+            <CardTitle className="text-sm">{t("expenses")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
@@ -91,7 +93,7 @@ export default function FinanceHubPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Receipt className="h-4 w-4" /> Expenses
+              <Receipt className="h-4 w-4" /> {t("expenses")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -125,7 +127,7 @@ export default function FinanceHubPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <TrendingUp className="h-4 w-4" /> Profit &amp; loss
+              <TrendingUp className="h-4 w-4" /> {t("pnl")}
             </CardTitle>
           </CardHeader>
           <CardContent>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
+import { useT } from "@/components/providers/locale-provider";
 
 interface Movement {
   id: string;
@@ -16,6 +17,7 @@ interface Movement {
 }
 
 export default function MovementsPage() {
+  const t = useT();
   const [movements, setMovements] = useState<Movement[]>([]);
 
   useEffect(() => {
@@ -26,21 +28,24 @@ export default function MovementsPage() {
     
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Movements</h1>
-          <p className="text-muted-foreground">Animal transfers between camps</p>
+          <h1 className="text-3xl font-bold">{t("movementsTitle")}</h1>
+          <p className="text-muted-foreground">{t("movementsSubtitle")}</p>
         </div>
 
         <Card>
           <CardHeader><CardTitle>Recent Movements</CardTitle></CardHeader>
           <CardContent>
+            {movements.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("noMovements")}</p>
+            ) : (
             <div className="rounded-lg border">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="p-3 text-left">Date</th>
+                    <th className="p-3 text-left">{t("date")}</th>
                     <th className="p-3 text-left">Animal</th>
-                    <th className="p-3 text-left">From</th>
-                    <th className="p-3 text-left">To</th>
+                    <th className="p-3 text-left">{t("fromCamp")}</th>
+                    <th className="p-3 text-left">{t("toCamp")}</th>
                     <th className="p-3 text-left">Authorized By</th>
                   </tr>
                 </thead>
@@ -61,6 +66,7 @@ export default function MovementsPage() {
                 </tbody>
               </table>
             </div>
+            )}
           </CardContent>
         </Card>
       </div>

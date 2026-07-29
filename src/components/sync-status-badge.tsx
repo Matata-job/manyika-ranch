@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { flushSyncQueue, getPendingSyncCount } from "@/lib/sync/offline-db";
 import { Cloud, CloudOff, RefreshCw } from "lucide-react";
+import { useT } from "@/components/providers/locale-provider";
 
 export function SyncStatusBadge() {
+  const t = useT();
   const [online, setOnline] = useState(true);
   const [pending, setPending] = useState(0);
   const [syncing, setSyncing] = useState(false);
@@ -47,7 +49,7 @@ export function SyncStatusBadge() {
     return (
       <Badge variant="warning" className="gap-1">
         <CloudOff className="h-3 w-3" />
-        Offline
+        {t("offline")}
       </Badge>
     );
   }
@@ -57,7 +59,7 @@ export function SyncStatusBadge() {
       <button onClick={handleSync} disabled={syncing}>
         <Badge variant="warning" className="gap-1 cursor-pointer">
           {syncing ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Cloud className="h-3 w-3" />}
-          {pending} pending
+          {t("pendingCount", { n: pending })}
         </Badge>
       </button>
     );
@@ -66,7 +68,7 @@ export function SyncStatusBadge() {
   return (
     <Badge variant="success" className="gap-1">
       <Cloud className="h-3 w-3" />
-      Synced
+      {t("synced")}
     </Badge>
   );
 }

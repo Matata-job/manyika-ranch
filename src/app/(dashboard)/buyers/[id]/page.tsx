@@ -14,6 +14,7 @@ import { formatDate, formatCurrency } from "@/lib/utils";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 import { ArrowLeft, Save } from "lucide-react";
+import { useT } from "@/components/providers/locale-provider";
 
 interface BuyerDetail {
   id: string;
@@ -39,6 +40,7 @@ interface BuyerDetail {
 }
 
 export default function BuyerDetailPage() {
+  const t = useT();
   const { id } = useParams<{ id: string }>();
   const { data: session } = useSession();
   const role = session?.user?.role as Role | undefined;
@@ -82,7 +84,7 @@ export default function BuyerDetailPage() {
     setSaving(false);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      alert(err.error || "Failed to save");
+      alert(err.error || t("failedToSave"));
       return;
     }
     setEditing(false);
@@ -99,7 +101,7 @@ export default function BuyerDetailPage() {
     if (res.ok) load();
   }
 
-  if (!buyer) return <p className="text-muted-foreground">Loading...</p>;
+  if (!buyer) return <p className="text-muted-foreground">{t("loading")}</p>;
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -107,7 +109,7 @@ export default function BuyerDetailPage() {
         href="/buyers"
         className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="h-4 w-4 mr-1" /> Back to buyers
+        <ArrowLeft className="h-4 w-4 mr-1" /> {t("backToBuyers")}
       </Link>
 
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -115,33 +117,33 @@ export default function BuyerDetailPage() {
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-3xl font-bold">{buyer.name}</h1>
             <Badge variant={buyer.isActive ? "success" : "secondary"}>
-              {buyer.isActive ? "Active" : "Inactive"}
+              {buyer.isActive ? t("active") : t("inactive")}
             </Badge>
           </div>
           <p className="text-muted-foreground mt-1">
-            {buyer.sales.length} purchase{buyer.sales.length === 1 ? "" : "s"} ·{" "}
-            {formatCurrency(buyer.totalSpent)} total
+            {t("purchasesCount", { n: buyer.sales.length })} ·{" "}
+            {t("totalAmount", { amount: formatCurrency(buyer.totalSpent) })}
           </p>
         </div>
         {canManage && (
           <div className="flex gap-2">
             {!editing ? (
               <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-                Edit
+                {t("edit")}
               </Button>
             ) : (
               <>
                 <Button size="sm" onClick={save} disabled={saving}>
                   <Save className="h-4 w-4 mr-1" />
-                  {saving ? "Saving..." : "Save"}
+                  {saving ? t("saving") : t("save")}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
-                  Cancel
+                  {t("cancel")}
                 </Button>
               </>
             )}
             <Button variant="outline" size="sm" onClick={toggleActive}>
-              {buyer.isActive ? "Deactivate" : "Activate"}
+              {buyer.isActive ? t("deactivate") : t("activate")}
             </Button>
           </div>
         )}
@@ -149,28 +151,28 @@ export default function BuyerDetailPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Contact</CardTitle>
+          <CardTitle>{t("contact")}</CardTitle>
         </CardHeader>
         <CardContent>
           {editing ? (
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Name</Label>
+                <Label>{t("name")}</Label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>Phone</Label>
+                <Label>{t("phone")}</Label>
                 <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>Location</Label>
+                <Label>{t("location")}</Label>
                 <Input
                   value={form.location}
                   onChange={(e) => setForm({ ...form, location: e.target.value })}
                 />
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label>Notes</Label>
+                <Label>{t("notes")}</Label>
                 <Textarea
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
@@ -180,15 +182,15 @@ export default function BuyerDetailPage() {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 text-sm">
               <div>
-                <span className="text-muted-foreground">Phone</span>
+                <span className="text-muted-foreground">{t("phone")}</span>
                 <p className="font-medium">{buyer.phone || "—"}</p>
               </div>
               <div>
-                <span className="text-muted-foreground">Location</span>
+                <span className="text-muted-foreground">{t("location")}</span>
                 <p className="font-medium">{buyer.location || "—"}</p>
               </div>
               <div className="sm:col-span-2">
-                <span className="text-muted-foreground">Notes</span>
+                <span className="text-muted-foreground">{t("notes")}</span>
                 <p className="font-medium">{buyer.notes || "—"}</p>
               </div>
             </div>
@@ -198,21 +200,21 @@ export default function BuyerDetailPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Purchase history</CardTitle>
+          <CardTitle>{t("purchaseHistory")}</CardTitle>
         </CardHeader>
         <CardContent>
           {buyer.sales.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No purchases yet</p>
+            <p className="text-sm text-muted-foreground">{t("noPurchasesYet")}</p>
           ) : (
             <div className="rounded-lg border overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="p-3 text-left">Date</th>
-                    <th className="p-3 text-left">Animal</th>
-                    <th className="p-3 text-left">Camp</th>
-                    <th className="p-3 text-right">Price</th>
-                    <th className="p-3 text-right">Weight</th>
+                    <th className="p-3 text-left">{t("date")}</th>
+                    <th className="p-3 text-left">{t("animal")}</th>
+                    <th className="p-3 text-left">{t("camp")}</th>
+                    <th className="p-3 text-right">{t("price")}</th>
+                    <th className="p-3 text-right">{t("weight")}</th>
                   </tr>
                 </thead>
                 <tbody>

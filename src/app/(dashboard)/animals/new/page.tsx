@@ -11,8 +11,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { enqueueSync } from "@/lib/sync/offline-db";
 import { X } from "lucide-react";
+import { useT } from "@/components/providers/locale-provider";
 
 export default function NewAnimalPage() {
+  const t = useT();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [camps, setCamps] = useState<{ id: string; name: string }[]>([]);
@@ -69,7 +71,7 @@ export default function NewAnimalPage() {
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Photo upload failed");
+        throw new Error(err.error || t("photoUploadFailed"));
       }
       const { url } = await res.json();
       urls.push(url);
@@ -104,7 +106,7 @@ export default function NewAnimalPage() {
       try {
         photoUrls = await uploadPhotos();
       } catch (err) {
-        alert(err instanceof Error ? err.message : "Photo upload failed");
+        alert(err instanceof Error ? err.message : t("photoUploadFailed"));
         setLoading(false);
         return;
       }
@@ -121,25 +123,25 @@ export default function NewAnimalPage() {
       router.push(`/animals/${animal.id}`);
     } else {
       const err = await res.json();
-      alert(err.error || "Failed to create animal");
+      alert(err.error || t("failedToCreateAnimal"));
       setLoading(false);
     }
   }
 
   return (
     <Card className="max-w-2xl">
-      <CardHeader><CardTitle>Register New Animal</CardTitle></CardHeader>
+      <CardHeader><CardTitle>{t("registerAnimal")}</CardTitle></CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="eartag">Eartag *</Label>
+              <Label htmlFor="eartag">{t("eartag")} *</Label>
               <Input id="eartag" value={form.eartag} onChange={(e) => setForm({ ...form, eartag: e.target.value })} required />
             </div>
             <div className="space-y-2">
-              <Label>Breed *</Label>
+              <Label>{t("breed")} *</Label>
               <Select value={form.breed} onValueChange={(v) => setForm({ ...form, breed: v })} required>
-                <SelectTrigger><SelectValue placeholder="Select breed" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("selectBreed")} /></SelectTrigger>
                 <SelectContent>
                   {breeds.map((b) => (
                     <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
@@ -147,14 +149,14 @@ export default function NewAnimalPage() {
                 </SelectContent>
               </Select>
               <Link href="/settings/breeds" className="text-xs text-primary hover:underline">
-                Manage breeds
+                {t("manageBreeds")}
               </Link>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Sex</Label>
+              <Label>{t("sex")}</Label>
               <Select
                 value={form.sex}
                 onValueChange={(v) =>
@@ -168,13 +170,13 @@ export default function NewAnimalPage() {
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="MALE">Male</SelectItem>
-                  <SelectItem value="FEMALE">Female</SelectItem>
+                  <SelectItem value="MALE">{t("male")}</SelectItem>
+                  <SelectItem value="FEMALE">{t("female")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="dob">Date of Birth</Label>
+              <Label htmlFor="dob">{t("dob")}</Label>
               <Input id="dob" type="date" value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })} />
             </div>
           </div>
@@ -186,7 +188,7 @@ export default function NewAnimalPage() {
                 checked={form.isCastrated}
                 onChange={(e) => setForm({ ...form, isCastrated: e.target.checked })}
               />
-              Castrated
+              {t("castrated")}
             </label>
           )}
 
@@ -197,14 +199,14 @@ export default function NewAnimalPage() {
                 checked={form.isPregnant}
                 onChange={(e) => setForm({ ...form, isPregnant: e.target.checked })}
               />
-              Pregnant
+              {t("pregnant")}
             </label>
           )}
 
           {!form.dob && (
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Age — Years</Label>
+                <Label>{t("ageYears")}</Label>
                 <Input
                   type="number"
                   min={0}
@@ -214,7 +216,7 @@ export default function NewAnimalPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Age — Months</Label>
+                <Label>{t("ageMonthsPart")}</Label>
                 <Input
                   type="number"
                   min={0}
@@ -225,25 +227,25 @@ export default function NewAnimalPage() {
                 />
               </div>
               <p className="text-xs text-muted-foreground sm:col-span-2">
-                Use years + months if DOB is unknown. Under 1 year, leave years at 0 and enter months only.
+                {t("ageHelperText")}
               </p>
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Camp *</Label>
+              <Label>{t("camp")} *</Label>
               <Select value={form.campId} onValueChange={(v) => setForm({ ...form, campId: v })} required>
-                <SelectTrigger><SelectValue placeholder="Select camp" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("selectCamp")} /></SelectTrigger>
                 <SelectContent>
                   {camps.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Owner</Label>
+              <Label>{t("owner")}</Label>
               <Select value={form.ownerId} onValueChange={(v) => setForm({ ...form, ownerId: v })}>
-                <SelectTrigger><SelectValue placeholder="Default (you)" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("defaultOwner")} /></SelectTrigger>
                 <SelectContent>
                   {owners.map((o) => (
                     <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
@@ -255,21 +257,21 @@ export default function NewAnimalPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Sire</Label>
+              <Label>{t("sire")}</Label>
               <Select value={form.sireId} onValueChange={(v) => setForm({ ...form, sireId: v })}>
-                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("none")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="">{t("none")}</SelectItem>
                   {animals.map((a) => <SelectItem key={a.id} value={a.id}>{a.eartag}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Dam</Label>
+              <Label>{t("dam")}</Label>
               <Select value={form.damId} onValueChange={(v) => setForm({ ...form, damId: v })}>
-                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("none")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="">{t("none")}</SelectItem>
                   {animals.map((a) => <SelectItem key={a.id} value={a.id}>{a.eartag}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -277,7 +279,7 @@ export default function NewAnimalPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="photos">Photos</Label>
+            <Label htmlFor="photos">{t("photos")}</Label>
             <Input
               id="photos"
               type="file"
@@ -303,24 +305,24 @@ export default function NewAnimalPage() {
                 ))}
               </div>
             )}
-            <p className="text-xs text-muted-foreground">You can add multiple photos. Date is recorded automatically.</p>
+            <p className="text-xs text-muted-foreground">{t("photosHelperText")}</p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="colorMarkings">Color / Markings</Label>
+            <Label htmlFor="colorMarkings">{t("colorMarkings")}</Label>
             <Input id="colorMarkings" value={form.colorMarkings} onChange={(e) => setForm({ ...form, colorMarkings: e.target.value })} />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
+            <Label htmlFor="notes">{t("notes")}</Label>
             <Textarea id="notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
           </div>
 
           <div className="flex gap-2">
             <Button type="submit" disabled={loading || !form.breed}>
-              {loading ? "Saving..." : "Register Animal"}
+              {loading ? t("saving") : t("registerAnimal")}
             </Button>
-            <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => router.back()}>{t("cancel")}</Button>
           </div>
         </form>
       </CardContent>

@@ -9,6 +9,21 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Pencil, Plus, Trash2 } from "lucide-react";
+import { useT } from "@/components/providers/locale-provider";
+import type { TranslationKey } from "@/lib/i18n/translations";
+
+function treatmentTypeKey(type: string): TranslationKey {
+  switch (type) {
+    case "DEWORMING":
+      return "deworming";
+    case "DIPPING":
+      return "dipping";
+    case "ANTIBIOTIC":
+      return "antibiotic";
+    default:
+      return "other";
+  }
+}
 
 interface Vaccine {
   id: string;
@@ -26,14 +41,19 @@ interface TreatmentSchedule {
   description: string | null;
 }
 
-const TREATMENT_TYPES = [
-  { value: "DEWORMING", label: "Deworming" },
-  { value: "DIPPING", label: "Dipping" },
-  { value: "ANTIBIOTIC", label: "Antibiotic" },
-  { value: "OTHER", label: "Other" },
+const TREATMENT_TYPE_VALUES = [
+  "DEWORMING",
+  "DIPPING",
+  "ANTIBIOTIC",
+  "OTHER",
 ] as const;
 
 export default function HealthSchedulesPage() {
+  const t = useT();
+  const TREATMENT_TYPES = TREATMENT_TYPE_VALUES.map((value) => ({
+    value,
+    label: t(treatmentTypeKey(value)),
+  }));
   const [vaccines, setVaccines] = useState<Vaccine[]>([]);
   const [treatments, setTreatments] = useState<TreatmentSchedule[]>([]);
   const [showVaccForm, setShowVaccForm] = useState(false);
@@ -127,7 +147,7 @@ export default function HealthSchedulesPage() {
     setSaving(false);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      alert(err.error || "Failed to save vaccine");
+      alert(err.error || t("failedToSave"));
       return;
     }
     resetVaccForm();
@@ -154,7 +174,7 @@ export default function HealthSchedulesPage() {
     setSaving(false);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      alert(err.error || "Failed to save treatment schedule");
+      alert(err.error || t("failedToSave"));
       return;
     }
     resetTreatForm();
@@ -162,24 +182,24 @@ export default function HealthSchedulesPage() {
   }
 
   async function deleteVaccine(id: string) {
-    if (!confirm("Delete this vaccine from the catalog?")) return;
+    if (!confirm(t("deleteVaccineConfirm"))) return;
     const res = await fetch(`/api/health/vaccines/${id}`, { method: "DELETE" });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      alert(err.error || "Failed to delete");
+      alert(err.error || t("failedToDelete"));
       return;
     }
     load();
   }
 
   async function deleteTreatment(id: string) {
-    if (!confirm("Delete this treatment schedule?")) return;
+    if (!confirm(t("deleteTreatmentConfirm"))) return;
     const res = await fetch(`/api/health/treatment-schedules/${id}`, {
       method: "DELETE",
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      alert(err.error || "Failed to delete");
+      alert(err.error || t("failedToDelete"));
       return;
     }
     load();
@@ -192,17 +212,15 @@ export default function HealthSchedulesPage() {
           href="/health"
           className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-2"
         >
-          <ArrowLeft className="h-4 w-4 mr-1" /> Health
+          <ArrowLeft className="h-4 w-4 mr-1" /> {t("backToHealth")}
         </Link>
-        <h1 className="text-3xl font-bold">Health schedules</h1>
-        <p className="text-muted-foreground">
-          Define vaccines and recurring treatments. Recording one sets the next due date automatically.
-        </p>
+        <h1 className="text-3xl font-bold">{t("healthSchedules")}</h1>
+        <p className="text-muted-foreground">{t("healthSchedulesSubtitle")}</p>
       </div>
 
       <section className="space-y-4">
         <div className="flex items-center justify-between gap-4">
-          <h2 className="text-xl font-semibold">Vaccination schedules</h2>
+          <h2 className="text-xl font-semibold">{t("vaccinationSchedules")}</h2>
           <Button
             onClick={() => {
               resetVaccForm();
@@ -210,7 +228,7 @@ export default function HealthSchedulesPage() {
             }}
           >
             <Plus className="h-4 w-4 mr-2" />
-            Add vaccine
+            {t("addVaccine")}
           </Button>
         </div>
 
@@ -218,13 +236,13 @@ export default function HealthSchedulesPage() {
           <Card>
             <CardHeader>
               <CardTitle>
-                {editingVaccId ? "Edit vaccine" : "New vaccine"}
+                {editingVaccId ? t("editVaccine") : t("newVaccine")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={saveVaccine} className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Name *</Label>
+                  <Label>{t("name")} *</Label>
                   <Input
                     value={vaccForm.name}
                     onChange={(e) =>
@@ -235,7 +253,7 @@ export default function HealthSchedulesPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Interval (days)</Label>
+                  <Label>{t("intervalDays")}</Label>
                   <Input
                     type="number"
                     min={1}
@@ -247,7 +265,7 @@ export default function HealthSchedulesPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Description</Label>
+                  <Label>{t("description")}</Label>
                   <Textarea
                     value={vaccForm.description}
                     onChange={(e) =>
@@ -257,10 +275,10 @@ export default function HealthSchedulesPage() {
                 </div>
                 <div className="flex gap-2">
                   <Button type="submit" disabled={saving}>
-                    {saving ? "Saving..." : editingVaccId ? "Update" : "Add"}
+                    {saving ? t("saving") : editingVaccId ? t("update") : t("add")}
                   </Button>
                   <Button type="button" variant="outline" onClick={resetVaccForm}>
-                    Cancel
+                    {t("cancel")}
                   </Button>
                 </div>
               </form>
@@ -270,12 +288,12 @@ export default function HealthSchedulesPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>{vaccines.length} vaccines</CardTitle>
+            <CardTitle>{t("vaccinesCount", { n: vaccines.length })}</CardTitle>
           </CardHeader>
           <CardContent>
             {vaccines.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No vaccines yet. Add ones your ranch uses regularly.
+                {t("noVaccinesHint")}
               </p>
             ) : (
               <ul className="divide-y">
@@ -288,8 +306,8 @@ export default function HealthSchedulesPage() {
                       <p className="font-medium">{v.name}</p>
                       <p className="text-sm text-muted-foreground">
                         {v.intervalDays
-                          ? `Every ${v.intervalDays} days`
-                          : "No interval set"}
+                          ? t("everyNDays", { n: v.intervalDays })
+                          : t("noIntervalSet")}
                       </p>
                       {v.description && (
                         <p className="text-xs text-muted-foreground mt-1">
@@ -302,7 +320,7 @@ export default function HealthSchedulesPage() {
                         size="sm"
                         variant="ghost"
                         onClick={() => startEditVaccine(v)}
-                        aria-label="Edit vaccine"
+                        aria-label={t("editVaccine")}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -310,7 +328,7 @@ export default function HealthSchedulesPage() {
                         size="sm"
                         variant="ghost"
                         onClick={() => deleteVaccine(v.id)}
-                        aria-label="Delete vaccine"
+                        aria-label={t("deleteVaccine")}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -325,7 +343,7 @@ export default function HealthSchedulesPage() {
 
       <section className="space-y-4">
         <div className="flex items-center justify-between gap-4">
-          <h2 className="text-xl font-semibold">Treatment schedules</h2>
+          <h2 className="text-xl font-semibold">{t("treatmentSchedules")}</h2>
           <Button
             onClick={() => {
               resetTreatForm();
@@ -333,7 +351,7 @@ export default function HealthSchedulesPage() {
             }}
           >
             <Plus className="h-4 w-4 mr-2" />
-            Add treatment
+            {t("addTreatmentSchedule")}
           </Button>
         </div>
 
@@ -341,13 +359,15 @@ export default function HealthSchedulesPage() {
           <Card>
             <CardHeader>
               <CardTitle>
-                {editingTreatId ? "Edit treatment" : "New treatment schedule"}
+                {editingTreatId
+                  ? t("editTreatmentSchedule")
+                  : t("newTreatmentSchedule")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={saveTreatment} className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Name *</Label>
+                  <Label>{t("name")} *</Label>
                   <Input
                     value={treatForm.name}
                     onChange={(e) =>
@@ -358,7 +378,7 @@ export default function HealthSchedulesPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Type *</Label>
+                  <Label>{t("type")} *</Label>
                   <Select
                     value={treatForm.type}
                     onValueChange={(v) =>
@@ -379,7 +399,7 @@ export default function HealthSchedulesPage() {
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Interval (days)</Label>
+                    <Label>{t("intervalDays")}</Label>
                     <Input
                       type="number"
                       min={1}
@@ -394,7 +414,7 @@ export default function HealthSchedulesPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Withdrawal (days)</Label>
+                    <Label>{t("withdrawalDays")}</Label>
                     <Input
                       type="number"
                       min={0}
@@ -409,7 +429,7 @@ export default function HealthSchedulesPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Description</Label>
+                  <Label>{t("description")}</Label>
                   <Textarea
                     value={treatForm.description}
                     onChange={(e) =>
@@ -422,14 +442,14 @@ export default function HealthSchedulesPage() {
                 </div>
                 <div className="flex gap-2">
                   <Button type="submit" disabled={saving}>
-                    {saving ? "Saving..." : editingTreatId ? "Update" : "Add"}
+                    {saving ? t("saving") : editingTreatId ? t("update") : t("add")}
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
                     onClick={resetTreatForm}
                   >
-                    Cancel
+                    {t("cancel")}
                   </Button>
                 </div>
               </form>
@@ -439,32 +459,36 @@ export default function HealthSchedulesPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>{treatments.length} treatment schedules</CardTitle>
+            <CardTitle>
+              {t("treatmentSchedulesCount", { n: treatments.length })}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {treatments.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No treatment schedules yet. Add dipping, deworming, etc.
+                {t("noTreatmentsHint")}
               </p>
             ) : (
               <ul className="divide-y">
-                {treatments.map((t) => (
+                {treatments.map((item) => (
                   <li
-                    key={t.id}
+                    key={item.id}
                     className="py-3 flex justify-between gap-4 items-start"
                   >
                     <div>
-                      <p className="font-medium">{t.name}</p>
+                      <p className="font-medium">{item.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {t.type.replace(/_/g, " ")}
-                        {t.intervalDays ? ` · every ${t.intervalDays} days` : ""}
-                        {t.withdrawalPeriod != null
-                          ? ` · ${t.withdrawalPeriod}d withdrawal`
+                        {t(treatmentTypeKey(item.type))}
+                        {item.intervalDays
+                          ? ` · ${t("everyNDays", { n: item.intervalDays })}`
+                          : ""}
+                        {item.withdrawalPeriod != null
+                          ? ` · ${t("withdrawalDaysSuffix", { n: item.withdrawalPeriod })}`
                           : ""}
                       </p>
-                      {t.description && (
+                      {item.description && (
                         <p className="text-xs text-muted-foreground mt-1">
-                          {t.description}
+                          {item.description}
                         </p>
                       )}
                     </div>
@@ -472,16 +496,16 @@ export default function HealthSchedulesPage() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => startEditTreatment(t)}
-                        aria-label="Edit treatment"
+                        onClick={() => startEditTreatment(item)}
+                        aria-label={t("editTreatmentSchedule")}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => deleteTreatment(t.id)}
-                        aria-label="Delete treatment"
+                        onClick={() => deleteTreatment(item.id)}
+                        aria-label={t("deleteTreatment")}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>

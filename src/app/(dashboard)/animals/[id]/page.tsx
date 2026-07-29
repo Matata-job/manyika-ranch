@@ -20,6 +20,8 @@ import { useSession } from "next-auth/react";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/components/providers/locale-provider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 interface AnimalEvent {
   id: string;
@@ -108,8 +110,73 @@ const DEATH_CAUSES = [
 
 const DISPOSAL_METHODS = ["BURIED", "BURNED", "SOLD_CARCASS", "REMOVED", "OTHER"];
 
+function deathCauseKey(cause: string): TranslationKey {
+  switch (cause) {
+    case "DISEASE":
+      return "illness";
+    case "INJURY":
+      return "injury";
+    case "PREDATION":
+      return "causePredation";
+    case "DROUGHT_STARVATION":
+      return "causeDroughtStarvation";
+    case "BIRTHING":
+      return "causeBirthing";
+    case "OLD_AGE":
+      return "causeOldAge";
+    case "CULLING":
+      return "causeCulling";
+    case "UNKNOWN":
+      return "causeUnknown";
+    default:
+      return "other";
+  }
+}
+
+function disposalMethodKey(method: string): TranslationKey {
+  switch (method) {
+    case "BURIED":
+      return "disposalBuried";
+    case "BURNED":
+      return "disposalBurned";
+    case "SOLD_CARCASS":
+      return "disposalSoldCarcass";
+    case "REMOVED":
+      return "disposalRemoved";
+    default:
+      return "other";
+  }
+}
+
+function treatmentTypeKey(type: string): TranslationKey {
+  switch (type) {
+    case "DEWORMING":
+      return "deworming";
+    case "DIPPING":
+      return "dipping";
+    case "ANTIBIOTIC":
+      return "antibiotic";
+    default:
+      return "other";
+  }
+}
+
+function healthTypeKey(type: string): TranslationKey {
+  switch (type) {
+    case "CHECKUP":
+      return "checkup";
+    case "ILLNESS":
+      return "illness";
+    case "INJURY":
+      return "injury";
+    default:
+      return "other";
+  }
+}
+
 export default function AnimalDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const t = useT();
   const { data: session } = useSession();
   const role = session?.user?.role as Role | undefined;
   const canEdit = role ? hasPermission(role, "editAnimal") : false;
@@ -262,7 +329,7 @@ export default function AnimalDetailPage() {
 
   async function saveDetails() {
     if (!editForm.eartag.trim() || !editForm.breed) {
-      alert("Eartag and breed are required");
+      alert(t("eartagBreedRequired"));
       return;
     }
     setSavingDetails(true);
@@ -295,7 +362,7 @@ export default function AnimalDetailPage() {
     setSavingDetails(false);
     if (!res.ok) {
       const err = await res.json();
-      alert(err.error || "Failed to update animal");
+      alert(err.error || t("failedToSave"));
       return;
     }
     setEditingDetails(false);
@@ -306,7 +373,7 @@ export default function AnimalDetailPage() {
     kind: "weights" | "health" | "vaccinations" | "treatments",
     recordId: string
   ) {
-    if (!confirm("Delete this record? This cannot be undone.")) return;
+    if (!confirm(t("confirmDelete"))) return;
     const pathMap = {
       weights: `weights/${recordId}`,
       health: `health/${recordId}`,
@@ -318,7 +385,7 @@ export default function AnimalDetailPage() {
     setDeletingId(null);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      alert(err.error || "Failed to delete");
+      alert(err.error || t("failedToDelete"));
       return;
     }
     loadAnimal();
@@ -358,7 +425,7 @@ export default function AnimalDetailPage() {
 
   async function addVaccination() {
     if (!vaccForm.vaccineName.trim() && !vaccForm.vaccineCatalogId) {
-      alert("Select a vaccine or enter a name");
+      alert(t("selectVaccineOrName"));
       return;
     }
     await fetch(`/api/animals/${id}/vaccinations`, {
@@ -391,7 +458,7 @@ export default function AnimalDetailPage() {
 
   async function addTreatment() {
     if (!treatForm.product.trim() && !treatForm.treatmentCatalogId) {
-      alert("Select a schedule or enter a product");
+      alert(t("selectScheduleOrProduct"));
       return;
     }
     await fetch(`/api/animals/${id}/treatments`, {
@@ -426,14 +493,16 @@ export default function AnimalDetailPage() {
       });
       return;
     }
-    const t = treatmentOptions.find((x) => x.id === catalogId);
+    const schedule = treatmentOptions.find((x) => x.id === catalogId);
     setTreatForm({
       ...treatForm,
       treatmentCatalogId: catalogId,
-      type: t?.type || treatForm.type,
-      product: t?.name || "",
+      type: schedule?.type || treatForm.type,
+      product: schedule?.name || "",
       withdrawalPeriod:
-        t?.withdrawalPeriod != null ? String(t.withdrawalPeriod) : treatForm.withdrawalPeriod,
+        schedule?.withdrawalPeriod != null
+          ? String(schedule.withdrawalPeriod)
+          : treatForm.withdrawalPeriod,
       nextDue: "",
     });
   }
@@ -464,7 +533,7 @@ export default function AnimalDetailPage() {
   }
 
   async function recordDeath() {
-    if (!confirm("Mark this animal as deceased? This cannot be undone from here.")) return;
+    if (!confirm(t("confirmMarkDeceased"))) return;
     setSavingDeath(true);
     const res = await fetch(`/api/animals/${id}/death`, {
       method: "POST",
@@ -480,7 +549,7 @@ export default function AnimalDetailPage() {
     setSavingDeath(false);
     if (!res.ok) {
       const err = await res.json();
-      alert(err.error || "Failed to record death");
+      alert(err.error || t("failedToSave"));
       return;
     }
     loadAnimal();
@@ -488,10 +557,10 @@ export default function AnimalDetailPage() {
 
   async function recordSale() {
     if ((!saleForm.buyerId && !saleForm.buyer.trim()) || !saleForm.priceTzs) {
-      alert("Buyer and price are required");
+      alert(t("buyerPriceRequired"));
       return;
     }
-    if (!confirm("Record this sale and mark the animal as sold?")) return;
+    if (!confirm(t("confirmRecordSale"))) return;
     setSavingSale(true);
     const res = await fetch(`/api/animals/${id}/sales`, {
       method: "POST",
@@ -510,7 +579,7 @@ export default function AnimalDetailPage() {
     setSavingSale(false);
     if (!res.ok) {
       const err = await res.json();
-      alert(err.error || "Failed to record sale");
+      alert(err.error || t("failedToSave"));
       return;
     }
     setSaleForm({
@@ -531,7 +600,7 @@ export default function AnimalDetailPage() {
   }
 
   if (!animal) {
-    return <p className="text-muted-foreground">Loading...</p>;
+    return <p className="text-muted-foreground">{t("loading")}</p>;
   }
 
   const isDeceased = animal.status === "DECEASED" || !!animal.deathRecord;
@@ -546,7 +615,7 @@ export default function AnimalDetailPage() {
   return (
     <div className="space-y-6">
       <Link href="/animals" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4 mr-1" /> Back to animals
+        <ArrowLeft className="h-4 w-4 mr-1" /> {t("backToAnimals")}
       </Link>
 
       <div className="flex flex-col md:flex-row gap-6">
@@ -560,29 +629,29 @@ export default function AnimalDetailPage() {
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2 flex-wrap">
             <h1 className="text-3xl font-bold">{animal.eartag}</h1>
-            <Badge>{animal.sex}</Badge>
-            {animal.sex === "MALE" && animal.isCastrated && <Badge variant="outline">Castrated</Badge>}
-            {animal.sex === "FEMALE" && animal.isPregnant && <Badge variant="warning">Pregnant</Badge>}
+            <Badge>{animal.sex === "MALE" ? t("male") : t("female")}</Badge>
+            {animal.sex === "MALE" && animal.isCastrated && <Badge variant="outline">{t("castrated")}</Badge>}
+            {animal.sex === "FEMALE" && animal.isPregnant && <Badge variant="warning">{t("pregnant")}</Badge>}
             <Badge variant={isDeceased ? "destructive" : isSold ? "warning" : "secondary"}>{animal.status}</Badge>
-            {animal.deathRecord?.isCulling && <Badge variant="warning">Culled</Badge>}
+            {animal.deathRecord?.isCulling && <Badge variant="warning">{t("causeCulling")}</Badge>}
             {canEdit && !editingDetails && (
               <Button variant="outline" size="sm" onClick={() => startEditDetails(animal)}>
-                <Pencil className="h-3.5 w-3.5 mr-1" /> Edit details
+                <Pencil className="h-3.5 w-3.5 mr-1" /> {t("editDetails")}
               </Button>
             )}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div><span className="text-muted-foreground">Breed</span><p className="font-medium">{animal.breed}</p></div>
-            <div><span className="text-muted-foreground">Age</span><p className="font-medium">{formatAge(animal.ageMonths, ageMode)}</p></div>
-            <div><span className="text-muted-foreground">DOB</span><p className="font-medium">{formatDate(animal.dob)}</p></div>
-            <div><span className="text-muted-foreground">Camp</span><p className="font-medium">{animal.camp.name}</p></div>
-            <div><span className="text-muted-foreground">Owner</span><p className="font-medium">{animal.owner.name}</p></div>
-            <div><span className="text-muted-foreground">Sire</span><p className="font-medium">{animal.sire?.eartag || "—"}</p></div>
-            <div><span className="text-muted-foreground">Dam</span><p className="font-medium">{animal.dam?.eartag || "—"}</p></div>
-            <div><span className="text-muted-foreground">Markings</span><p className="font-medium">{animal.colorMarkings || "—"}</p></div>
+            <div><span className="text-muted-foreground">{t("breed")}</span><p className="font-medium">{animal.breed}</p></div>
+            <div><span className="text-muted-foreground">{t("age")}</span><p className="font-medium">{formatAge(animal.ageMonths, ageMode)}</p></div>
+            <div><span className="text-muted-foreground">{t("dob")}</span><p className="font-medium">{formatDate(animal.dob)}</p></div>
+            <div><span className="text-muted-foreground">{t("camp")}</span><p className="font-medium">{animal.camp.name}</p></div>
+            <div><span className="text-muted-foreground">{t("owner")}</span><p className="font-medium">{animal.owner.name}</p></div>
+            <div><span className="text-muted-foreground">{t("sire")}</span><p className="font-medium">{animal.sire?.eartag || "—"}</p></div>
+            <div><span className="text-muted-foreground">{t("dam")}</span><p className="font-medium">{animal.dam?.eartag || "—"}</p></div>
+            <div><span className="text-muted-foreground">{t("colorMarkings")}</span><p className="font-medium">{animal.colorMarkings || "—"}</p></div>
             {animal.sex === "MALE" && canEdit && !isClosed && (
               <div>
-                <span className="text-muted-foreground">Castrated</span>
+                <span className="text-muted-foreground">{t("castrated")}</span>
                 <label className="flex items-center gap-2 mt-1 text-sm font-medium">
                   <input
                     type="checkbox"
@@ -590,13 +659,13 @@ export default function AnimalDetailPage() {
                     disabled={statusSaving}
                     onChange={(e) => toggleSexStatus("isCastrated", e.target.checked)}
                   />
-                  {animal.isCastrated ? "Yes" : "No"}
+                  {animal.isCastrated ? t("yes") : t("no")}
                 </label>
               </div>
             )}
             {animal.sex === "FEMALE" && canEdit && !isClosed && (
               <div>
-                <span className="text-muted-foreground">Pregnant</span>
+                <span className="text-muted-foreground">{t("pregnant")}</span>
                 <label className="flex items-center gap-2 mt-1 text-sm font-medium">
                   <input
                     type="checkbox"
@@ -604,7 +673,7 @@ export default function AnimalDetailPage() {
                     disabled={statusSaving}
                     onChange={(e) => toggleSexStatus("isPregnant", e.target.checked)}
                   />
-                  {animal.isPregnant ? "Yes" : "No"}
+                  {animal.isPregnant ? t("yes") : t("no")}
                 </label>
               </div>
             )}
@@ -615,29 +684,29 @@ export default function AnimalDetailPage() {
       {editingDetails && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Edit Animal Details</CardTitle>
+            <CardTitle>{t("editAnimalDetails")}</CardTitle>
             <div className="flex gap-2">
               <Button size="sm" onClick={saveDetails} disabled={savingDetails}>
-                {savingDetails ? "Saving..." : "Save"}
+                {savingDetails ? t("saving") : t("save")}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setEditingDetails(false)}>
-                Cancel
+                {t("cancel")}
               </Button>
             </div>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 sm:grid-cols-2 max-w-3xl">
               <div className="space-y-2">
-                <Label>Eartag *</Label>
+                <Label>{t("eartag")} *</Label>
                 <Input
                   value={editForm.eartag}
                   onChange={(e) => setEditForm({ ...editForm, eartag: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Breed *</Label>
+                <Label>{t("breed")} *</Label>
                 <Select value={editForm.breed} onValueChange={(v) => setEditForm({ ...editForm, breed: v })}>
-                  <SelectTrigger><SelectValue placeholder="Breed" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("breed")} /></SelectTrigger>
                   <SelectContent>
                     {breeds.map((b) => (
                       <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
@@ -649,30 +718,30 @@ export default function AnimalDetailPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Sex</Label>
+                <Label>{t("sex")}</Label>
                 <Select value={editForm.sex} onValueChange={(v) => setEditForm({ ...editForm, sex: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="MALE">Male</SelectItem>
-                    <SelectItem value="FEMALE">Female</SelectItem>
+                    <SelectItem value="MALE">{t("male")}</SelectItem>
+                    <SelectItem value="FEMALE">{t("female")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               {!isClosed && (
                 <div className="space-y-2">
-                  <Label>Status</Label>
+                  <Label>{t("status")}</Label>
                   <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ACTIVE">Active</SelectItem>
-                      <SelectItem value="MISSING">Missing</SelectItem>
-                      <SelectItem value="QUARANTINE">Quarantine</SelectItem>
+                      <SelectItem value="ACTIVE">{t("active")}</SelectItem>
+                      <SelectItem value="MISSING">{t("statusMissing")}</SelectItem>
+                      <SelectItem value="QUARANTINE">{t("quarantine")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               )}
               <div className="space-y-2">
-                <Label>Date of birth</Label>
+                <Label>{t("dob")}</Label>
                 <Input
                   type="date"
                   value={editForm.dob}
@@ -682,7 +751,7 @@ export default function AnimalDetailPage() {
               {!editForm.dob && (
                 <>
                   <div className="space-y-2">
-                    <Label>Age — years</Label>
+                    <Label>{t("ageYears")}</Label>
                     <Input
                       type="number"
                       min={0}
@@ -691,7 +760,7 @@ export default function AnimalDetailPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Age — months</Label>
+                    <Label>{t("ageMonthsPart")}</Label>
                     <Input
                       type="number"
                       min={0}
@@ -703,7 +772,7 @@ export default function AnimalDetailPage() {
                 </>
               )}
               <div className="space-y-2">
-                <Label>Camp</Label>
+                <Label>{t("camp")}</Label>
                 <Select value={editForm.campId} onValueChange={(v) => setEditForm({ ...editForm, campId: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -714,7 +783,7 @@ export default function AnimalDetailPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Owner</Label>
+                <Label>{t("owner")}</Label>
                 <Select value={editForm.ownerId} onValueChange={(v) => setEditForm({ ...editForm, ownerId: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -728,28 +797,28 @@ export default function AnimalDetailPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Acquisition</Label>
+                <Label>{t("acquisitionType")}</Label>
                 <Select
                   value={editForm.acquisitionType}
                   onValueChange={(v) => setEditForm({ ...editForm, acquisitionType: v })}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="BORN_ON_FARM">Born on farm</SelectItem>
-                    <SelectItem value="PURCHASED">Purchased</SelectItem>
-                    <SelectItem value="GIFT">Gift</SelectItem>
+                    <SelectItem value="BORN_ON_FARM">{t("bornOnFarm")}</SelectItem>
+                    <SelectItem value="PURCHASED">{t("purchased")}</SelectItem>
+                    <SelectItem value="GIFT">{t("gift")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label>Color / markings</Label>
+                <Label>{t("colorMarkings")}</Label>
                 <Input
                   value={editForm.colorMarkings}
                   onChange={(e) => setEditForm({ ...editForm, colorMarkings: e.target.value })}
                 />
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label>Notes</Label>
+                <Label>{t("notes")}</Label>
                 <Textarea
                   value={editForm.notes}
                   onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
@@ -757,7 +826,7 @@ export default function AnimalDetailPage() {
               </div>
               {isClosed && (
                 <p className="text-sm text-muted-foreground sm:col-span-2">
-                  This animal is {animal.status.toLowerCase()}. Identity fields can still be corrected; status cannot be changed here.
+                  {t("closedAnimalNotice", { status: animal.status.toLowerCase() })}
                 </p>
               )}
             </div>
@@ -767,23 +836,23 @@ export default function AnimalDetailPage() {
 
       <Tabs defaultValue="events">
         <TabsList className="flex flex-wrap h-auto gap-1">
-          <TabsTrigger value="events">Events</TabsTrigger>
-          <TabsTrigger value="weights">Weights</TabsTrigger>
-          <TabsTrigger value="health">Health</TabsTrigger>
-          <TabsTrigger value="vaccinations">Vaccinations</TabsTrigger>
-          <TabsTrigger value="treatments">Treatments</TabsTrigger>
-          <TabsTrigger value="movements">Movements</TabsTrigger>
-          <TabsTrigger value="sales">Sales</TabsTrigger>
-          <TabsTrigger value="death">Death / Culling</TabsTrigger>
-          <TabsTrigger value="pedigree">Pedigree</TabsTrigger>
+          <TabsTrigger value="events">{t("tabEvents")}</TabsTrigger>
+          <TabsTrigger value="weights">{t("tabWeights")}</TabsTrigger>
+          <TabsTrigger value="health">{t("tabHealth")}</TabsTrigger>
+          <TabsTrigger value="vaccinations">{t("tabVaccinations")}</TabsTrigger>
+          <TabsTrigger value="treatments">{t("tabTreatments")}</TabsTrigger>
+          <TabsTrigger value="movements">{t("tabMovements")}</TabsTrigger>
+          <TabsTrigger value="sales">{t("tabSales")}</TabsTrigger>
+          <TabsTrigger value="death">{t("tabDeath")}</TabsTrigger>
+          <TabsTrigger value="pedigree">{t("tabPedigree")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="events" className="space-y-4">
           <Card>
-            <CardHeader><CardTitle>Event Timeline</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{t("eventTimeline")}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               {(animal.events || []).length === 0 ? (
-                <p className="text-sm text-muted-foreground">No events recorded yet</p>
+                <p className="text-sm text-muted-foreground">{t("noEvents")}</p>
               ) : (
                 <div className="space-y-3">
                   {animal.events.map((ev) => (
@@ -807,15 +876,15 @@ export default function AnimalDetailPage() {
                   <Select value={eventForm.type} onValueChange={(v) => setEventForm({ ...eventForm, type: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="NOTE">Note</SelectItem>
-                      <SelectItem value="QUARANTINE">Quarantine</SelectItem>
-                      <SelectItem value="OTHER">Other</SelectItem>
+                      <SelectItem value="NOTE">{t("eventTypeNote")}</SelectItem>
+                      <SelectItem value="QUARANTINE">{t("quarantine")}</SelectItem>
+                      <SelectItem value="OTHER">{t("other")}</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Input placeholder="Event title" value={eventForm.title} onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })} />
-                  <Textarea placeholder="Description" value={eventForm.description} onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })} />
+                  <Input placeholder={t("eventTitle")} value={eventForm.title} onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })} />
+                  <Textarea placeholder={t("description")} value={eventForm.description} onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })} />
                   <Input type="date" value={eventForm.occurredAt} onChange={(e) => setEventForm({ ...eventForm, occurredAt: e.target.value })} />
-                  <Button onClick={addEvent}>Add Event</Button>
+                  <Button onClick={addEvent}>{t("addEvent")}</Button>
                 </div>
               )}
             </CardContent>
@@ -824,7 +893,7 @@ export default function AnimalDetailPage() {
 
         <TabsContent value="weights" className="space-y-4">
           <Card>
-            <CardHeader><CardTitle>Weight History</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{t("weightHistory")}</CardTitle></CardHeader>
             <CardContent>
               {weightChart.length > 0 ? (
                 <ResponsiveContainer width="100%" height={250}>
@@ -837,7 +906,7 @@ export default function AnimalDetailPage() {
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
-                <p className="text-muted-foreground text-sm">No weight records yet</p>
+                <p className="text-muted-foreground text-sm">{t("noWeightRecords")}</p>
               )}
               {animal.weightLogs.length > 0 && (
                 <div className="mt-4 space-y-2">
@@ -855,7 +924,7 @@ export default function AnimalDetailPage() {
                           variant="ghost"
                           disabled={deletingId === w.id}
                           onClick={() => deleteSubRecord("weights", w.id)}
-                          aria-label="Delete weight"
+                          aria-label={t("delete")}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -866,8 +935,8 @@ export default function AnimalDetailPage() {
               )}
               {!isClosed && canEdit && (
                 <div className="flex gap-2 mt-4">
-                  <Input type="number" placeholder="Weight (kg)" value={weightKg} onChange={(e) => setWeightKg(e.target.value)} className="max-w-xs" />
-                  <Button onClick={addWeight}>Record Weight</Button>
+                  <Input type="number" placeholder={t("weightKg")} value={weightKg} onChange={(e) => setWeightKg(e.target.value)} className="max-w-xs" />
+                  <Button onClick={addWeight}>{t("recordWeight")}</Button>
                 </div>
               )}
             </CardContent>
@@ -876,14 +945,14 @@ export default function AnimalDetailPage() {
 
         <TabsContent value="health" className="space-y-4">
           <Card>
-            <CardHeader><CardTitle>Health Records</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{t("healthRecords")}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               {animal.healthRecords.map((r) => (
                 <div key={r.id} className="border-b pb-2">
                   <div className="flex justify-between items-start gap-2">
                     <div className="flex-1">
                       <div className="flex justify-between">
-                        <Badge variant="outline">{r.type}</Badge>
+                        <Badge variant="outline">{t(healthTypeKey(r.type))}</Badge>
                         <span className="text-sm text-muted-foreground">{formatDate(r.date)}</span>
                       </div>
                       {r.diagnosis && <p className="text-sm mt-1">{r.diagnosis}</p>}
@@ -895,7 +964,7 @@ export default function AnimalDetailPage() {
                         variant="ghost"
                         disabled={deletingId === r.id}
                         onClick={() => deleteSubRecord("health", r.id)}
-                        aria-label="Delete health record"
+                        aria-label={t("delete")}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -908,15 +977,15 @@ export default function AnimalDetailPage() {
                   <Select value={healthForm.type} onValueChange={(v) => setHealthForm({ ...healthForm, type: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="CHECKUP">Checkup</SelectItem>
-                      <SelectItem value="ILLNESS">Illness</SelectItem>
-                      <SelectItem value="INJURY">Injury</SelectItem>
-                      <SelectItem value="OTHER">Other</SelectItem>
+                      <SelectItem value="CHECKUP">{t("checkup")}</SelectItem>
+                      <SelectItem value="ILLNESS">{t("illness")}</SelectItem>
+                      <SelectItem value="INJURY">{t("injury")}</SelectItem>
+                      <SelectItem value="OTHER">{t("other")}</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Input placeholder="Diagnosis" value={healthForm.diagnosis} onChange={(e) => setHealthForm({ ...healthForm, diagnosis: e.target.value })} />
-                  <Input placeholder="Treatment" value={healthForm.treatment} onChange={(e) => setHealthForm({ ...healthForm, treatment: e.target.value })} />
-                  <Button onClick={addHealth}>Add Health Record</Button>
+                  <Input placeholder={t("diagnosis")} value={healthForm.diagnosis} onChange={(e) => setHealthForm({ ...healthForm, diagnosis: e.target.value })} />
+                  <Input placeholder={t("treatment")} value={healthForm.treatment} onChange={(e) => setHealthForm({ ...healthForm, treatment: e.target.value })} />
+                  <Button onClick={addHealth}>{t("addHealthRecord")}</Button>
                 </div>
               )}
             </CardContent>
@@ -925,7 +994,7 @@ export default function AnimalDetailPage() {
 
         <TabsContent value="vaccinations">
           <Card>
-            <CardHeader><CardTitle>Vaccinations</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{t("tabVaccinations")}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               {animal.vaccinations.map((v) => (
                 <div key={v.id} className="border-b pb-2">
@@ -935,7 +1004,7 @@ export default function AnimalDetailPage() {
                         <span className="font-medium">{v.vaccineName}</span>
                         <span className="text-sm text-muted-foreground">{formatDate(v.date)}</span>
                       </div>
-                      {v.nextDue && <p className="text-sm text-muted-foreground">Next due: {formatDate(v.nextDue)}</p>}
+                      {v.nextDue && <p className="text-sm text-muted-foreground">{t("nextDue")}: {formatDate(v.nextDue)}</p>}
                     </div>
                     {canManageHealth && (
                       <Button
@@ -943,7 +1012,7 @@ export default function AnimalDetailPage() {
                         variant="ghost"
                         disabled={deletingId === v.id}
                         onClick={() => deleteSubRecord("vaccinations", v.id)}
-                        aria-label="Delete vaccination"
+                        aria-label={t("delete")}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -959,21 +1028,21 @@ export default function AnimalDetailPage() {
                       onValueChange={onVaccineCatalogChange}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="From schedule…" />
+                        <SelectValue placeholder={t("optionalSchedule")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__custom__">Custom / one-off</SelectItem>
+                        <SelectItem value="__custom__">{t("customOneOff")}</SelectItem>
                         {vaccineOptions.map((v) => (
                           <SelectItem key={v.id} value={v.id}>
                             {v.name}
-                            {v.intervalDays ? ` (every ${v.intervalDays}d)` : ""}
+                            {v.intervalDays ? ` (${t("everyNDays", { n: v.intervalDays })})` : ""}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   )}
                   <Input
-                    placeholder="Vaccine name"
+                    placeholder={t("vaccineName")}
                     value={vaccForm.vaccineName}
                     onChange={(e) =>
                       setVaccForm({
@@ -984,13 +1053,13 @@ export default function AnimalDetailPage() {
                     }
                   />
                   <Input
-                    placeholder="Batch no."
+                    placeholder={t("batchNo")}
                     value={vaccForm.batchNo}
                     onChange={(e) => setVaccForm({ ...vaccForm, batchNo: e.target.value })}
                   />
                   <div>
                     <Label className="text-xs text-muted-foreground">
-                      Next due (optional — auto-filled from schedule interval)
+                      {t("nextDueOptional")}
                     </Label>
                     <Input
                       type="date"
@@ -998,7 +1067,7 @@ export default function AnimalDetailPage() {
                       onChange={(e) => setVaccForm({ ...vaccForm, nextDue: e.target.value })}
                     />
                   </div>
-                  <Button onClick={addVaccination}>Record Vaccination</Button>
+                  <Button onClick={addVaccination}>{t("recordVaccination")}</Button>
                 </div>
               )}
             </CardContent>
@@ -1007,32 +1076,32 @@ export default function AnimalDetailPage() {
 
         <TabsContent value="treatments">
           <Card>
-            <CardHeader><CardTitle>Treatments</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{t("tabTreatments")}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               {animal.treatments.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No treatments recorded</p>
+                <p className="text-sm text-muted-foreground">{t("noTreatments")}</p>
               ) : (
-                animal.treatments.map((t) => (
-                  <div key={t.id} className="border-b pb-2">
+                animal.treatments.map((tr) => (
+                  <div key={tr.id} className="border-b pb-2">
                     <div className="flex justify-between items-start gap-2">
                       <div className="flex-1">
                         <div className="flex justify-between gap-2">
                           <span className="font-medium">
-                            {t.product}{" "}
+                            {tr.product}{" "}
                             <Badge variant="outline" className="ml-1">
-                              {t.type.replace(/_/g, " ")}
+                              {t(treatmentTypeKey(tr.type))}
                             </Badge>
                           </span>
                           <span className="text-sm text-muted-foreground shrink-0">
-                            {formatDate(t.date)}
+                            {formatDate(tr.date)}
                           </span>
                         </div>
-                        {t.dose && (
-                          <p className="text-sm text-muted-foreground">Dose: {t.dose}</p>
+                        {tr.dose && (
+                          <p className="text-sm text-muted-foreground">{t("dose")}: {tr.dose}</p>
                         )}
-                        {t.nextDue && (
+                        {tr.nextDue && (
                           <p className="text-sm text-muted-foreground">
-                            Next due: {formatDate(t.nextDue)}
+                            {t("nextDue")}: {formatDate(tr.nextDue)}
                           </p>
                         )}
                       </div>
@@ -1040,9 +1109,9 @@ export default function AnimalDetailPage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          disabled={deletingId === t.id}
-                          onClick={() => deleteSubRecord("treatments", t.id)}
-                          aria-label="Delete treatment"
+                          disabled={deletingId === tr.id}
+                          onClick={() => deleteSubRecord("treatments", tr.id)}
+                          aria-label={t("delete")}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -1059,14 +1128,14 @@ export default function AnimalDetailPage() {
                       onValueChange={onTreatmentCatalogChange}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="From schedule…" />
+                        <SelectValue placeholder={t("optionalSchedule")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__custom__">Custom / one-off</SelectItem>
-                        {treatmentOptions.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.name}
-                            {t.intervalDays ? ` (every ${t.intervalDays}d)` : ""}
+                        <SelectItem value="__custom__">{t("customOneOff")}</SelectItem>
+                        {treatmentOptions.map((to) => (
+                          <SelectItem key={to.id} value={to.id}>
+                            {to.name}
+                            {to.intervalDays ? ` (${t("everyNDays", { n: to.intervalDays })})` : ""}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1081,15 +1150,15 @@ export default function AnimalDetailPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="DEWORMING">Deworming</SelectItem>
-                        <SelectItem value="DIPPING">Dipping</SelectItem>
-                        <SelectItem value="ANTIBIOTIC">Antibiotic</SelectItem>
-                        <SelectItem value="OTHER">Other</SelectItem>
+                        <SelectItem value="DEWORMING">{t("deworming")}</SelectItem>
+                        <SelectItem value="DIPPING">{t("dipping")}</SelectItem>
+                        <SelectItem value="ANTIBIOTIC">{t("antibiotic")}</SelectItem>
+                        <SelectItem value="OTHER">{t("other")}</SelectItem>
                       </SelectContent>
                     </Select>
                   )}
                   <Input
-                    placeholder="Product"
+                    placeholder={t("product")}
                     value={treatForm.product}
                     onChange={(e) =>
                       setTreatForm({
@@ -1100,14 +1169,14 @@ export default function AnimalDetailPage() {
                     }
                   />
                   <Input
-                    placeholder="Dose"
+                    placeholder={t("dose")}
                     value={treatForm.dose}
                     onChange={(e) => setTreatForm({ ...treatForm, dose: e.target.value })}
                   />
                   <Input
                     type="number"
                     min={0}
-                    placeholder="Withdrawal (days)"
+                    placeholder={t("withdrawalDays")}
                     value={treatForm.withdrawalPeriod}
                     onChange={(e) =>
                       setTreatForm({ ...treatForm, withdrawalPeriod: e.target.value })
@@ -1115,7 +1184,7 @@ export default function AnimalDetailPage() {
                   />
                   <div>
                     <Label className="text-xs text-muted-foreground">
-                      Next due (optional — auto-filled from schedule interval)
+                      {t("nextDueOptional")}
                     </Label>
                     <Input
                       type="date"
@@ -1125,7 +1194,7 @@ export default function AnimalDetailPage() {
                       }
                     />
                   </div>
-                  <Button onClick={addTreatment}>Record Treatment</Button>
+                  <Button onClick={addTreatment}>{t("recordTreatment")}</Button>
                 </div>
               )}
             </CardContent>
@@ -1134,7 +1203,7 @@ export default function AnimalDetailPage() {
 
         <TabsContent value="movements">
           <Card>
-            <CardHeader><CardTitle>Movement History</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{t("movementHistory")}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               {animal.movements.map((m) => (
                 <div key={m.id} className="border-b pb-2">
@@ -1145,19 +1214,19 @@ export default function AnimalDetailPage() {
               {!isClosed && canMove && (
                 <div className="flex gap-2 pt-4 border-t">
                   <Select value={moveCampId} onValueChange={setMoveCampId}>
-                    <SelectTrigger className="max-w-xs"><SelectValue placeholder="Move to camp" /></SelectTrigger>
+                    <SelectTrigger className="max-w-xs"><SelectValue placeholder={t("moveToCamp")} /></SelectTrigger>
                     <SelectContent>
                       {camps.filter((c) => c.id !== animal.camp.id).map((c) => (
                         <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button onClick={moveAnimal}>Move Animal</Button>
+                  <Button onClick={moveAnimal}>{t("moveAnimal")}</Button>
                 </div>
               )}
               {!isClosed && !canMove && (
                 <p className="text-sm text-muted-foreground pt-2 border-t">
-                  Only the ranch owner or farm manager can move animals between camps.
+                  {t("onlyOwnerManagerMove")}
                 </p>
               )}
             </CardContent>
@@ -1167,32 +1236,32 @@ export default function AnimalDetailPage() {
         <TabsContent value="sales">
           <Card>
             <CardHeader>
-              <CardTitle>{latestSale ? "Sale Record" : "Record Sale"}</CardTitle>
+              <CardTitle>{latestSale ? t("saleRecord") : t("recordSale")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {latestSale ? (
                 <div className="grid gap-3 sm:grid-cols-2 text-sm">
                   <div>
-                    <span className="text-muted-foreground">Sale date</span>
+                    <span className="text-muted-foreground">{t("saleDate")}</span>
                     <p className="font-medium">{formatDate(latestSale.saleDate)}</p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Buyer</span>
+                    <span className="text-muted-foreground">{t("buyer")}</span>
                     <p className="font-medium">{latestSale.buyer}</p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Price</span>
+                    <span className="text-muted-foreground">{t("price")}</span>
                     <p className="font-medium">{formatCurrency(latestSale.priceTzs)}</p>
                   </div>
                   {latestSale.weightAtSale != null && (
                     <div>
-                      <span className="text-muted-foreground">Weight at sale</span>
+                      <span className="text-muted-foreground">{t("weightAtSale")}</span>
                       <p className="font-medium">{latestSale.weightAtSale} kg</p>
                     </div>
                   )}
                   {latestSale.weightAtSale != null && latestSale.weightAtSale > 0 && (
                     <div>
-                      <span className="text-muted-foreground">Price / kg</span>
+                      <span className="text-muted-foreground">{t("pricePerKg")}</span>
                       <p className="font-medium">
                         {formatCurrency(Math.round(latestSale.priceTzs / latestSale.weightAtSale))}
                       </p>
@@ -1200,7 +1269,7 @@ export default function AnimalDetailPage() {
                   )}
                   {latestSale.transport && (
                     <div>
-                      <span className="text-muted-foreground">Transport</span>
+                      <span className="text-muted-foreground">{t("transport")}</span>
                       <p className="font-medium">{latestSale.transport}</p>
                     </div>
                   )}
@@ -1209,7 +1278,7 @@ export default function AnimalDetailPage() {
                   )}
                   {(animal.sales?.length ?? 0) > 1 && (
                     <div className="sm:col-span-2 space-y-2 pt-2 border-t">
-                      <p className="text-muted-foreground text-xs uppercase tracking-wide">Earlier sales</p>
+                      <p className="text-muted-foreground text-xs uppercase tracking-wide">{t("earlierSales")}</p>
                       {animal.sales.slice(1).map((s) => (
                         <div key={s.id} className="flex justify-between gap-2">
                           <span>{formatDate(s.saleDate)} · {s.buyer}</span>
@@ -1220,13 +1289,13 @@ export default function AnimalDetailPage() {
                   )}
                 </div>
               ) : isDeceased ? (
-                <p className="text-sm text-muted-foreground">Cannot sell a deceased animal.</p>
+                <p className="text-sm text-muted-foreground">{t("cannotSellDeceased")}</p>
               ) : canSell ? (
                 <div className="grid gap-3 sm:grid-cols-2 max-w-2xl">
                   <div className="sm:col-span-2 space-y-2">
-                    <Label>Buyer contact</Label>
+                    <Label>{t("buyerContact")}</Label>
                     <Input
-                      placeholder="Search buyers..."
+                      placeholder={t("searchBuyersPlaceholder")}
                       value={buyerSearch}
                       onChange={(e) => searchBuyers(e.target.value)}
                     />
@@ -1246,10 +1315,10 @@ export default function AnimalDetailPage() {
                       }}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select buyer" />
+                        <SelectValue placeholder={t("selectBuyerPlaceholder")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="new">One-off / new name…</SelectItem>
+                        <SelectItem value="new">{t("oneOffNewBuyer")}</SelectItem>
                         {buyerOptions.map((b) => (
                           <SelectItem key={b.id} value={b.id}>
                             {b.name}
@@ -1262,7 +1331,7 @@ export default function AnimalDetailPage() {
                     {!saleForm.buyerId && (
                       <>
                         <Input
-                          placeholder="Buyer name *"
+                          placeholder={`${t("buyerName")} *`}
                           value={saleForm.buyer}
                           onChange={(e) => setSaleForm({ ...saleForm, buyer: e.target.value })}
                         />
@@ -1274,20 +1343,20 @@ export default function AnimalDetailPage() {
                               setSaleForm({ ...saleForm, createBuyer: e.target.checked })
                             }
                           />
-                          Save as buyer contact for future sales
+                          {t("saveBuyerContact")}
                         </label>
                       </>
                     )}
                   </div>
                   <Input
                     type="number"
-                    placeholder="Price (TZS) *"
+                    placeholder={`${t("priceTzs")} *`}
                     value={saleForm.priceTzs}
                     onChange={(e) => setSaleForm({ ...saleForm, priceTzs: e.target.value })}
                   />
                   <Input
                     type="number"
-                    placeholder="Weight at sale (kg)"
+                    placeholder={t("weightAtSaleKg")}
                     value={saleForm.weightAtSale}
                     onChange={(e) => setSaleForm({ ...saleForm, weightAtSale: e.target.value })}
                   />
@@ -1297,22 +1366,22 @@ export default function AnimalDetailPage() {
                     onChange={(e) => setSaleForm({ ...saleForm, saleDate: e.target.value })}
                   />
                   <Input
-                    placeholder="Transport / logistics"
+                    placeholder={t("transportLogistics")}
                     value={saleForm.transport}
                     onChange={(e) => setSaleForm({ ...saleForm, transport: e.target.value })}
                   />
                   <Textarea
-                    placeholder="Notes"
+                    placeholder={t("notes")}
                     value={saleForm.notes}
                     onChange={(e) => setSaleForm({ ...saleForm, notes: e.target.value })}
                     className="sm:col-span-2"
                   />
                   <Button onClick={recordSale} disabled={savingSale} className="sm:col-span-2">
-                    {savingSale ? "Saving..." : "Record Sale"}
+                    {savingSale ? t("saving") : t("recordSale")}
                   </Button>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No sale recorded. You do not have permission to record sales.</p>
+                <p className="text-sm text-muted-foreground">{t("noSalePermission")}</p>
               )}
             </CardContent>
           </Card>
@@ -1321,32 +1390,32 @@ export default function AnimalDetailPage() {
         <TabsContent value="death">
           <Card>
             <CardHeader>
-              <CardTitle>{animal.deathRecord ? "Death Record" : "Record Death / Culling"}</CardTitle>
+              <CardTitle>{animal.deathRecord ? t("deathRecord") : t("recordDeathCulling")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {animal.deathRecord ? (
                 <div className="grid gap-3 sm:grid-cols-2 text-sm">
-                  <div><span className="text-muted-foreground">Date</span><p className="font-medium">{formatDate(animal.deathRecord.date)}</p></div>
-                  <div><span className="text-muted-foreground">Cause</span><p className="font-medium">{animal.deathRecord.cause.replace(/_/g, " ")}</p></div>
-                  <div><span className="text-muted-foreground">Disposal</span><p className="font-medium">{animal.deathRecord.disposalMethod.replace(/_/g, " ")}</p></div>
-                  <div><span className="text-muted-foreground">Recorded by</span><p className="font-medium">{animal.deathRecord.recordedBy.name}</p></div>
+                  <div><span className="text-muted-foreground">{t("date")}</span><p className="font-medium">{formatDate(animal.deathRecord.date)}</p></div>
+                  <div><span className="text-muted-foreground">{t("cause")}</span><p className="font-medium">{t(deathCauseKey(animal.deathRecord.cause))}</p></div>
+                  <div><span className="text-muted-foreground">{t("disposal")}</span><p className="font-medium">{t(disposalMethodKey(animal.deathRecord.disposalMethod))}</p></div>
+                  <div><span className="text-muted-foreground">{t("recordedBy")}</span><p className="font-medium">{animal.deathRecord.recordedBy.name}</p></div>
                   {animal.deathRecord.causeDetail && (
-                    <div className="sm:col-span-2"><span className="text-muted-foreground">Detail</span><p>{animal.deathRecord.causeDetail}</p></div>
+                    <div className="sm:col-span-2"><span className="text-muted-foreground">{t("causeDetail")}</span><p>{animal.deathRecord.causeDetail}</p></div>
                   )}
                   {animal.deathRecord.location && (
-                    <div><span className="text-muted-foreground">Location</span><p>{animal.deathRecord.location}</p></div>
+                    <div><span className="text-muted-foreground">{t("location")}</span><p>{animal.deathRecord.location}</p></div>
                   )}
                   {animal.deathRecord.weightKg != null && (
-                    <div><span className="text-muted-foreground">Weight</span><p>{animal.deathRecord.weightKg} kg</p></div>
+                    <div><span className="text-muted-foreground">{t("weight")}</span><p>{animal.deathRecord.weightKg} kg</p></div>
                   )}
                   {animal.deathRecord.insuranceClaim && (
                     <div className="sm:col-span-2">
-                      <Badge variant="warning">Insurance claim</Badge>
+                      <Badge variant="warning">{t("insuranceClaim")}</Badge>
                       {animal.deathRecord.claimAmountTzs != null && (
                         <span className="ml-2">TZS {animal.deathRecord.claimAmountTzs.toLocaleString()}</span>
                       )}
                       {animal.deathRecord.claimReference && (
-                        <span className="ml-2 text-muted-foreground">Ref: {animal.deathRecord.claimReference}</span>
+                        <span className="ml-2 text-muted-foreground">{t("ref")}: {animal.deathRecord.claimReference}</span>
                       )}
                     </div>
                   )}
@@ -1356,42 +1425,42 @@ export default function AnimalDetailPage() {
                 <div className="grid gap-3 sm:grid-cols-2 max-w-2xl">
                   <Input type="date" value={deathForm.date} onChange={(e) => setDeathForm({ ...deathForm, date: e.target.value })} />
                   <Select value={deathForm.cause} onValueChange={(v) => setDeathForm({ ...deathForm, cause: v, isCulling: v === "CULLING" })}>
-                    <SelectTrigger><SelectValue placeholder="Cause" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={t("cause")} /></SelectTrigger>
                     <SelectContent>
                       {DEATH_CAUSES.map((c) => (
-                        <SelectItem key={c} value={c}>{c.replace(/_/g, " ")}</SelectItem>
+                        <SelectItem key={c} value={c}>{t(deathCauseKey(c))}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <Input placeholder="Cause detail" value={deathForm.causeDetail} onChange={(e) => setDeathForm({ ...deathForm, causeDetail: e.target.value })} className="sm:col-span-2" />
+                  <Input placeholder={t("causeDetail")} value={deathForm.causeDetail} onChange={(e) => setDeathForm({ ...deathForm, causeDetail: e.target.value })} className="sm:col-span-2" />
                   <Select value={deathForm.disposalMethod} onValueChange={(v) => setDeathForm({ ...deathForm, disposalMethod: v })}>
-                    <SelectTrigger><SelectValue placeholder="Disposal" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={t("disposal")} /></SelectTrigger>
                     <SelectContent>
                       {DISPOSAL_METHODS.map((m) => (
-                        <SelectItem key={m} value={m}>{m.replace(/_/g, " ")}</SelectItem>
+                        <SelectItem key={m} value={m}>{t(disposalMethodKey(m))}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <Input placeholder="Location" value={deathForm.location} onChange={(e) => setDeathForm({ ...deathForm, location: e.target.value })} />
-                  <Input type="number" placeholder="Weight at death (kg)" value={deathForm.weightKg} onChange={(e) => setDeathForm({ ...deathForm, weightKg: e.target.value })} />
-                  <Input placeholder="Disposal notes" value={deathForm.disposalNotes} onChange={(e) => setDeathForm({ ...deathForm, disposalNotes: e.target.value })} />
+                  <Input placeholder={t("location")} value={deathForm.location} onChange={(e) => setDeathForm({ ...deathForm, location: e.target.value })} />
+                  <Input type="number" placeholder={t("weightAtDeath")} value={deathForm.weightKg} onChange={(e) => setDeathForm({ ...deathForm, weightKg: e.target.value })} />
+                  <Input placeholder={t("disposalNotes")} value={deathForm.disposalNotes} onChange={(e) => setDeathForm({ ...deathForm, disposalNotes: e.target.value })} />
                   <label className="flex items-center gap-2 text-sm sm:col-span-2">
                     <input
                       type="checkbox"
                       checked={deathForm.insuranceClaim}
                       onChange={(e) => setDeathForm({ ...deathForm, insuranceClaim: e.target.checked })}
                     />
-                    Insurance claim
+                    {t("insuranceClaim")}
                   </label>
                   {deathForm.insuranceClaim && (
                     <>
-                      <Input type="number" placeholder="Claim amount (TZS)" value={deathForm.claimAmountTzs} onChange={(e) => setDeathForm({ ...deathForm, claimAmountTzs: e.target.value })} />
-                      <Input placeholder="Claim reference" value={deathForm.claimReference} onChange={(e) => setDeathForm({ ...deathForm, claimReference: e.target.value })} />
+                      <Input type="number" placeholder={t("claimAmount")} value={deathForm.claimAmountTzs} onChange={(e) => setDeathForm({ ...deathForm, claimAmountTzs: e.target.value })} />
+                      <Input placeholder={t("claimReference")} value={deathForm.claimReference} onChange={(e) => setDeathForm({ ...deathForm, claimReference: e.target.value })} />
                     </>
                   )}
-                  <Textarea placeholder="Notes" value={deathForm.notes} onChange={(e) => setDeathForm({ ...deathForm, notes: e.target.value })} className="sm:col-span-2" />
+                  <Textarea placeholder={t("notes")} value={deathForm.notes} onChange={(e) => setDeathForm({ ...deathForm, notes: e.target.value })} className="sm:col-span-2" />
                   <Button variant="destructive" onClick={recordDeath} disabled={savingDeath} className="sm:col-span-2">
-                    {savingDeath ? "Saving..." : "Record Death / Culling"}
+                    {savingDeath ? t("saving") : t("recordDeathCulling")}
                   </Button>
                 </div>
               )}
@@ -1401,9 +1470,9 @@ export default function AnimalDetailPage() {
 
         <TabsContent value="pedigree">
           <Card>
-            <CardHeader><CardTitle>Pedigree Tree</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{t("pedigreeTree")}</CardTitle></CardHeader>
             <CardContent>
-              {pedigree ? <PedigreeTree node={pedigree} /> : <p className="text-muted-foreground">Loading pedigree...</p>}
+              {pedigree ? <PedigreeTree node={pedigree} /> : <p className="text-muted-foreground">{t("loadingPedigree")}</p>}
             </CardContent>
           </Card>
         </TabsContent>

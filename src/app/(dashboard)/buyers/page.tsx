@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 import { Plus, Search } from "lucide-react";
+import { useT } from "@/components/providers/locale-provider";
 
 interface BuyerRow {
   id: string;
@@ -24,6 +25,7 @@ interface BuyerRow {
 }
 
 export default function BuyersPage() {
+  const t = useT();
   const { data: session } = useSession();
   const role = session?.user?.role as Role | undefined;
   const canManage = role ? hasPermission(role, "manageBuyers") : false;
@@ -70,15 +72,13 @@ export default function BuyersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-bold">Buyers</h1>
-          <p className="text-muted-foreground">
-            Contact directory for animal sales · {buyers.length} shown
-          </p>
+          <h1 className="text-3xl font-bold">{t("buyersTitle")}</h1>
+          <p className="text-muted-foreground">{t("buyersSubtitle")}</p>
         </div>
         {canManage && (
           <Button onClick={() => setShowForm(!showForm)}>
             <Plus className="h-4 w-4 mr-2" />
-            Add buyer
+            {t("addBuyer")}
           </Button>
         )}
       </div>
@@ -156,17 +156,17 @@ export default function BuyersPage() {
       <Card>
         <CardContent className="pt-6">
           {buyers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No buyers yet</p>
+            <p className="text-sm text-muted-foreground">{t("noBuyers")}</p>
           ) : (
             <div className="rounded-lg border overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="p-3 text-left">Name</th>
-                    <th className="p-3 text-left">Phone</th>
-                    <th className="p-3 text-left">Location</th>
+                    <th className="p-3 text-left">{t("name")}</th>
+                    <th className="p-3 text-left">{t("phone")}</th>
+                    <th className="p-3 text-left">{t("location")}</th>
                     <th className="p-3 text-right">Sales</th>
-                    <th className="p-3 text-left">Status</th>
+                    <th className="p-3 text-left">{t("status")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -185,7 +185,7 @@ export default function BuyersPage() {
                       <td className="p-3 text-right">{b._count.sales}</td>
                       <td className="p-3">
                         <Badge variant={b.isActive ? "success" : "secondary"}>
-                          {b.isActive ? "Active" : "Inactive"}
+                          {b.isActive ? t("active") : "Inactive"}
                         </Badge>
                       </td>
                     </tr>

@@ -12,6 +12,8 @@ import { formatDate, formatCurrency } from "@/lib/utils";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { useT } from "@/components/providers/locale-provider";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 const EXPENSE_CATEGORIES = [
   "FEED",
@@ -26,8 +28,29 @@ const EXPENSE_CATEGORIES = [
   "OTHER",
 ] as const;
 
-function labelCat(c: string) {
-  return c.replace(/_/g, " ");
+function expenseCategoryKey(c: string): TranslationKey {
+  switch (c) {
+    case "FEED":
+      return "catFeed";
+    case "VET_MEDICINE":
+      return "catVetMedicine";
+    case "WAGES":
+      return "catWages";
+    case "TRANSPORT":
+      return "transport";
+    case "EQUIPMENT":
+      return "catEquipment";
+    case "MAINTENANCE":
+      return "catMaintenance";
+    case "FUEL":
+      return "catFuel";
+    case "WATER":
+      return "catWater";
+    case "INSURANCE":
+      return "catInsurance";
+    default:
+      return "other";
+  }
 }
 
 interface ExpenseRow {
@@ -41,6 +64,7 @@ interface ExpenseRow {
 }
 
 export default function ExpensesPage() {
+  const t = useT();
   const { data: session } = useSession();
   const role = session?.user?.role as Role | undefined;
   const canManage = role ? hasPermission(role, "manageFinance") : false;
@@ -99,7 +123,7 @@ export default function ExpensesPage() {
     setSaving(false);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      alert(err.error || "Failed to save");
+      alert(err.error || t("failedToSave"));
       return;
     }
     setShowForm(false);
@@ -115,7 +139,7 @@ export default function ExpensesPage() {
   }
 
   async function remove(id: string) {
-    if (!confirm("Delete this expense?")) return;
+    if (!confirm(t("confirmDeleteExpense"))) return;
     const res = await fetch(`/api/finance/expenses/${id}`, { method: "DELETE" });
     if (res.ok) load();
   }
@@ -128,14 +152,14 @@ export default function ExpensesPage() {
             href="/finance"
             className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-2"
           >
-            <ArrowLeft className="h-4 w-4 mr-1" /> Finance
+            <ArrowLeft className="h-4 w-4 mr-1" /> {t("financeTitle")}
           </Link>
-          <h1 className="text-3xl font-bold">Expenses</h1>
-          <p className="text-muted-foreground">Total: {formatCurrency(total)}</p>
+          <h1 className="text-3xl font-bold">{t("expenses")}</h1>
+          <p className="text-muted-foreground">{t("totalLabel", { total: formatCurrency(total) })}</p>
         </div>
         {canManage && (
           <Button onClick={() => setShowForm(!showForm)}>
-            <Plus className="h-4 w-4 mr-2" /> Add expense
+            <Plus className="h-4 w-4 mr-2" /> {t("addExpense")}
           </Button>
         )}
       </div>
@@ -143,12 +167,12 @@ export default function ExpensesPage() {
       {showForm && (
         <Card>
           <CardHeader>
-            <CardTitle>New expense</CardTitle>
+            <CardTitle>{t("newExpense")}</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={createExpense} className="grid gap-4 sm:grid-cols-2 max-w-2xl">
               <div className="space-y-2">
-                <Label>Category</Label>
+                <Label>{t("category")}</Label>
                 <Select
                   value={form.category}
                   onValueChange={(v) => setForm({ ...form, category: v })}
@@ -159,14 +183,14 @@ export default function ExpensesPage() {
                   <SelectContent>
                     {EXPENSE_CATEGORIES.map((c) => (
                       <SelectItem key={c} value={c}>
-                        {labelCat(c)}
+                        {t(expenseCategoryKey(c))}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Amount (TZS)</Label>
+                <Label>{t("amountTzs")}</Label>
                 <Input
                   type="number"
                   required
@@ -175,7 +199,7 @@ export default function ExpensesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Date</Label>
+                <Label>{t("date")}</Label>
                 <Input
                   type="date"
                   value={form.date}
@@ -183,16 +207,16 @@ export default function ExpensesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Camp (optional)</Label>
+                <Label>{t("campOptional")}</Label>
                 <Select
                   value={form.campId || "none"}
                   onValueChange={(v) => setForm({ ...form, campId: v === "none" ? "" : v })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Ranch-wide" />
+                    <SelectValue placeholder={t("ranchWide")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Ranch-wide</SelectItem>
+                    <SelectItem value="none">{t("ranchWide")}</SelectItem>
                     {camps.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.name}
@@ -202,14 +226,14 @@ export default function ExpensesPage() {
                 </Select>
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label>Description</Label>
+                <Label>{t("description")}</Label>
                 <Input
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                 />
               </div>
               <Button type="submit" disabled={saving} className="sm:col-span-2">
-                {saving ? "Saving..." : "Save expense"}
+                {saving ? t("saving") : t("saveExpense")}
               </Button>
             </form>
           </CardContent>
@@ -223,10 +247,10 @@ export default function ExpensesPage() {
             <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
             <Select value={camp} onValueChange={setCamp}>
               <SelectTrigger>
-                <SelectValue placeholder="Camp" />
+                <SelectValue placeholder={t("camp")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All camps</SelectItem>
+                <SelectItem value="all">{t("allCamps")}</SelectItem>
                 {camps.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.name}
@@ -236,32 +260,32 @@ export default function ExpensesPage() {
             </Select>
             <Select value={category} onValueChange={setCategory}>
               <SelectTrigger>
-                <SelectValue placeholder="Category" />
+                <SelectValue placeholder={t("category")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All categories</SelectItem>
+                <SelectItem value="all">{t("allCategories")}</SelectItem>
                 {EXPENSE_CATEGORIES.map((c) => (
                   <SelectItem key={c} value={c}>
-                    {labelCat(c)}
+                    {t(expenseCategoryKey(c))}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Button onClick={load}>Apply</Button>
+            <Button onClick={load}>{t("apply")}</Button>
           </div>
 
           {expenses.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No expenses in range</p>
+            <p className="text-sm text-muted-foreground">{t("noExpensesInRange")}</p>
           ) : (
             <div className="rounded-lg border overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="p-3 text-left">Date</th>
-                    <th className="p-3 text-left">Category</th>
-                    <th className="p-3 text-left">Description</th>
-                    <th className="p-3 text-left">Camp</th>
-                    <th className="p-3 text-right">Amount</th>
+                    <th className="p-3 text-left">{t("date")}</th>
+                    <th className="p-3 text-left">{t("category")}</th>
+                    <th className="p-3 text-left">{t("description")}</th>
+                    <th className="p-3 text-left">{t("camp")}</th>
+                    <th className="p-3 text-right">{t("amount")}</th>
                     {canManage && <th className="p-3" />}
                   </tr>
                 </thead>
@@ -269,7 +293,7 @@ export default function ExpensesPage() {
                   {expenses.map((e) => (
                     <tr key={e.id} className="border-b">
                       <td className="p-3">{formatDate(e.date)}</td>
-                      <td className="p-3">{labelCat(e.category)}</td>
+                      <td className="p-3">{t(expenseCategoryKey(e.category))}</td>
                       <td className="p-3">{e.description || "—"}</td>
                       <td className="p-3">{e.camp?.name || "—"}</td>
                       <td className="p-3 text-right font-medium">

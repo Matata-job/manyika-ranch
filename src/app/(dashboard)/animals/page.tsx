@@ -13,6 +13,7 @@ import { useSession } from "next-auth/react";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 import { cn, formatAge, type AgeDisplayMode } from "@/lib/utils";
+import { useT } from "@/components/providers/locale-provider";
 
 interface Animal {
   id: string;
@@ -81,6 +82,7 @@ function filtersFromParams(params: URLSearchParams): Filters {
 }
 
 function AnimalsPageContent() {
+  const t = useT();
   const { data: session } = useSession();
   const role = session?.user?.role as Role;
   const canCreate = role && hasPermission(role, "createAnimal");
@@ -242,10 +244,10 @@ function AnimalsPageContent() {
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Animals</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">{t("animalsTitle")}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {loading
-              ? "Loading…"
+              ? t("loading")
               : `${animals.length} animal${animals.length === 1 ? "" : "s"}`}
             {hasActiveFilters && !loading ? " · filtered" : ""}
             {animals.length >= 300 ? " · first 300" : ""}
@@ -255,7 +257,7 @@ function AnimalsPageContent() {
           <Link href="/animals/new">
             <Button size="sm">
               <Plus className="h-4 w-4 mr-1.5" />
-              Add
+              {t("addAnimal")}
             </Button>
           </Link>
         )}
@@ -267,7 +269,7 @@ function AnimalsPageContent() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
             <Input
-              placeholder="Search eartag or breed"
+              placeholder={t("searchEartagBreed")}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               className="pl-9 h-10 border-muted-foreground/20 bg-background shadow-none"
@@ -275,7 +277,7 @@ function AnimalsPageContent() {
           </div>
           <Select value={filters.sort} onValueChange={(v) => updateFilter("sort", v)}>
             <SelectTrigger className="h-10 w-full sm:w-[180px] border-muted-foreground/20 shadow-none">
-              <SelectValue placeholder="Sort" />
+              <SelectValue placeholder={t("sortBy")} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="eartag_asc">Eartag A–Z</SelectItem>
@@ -300,7 +302,7 @@ function AnimalsPageContent() {
             onClick={() => setFiltersOpen((o) => !o)}
           >
             <SlidersHorizontal className="h-4 w-4 mr-1.5" />
-            Filters
+            {t("advancedFilters")}
             {advancedCount > 0 && (
               <span className="ml-1.5 text-xs tabular-nums text-muted-foreground">
                 {advancedCount}
@@ -312,11 +314,11 @@ function AnimalsPageContent() {
         {/* Quiet quick presets */}
         <div className="flex gap-1.5 overflow-x-auto scrollbar-none -mx-1 px-1">
           {[
-            { id: "all", label: "All" },
-            { id: "castrated", label: "Castrated" },
+            { id: "all", label: t("all") },
+            { id: "castrated", label: t("castrated") },
             { id: "intact", label: "Intact" },
-            { id: "pregnant", label: "Pregnant" },
-            { id: "calves", label: "Calves" },
+            { id: "pregnant", label: t("pregnant") },
+            { id: "calves", label: t("calves") },
           ].map((chip) => (
             <button
               key={chip.id}
@@ -339,7 +341,7 @@ function AnimalsPageContent() {
               className="shrink-0 px-2 py-1 text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
             >
               <X className="h-3 w-3" />
-              Reset
+              {t("clearFilters")}
             </button>
           )}
         </div>
@@ -350,12 +352,12 @@ function AnimalsPageContent() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
               <Select value={filters.sex} onValueChange={(v) => updateFilter("sex", v)}>
                 <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
-                  <SelectValue placeholder="Sex" />
+                  <SelectValue placeholder={t("sex")} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All sexes</SelectItem>
-                  <SelectItem value="MALE">Male</SelectItem>
-                  <SelectItem value="FEMALE">Female</SelectItem>
+                  <SelectItem value="MALE">{t("male")}</SelectItem>
+                  <SelectItem value="FEMALE">{t("female")}</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -369,7 +371,7 @@ function AnimalsPageContent() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Male status</SelectItem>
-                  <SelectItem value="true">Castrated</SelectItem>
+                  <SelectItem value="true">{t("castrated")}</SelectItem>
                   <SelectItem value="false">Intact</SelectItem>
                 </SelectContent>
               </Select>
@@ -384,14 +386,14 @@ function AnimalsPageContent() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Female status</SelectItem>
-                  <SelectItem value="true">Pregnant</SelectItem>
+                  <SelectItem value="true">{t("pregnant")}</SelectItem>
                   <SelectItem value="false">Not pregnant</SelectItem>
                 </SelectContent>
               </Select>
 
               <Select value={filters.breed} onValueChange={(v) => updateFilter("breed", v)}>
                 <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
-                  <SelectValue placeholder="Breed" />
+                  <SelectValue placeholder={t("breed")} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All breeds</SelectItem>
@@ -403,7 +405,7 @@ function AnimalsPageContent() {
 
               <Select value={filters.camp} onValueChange={(v) => updateFilter("camp", v)}>
                 <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
-                  <SelectValue placeholder="Camp" />
+                  <SelectValue placeholder={t("camp")} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All camps</SelectItem>
@@ -415,34 +417,34 @@ function AnimalsPageContent() {
 
               <Select value={filters.ageGroup} onValueChange={(v) => updateFilter("ageGroup", v)}>
                 <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
-                  <SelectValue placeholder="Age" />
+                  <SelectValue placeholder={t("ageGroup")} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All ages</SelectItem>
-                  <SelectItem value="calf">Calves (&lt;1y)</SelectItem>
-                  <SelectItem value="yearling">Yearlings (1–2y)</SelectItem>
-                  <SelectItem value="adult">Adults (2–5y)</SelectItem>
+                  <SelectItem value="calf">{t("calves")}</SelectItem>
+                  <SelectItem value="yearling">{t("weaners")}</SelectItem>
+                  <SelectItem value="adult">{t("adults")}</SelectItem>
                   <SelectItem value="mature">Mature (5y+)</SelectItem>
                 </SelectContent>
               </Select>
 
               <Select value={filters.status} onValueChange={(v) => updateFilter("status", v)}>
                 <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
-                  <SelectValue placeholder="Status" />
+                  <SelectValue placeholder={t("status")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="ACTIVE">{t("active")}</SelectItem>
                   <SelectItem value="ALL">All statuses</SelectItem>
-                  <SelectItem value="DECEASED">Deceased</SelectItem>
-                  <SelectItem value="QUARANTINE">Quarantine</SelectItem>
-                  <SelectItem value="SOLD">Sold</SelectItem>
+                  <SelectItem value="DECEASED">{t("deceased")}</SelectItem>
+                  <SelectItem value="QUARANTINE">{t("quarantine")}</SelectItem>
+                  <SelectItem value="SOLD">{t("sold")}</SelectItem>
                   <SelectItem value="MISSING">Missing</SelectItem>
                 </SelectContent>
               </Select>
 
               <Select value={filters.owner} onValueChange={(v) => updateFilter("owner", v)}>
                 <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
-                  <SelectValue placeholder="Owner" />
+                  <SelectValue placeholder={t("owner")} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All owners</SelectItem>
@@ -457,10 +459,10 @@ function AnimalsPageContent() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-sm text-muted-foreground">{t("loading")}</p>
       ) : animals.length === 0 ? (
         <p className="text-sm text-muted-foreground py-12 text-center">
-          No animals match these filters.
+          {t("noAnimals")}
         </p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -486,12 +488,12 @@ function AnimalsPageContent() {
                       </Badge>
                       {animal.sex === "MALE" && animal.isCastrated && (
                         <Badge variant="outline" className="font-normal text-[10px] px-1.5">
-                          Castrated
+                          {t("castrated")}
                         </Badge>
                       )}
                       {animal.sex === "FEMALE" && animal.isPregnant && (
                         <Badge variant="warning" className="font-normal text-[10px] px-1.5">
-                          Pregnant
+                          {t("pregnant")}
                         </Badge>
                       )}
                     </div>
@@ -511,8 +513,9 @@ function AnimalsPageContent() {
 }
 
 export default function AnimalsPage() {
+  const t = useT();
   return (
-    <Suspense fallback={<p className="text-sm text-muted-foreground">Loading animals…</p>}>
+    <Suspense fallback={<p className="text-sm text-muted-foreground">{t("loading")}</p>}>
       <AnimalsPageContent />
     </Suspense>
   );
