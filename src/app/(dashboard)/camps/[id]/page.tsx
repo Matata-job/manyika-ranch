@@ -115,7 +115,7 @@ export default async function CampDetailPage({
                     <td className="p-3">
                       <Badge variant="secondary">{animal.sex}</Badge>
                     </td>
-                    <td className="p-3">{animal.ageMonths ?? "—"}</td>
+                    <td className="p-3">{animal.ageMonths != null ? `${Math.floor(animal.ageMonths / 12)}y ${animal.ageMonths % 12}mo` : "—"}</td>
                   </tr>
                 ))}
               </tbody>

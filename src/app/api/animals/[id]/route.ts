@@ -114,8 +114,26 @@ export async function PATCH(
       photoUrl: body.photoUrl,
       breed: body.breed,
       sex: body.sex,
+      isCastrated:
+        body.isCastrated !== undefined
+          ? body.sex === "FEMALE"
+            ? false
+            : Boolean(body.isCastrated)
+          : undefined,
+      isPregnant:
+        body.isPregnant !== undefined
+          ? body.sex === "MALE"
+            ? false
+            : Boolean(body.isPregnant)
+          : undefined,
       dob,
-      ageMonths: dob ? computeAgeMonths(dob) : undefined,
+      ageMonths: dob
+        ? computeAgeMonths(dob)
+        : body.ageMonths !== undefined
+          ? body.ageMonths
+          : body.ageYears != null || body.ageMonthsPart != null
+            ? Math.max(0, (Number(body.ageYears) || 0) * 12 + (Number(body.ageMonthsPart) || 0))
+            : undefined,
       ownerId: body.ownerId,
       sireId: body.sireId,
       damId: body.damId,

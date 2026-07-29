@@ -85,8 +85,16 @@ export async function POST(req: NextRequest) {
       photoUrl: primaryPhoto,
       breed: body.breed,
       sex: body.sex,
+      isCastrated: body.sex === "MALE" ? Boolean(body.isCastrated) : false,
+      isPregnant: body.sex === "FEMALE" ? Boolean(body.isPregnant) : false,
       dob,
-      ageMonths: dob ? computeAgeMonths(dob) : null,
+      ageMonths: dob
+        ? computeAgeMonths(dob)
+        : typeof body.ageMonths === "number"
+          ? body.ageMonths
+          : body.ageYears != null || body.ageMonthsPart != null
+            ? Math.max(0, (Number(body.ageYears) || 0) * 12 + (Number(body.ageMonthsPart) || 0))
+            : null,
       ownerId: body.ownerId || result.user.id,
       sireId: body.sireId || null,
       damId: body.damId || null,

@@ -1,0 +1,61 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { requireAuth, requirePermission } from "@/lib/auth/api-guard";
+import { getRanchAgeDisplayMode, type AgeDisplayMode } from "@/lib/utils";
+import type { Prisma } from "@prisma/client";
+
+export async function GET() {
+  const result = await requireAuth();
+  if (!result.ok) return result.error;
+
+  const ranch = await prisma.ranch.findUnique({
+    where: { id: result.user.ranchId },
+    select: { id: true, name: true, settings: true },
+  });
+
+  if (!ranch) {
+    return NextResponse.json({ error: "Ranch not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({
+    id: ranch.id,
+    name: ranch.name,
+    ageDisplayMode: getRanchAgeDisplayMode(ranch.settings),
+    settings: ranch.settings,
+  });
+}
+
+export async function PATCH(req: NextRequest) {
+  const result = await requirePermission("manageCamps");
+  if (!result.ok) return result.error;
+
+  const body = await req.json();
+  const ranch = await prisma.ranch.findUnique({
+    where: { id: result.user.ranchId },
+    select: { settings: true },
+  });
+
+  const current = (ranch?.settings as Record<string, unknown>) || {};
+  const next = { ...current };
+
+  if (body.ageDisplayMode) {
+    const mode = body.ageDisplayMode as AgeDisplayMode;
+    if (!["YEARS_AND_MONTHS", "MONTHS_ONLY", "AUTO"].includes(mode)) {
+      return NextResponse.json({ error: "Invalid age display mode" }, { status: 400 });
+    }
+    next.ageDisplayMode = mode;
+  }
+
+  const updated = await prisma.ranch.update({
+    where: { id: result.user.ranchId },
+    data: { settings: next as Prisma.InputJsonValue },
+    select: { id: true, name: true, settings: true },
+  });
+
+  return NextResponse.json({
+    id: updated.id,
+    name: updated.name,
+    ageDisplayMode: getRanchAgeDisplayMode(updated.settings),
+    settings: updated.settings,
+  });
+}

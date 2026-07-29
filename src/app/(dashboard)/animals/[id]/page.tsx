@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDate } from "@/lib/utils";
+import { formatAge, type AgeDisplayMode } from "@/lib/utils";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { PedigreeTree } from "@/components/pedigree-tree";
 import { AnimalPhotoGallery, type AnimalPhoto } from "@/components/animal-photo-gallery";
@@ -50,6 +51,8 @@ interface AnimalDetail {
   eartag: string;
   breed: string;
   sex: string;
+  isCastrated?: boolean;
+  isPregnant?: boolean;
   dob: string | null;
   ageMonths: number | null;
   status: string;
@@ -90,6 +93,8 @@ export default function AnimalDetailPage() {
   const role = session?.user?.role as Role | undefined;
   const canEdit = role ? hasPermission(role, "editAnimal") : false;
   const [animal, setAnimal] = useState<AnimalDetail | null>(null);
+  const [ageMode, setAgeMode] = useState<AgeDisplayMode>("AUTO");
+  const [statusSaving, setStatusSaving] = useState(false);
   const [pedigree, setPedigree] = useState<Record<string, unknown> | null>(null);
   const [camps, setCamps] = useState<{ id: string; name: string }[]>([]);
   const [weightKg, setWeightKg] = useState("");
@@ -122,7 +127,23 @@ export default function AnimalDetailPage() {
     loadAnimal();
     fetch(`/api/animals/${id}/pedigree`).then((r) => (r.ok ? r.json() : null)).then(setPedigree);
     fetch(`/api/camps?for=movement`).then((r) => r.json()).then(setCamps);
+    fetch("/api/ranch/settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.ageDisplayMode) setAgeMode(data.ageDisplayMode);
+      });
   }, [id]);
+
+  async function toggleSexStatus(field: "isCastrated" | "isPregnant", value: boolean) {
+    setStatusSaving(true);
+    await fetch(`/api/animals/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [field]: value, sex: animal?.sex }),
+    });
+    setStatusSaving(false);
+    loadAnimal();
+  }
 
   async function addWeight() {
     if (!weightKg) return;
@@ -231,18 +252,48 @@ export default function AnimalDetailPage() {
           <div className="flex items-center gap-3 mb-2 flex-wrap">
             <h1 className="text-3xl font-bold">{animal.eartag}</h1>
             <Badge>{animal.sex}</Badge>
+            {animal.sex === "MALE" && animal.isCastrated && <Badge variant="outline">Castrated</Badge>}
+            {animal.sex === "FEMALE" && animal.isPregnant && <Badge variant="warning">Pregnant</Badge>}
             <Badge variant={isDeceased ? "destructive" : "secondary"}>{animal.status}</Badge>
             {animal.deathRecord?.isCulling && <Badge variant="warning">Culled</Badge>}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div><span className="text-muted-foreground">Breed</span><p className="font-medium">{animal.breed}</p></div>
-            <div><span className="text-muted-foreground">Age</span><p className="font-medium">{animal.ageMonths ?? "—"} months</p></div>
+            <div><span className="text-muted-foreground">Age</span><p className="font-medium">{formatAge(animal.ageMonths, ageMode)}</p></div>
             <div><span className="text-muted-foreground">DOB</span><p className="font-medium">{formatDate(animal.dob)}</p></div>
             <div><span className="text-muted-foreground">Camp</span><p className="font-medium">{animal.camp.name}</p></div>
             <div><span className="text-muted-foreground">Owner</span><p className="font-medium">{animal.owner.name}</p></div>
             <div><span className="text-muted-foreground">Sire</span><p className="font-medium">{animal.sire?.eartag || "—"}</p></div>
             <div><span className="text-muted-foreground">Dam</span><p className="font-medium">{animal.dam?.eartag || "—"}</p></div>
             <div><span className="text-muted-foreground">Markings</span><p className="font-medium">{animal.colorMarkings || "—"}</p></div>
+            {animal.sex === "MALE" && canEdit && !isDeceased && (
+              <div>
+                <span className="text-muted-foreground">Castrated</span>
+                <label className="flex items-center gap-2 mt-1 text-sm font-medium">
+                  <input
+                    type="checkbox"
+                    checked={!!animal.isCastrated}
+                    disabled={statusSaving}
+                    onChange={(e) => toggleSexStatus("isCastrated", e.target.checked)}
+                  />
+                  {animal.isCastrated ? "Yes" : "No"}
+                </label>
+              </div>
+            )}
+            {animal.sex === "FEMALE" && canEdit && !isDeceased && (
+              <div>
+                <span className="text-muted-foreground">Pregnant</span>
+                <label className="flex items-center gap-2 mt-1 text-sm font-medium">
+                  <input
+                    type="checkbox"
+                    checked={!!animal.isPregnant}
+                    disabled={statusSaving}
+                    onChange={(e) => toggleSexStatus("isPregnant", e.target.checked)}
+                  />
+                  {animal.isPregnant ? "Yes" : "No"}
+                </label>
+              </div>
+            )}
           </div>
         </div>
       </div>

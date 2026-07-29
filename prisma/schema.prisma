@@ -204,6 +204,8 @@ model Animal {
   photoUrl         String?
   breed            String
   sex              Sex
+  isCastrated      Boolean         @default(false)
+  isPregnant       Boolean         @default(false)
   dob              DateTime?
   ageMonths        Int?
   ownerId          String

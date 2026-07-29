@@ -24,7 +24,11 @@ export default function NewAnimalPage() {
     eartag: "",
     breed: "",
     sex: "FEMALE",
+    isCastrated: false,
+    isPregnant: false,
     dob: "",
+    ageYears: "",
+    ageMonthsPart: "",
     campId: "",
     ownerId: "",
     sireId: "",
@@ -83,6 +87,10 @@ export default function NewAnimalPage() {
       damId: form.damId || null,
       ownerId: form.ownerId || undefined,
       dob: form.dob || null,
+      isCastrated: form.sex === "MALE" ? form.isCastrated : false,
+      isPregnant: form.sex === "FEMALE" ? form.isPregnant : false,
+      ageYears: form.dob ? undefined : form.ageYears ? Number(form.ageYears) : 0,
+      ageMonthsPart: form.dob ? undefined : form.ageMonthsPart ? Number(form.ageMonthsPart) : 0,
     };
 
     if (!navigator.onLine) {
@@ -147,7 +155,17 @@ export default function NewAnimalPage() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Sex</Label>
-              <Select value={form.sex} onValueChange={(v) => setForm({ ...form, sex: v })}>
+              <Select
+                value={form.sex}
+                onValueChange={(v) =>
+                  setForm({
+                    ...form,
+                    sex: v,
+                    isCastrated: v === "MALE" ? form.isCastrated : false,
+                    isPregnant: v === "FEMALE" ? form.isPregnant : false,
+                  })
+                }
+              >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="MALE">Male</SelectItem>
@@ -160,6 +178,57 @@ export default function NewAnimalPage() {
               <Input id="dob" type="date" value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })} />
             </div>
           </div>
+
+          {form.sex === "MALE" && (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.isCastrated}
+                onChange={(e) => setForm({ ...form, isCastrated: e.target.checked })}
+              />
+              Castrated
+            </label>
+          )}
+
+          {form.sex === "FEMALE" && (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.isPregnant}
+                onChange={(e) => setForm({ ...form, isPregnant: e.target.checked })}
+              />
+              Pregnant
+            </label>
+          )}
+
+          {!form.dob && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Age — Years</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={form.ageYears}
+                  onChange={(e) => setForm({ ...form, ageYears: e.target.value })}
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Age — Months</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={11}
+                  value={form.ageMonthsPart}
+                  onChange={(e) => setForm({ ...form, ageMonthsPart: e.target.value })}
+                  placeholder="0"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground sm:col-span-2">
+                Use years + months if DOB is unknown. Under 1 year, leave years at 0 and enter months only.
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

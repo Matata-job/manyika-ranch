@@ -18,6 +18,7 @@ import {
   X,
   Activity,
   Skull,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,8 @@ const navItems = [
   { href: "/reports", label: "Reports", icon: BarChart3, roles: ["OWNER", "FARM_MANAGER", "CAMP_SUPERVISOR", "VETERINARIAN", "RECORDS_CLERK", "VIEWER"] },
   { href: "/alerts", label: "Alerts", icon: Bell, roles: "all" },
   { href: "/settings/users", label: "Users", icon: Users, roles: ["OWNER", "FARM_MANAGER"] },
+  { href: "/settings/breeds", label: "Breeds", icon: Dna, roles: ["OWNER", "FARM_MANAGER"] },
+  { href: "/settings/ranch", label: "Settings", icon: Settings, roles: ["OWNER", "FARM_MANAGER"] },
 ];
 
 interface SidebarProps {
