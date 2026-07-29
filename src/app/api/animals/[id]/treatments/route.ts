@@ -47,5 +47,22 @@ export async function POST(
     },
   });
 
+  const { logAnimalEvent } = await import("@/lib/services/event-service");
+  await logAnimalEvent({
+    animalId: id,
+    type: "TREATMENT",
+    title: `Treatment: ${String(treatment.type).replace(/_/g, " ")}`,
+    description: [treatment.product, treatment.dose, treatment.notes]
+      .filter(Boolean)
+      .join(" · "),
+    occurredAt: treatment.date,
+    recordedById: result.user.id,
+    metadata: {
+      type: treatment.type,
+      product: treatment.product,
+      withdrawalPeriod: treatment.withdrawalPeriod,
+    },
+  });
+
   return NextResponse.json(treatment, { status: 201 });
 }
