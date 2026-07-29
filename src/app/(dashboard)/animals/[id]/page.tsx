@@ -152,13 +152,19 @@ export default function AnimalDetailPage() {
   const [savingDeath, setSavingDeath] = useState(false);
   const [savingSale, setSavingSale] = useState(false);
   const [saleForm, setSaleForm] = useState({
+    buyerId: "",
     buyer: "",
+    createBuyer: true,
     priceTzs: "",
     weightAtSale: "",
     saleDate: "",
     transport: "",
     notes: "",
   });
+  const [buyerOptions, setBuyerOptions] = useState<
+    { id: string; name: string; phone: string | null; location: string | null }[]
+  >([]);
+  const [buyerSearch, setBuyerSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function loadAnimal() {
@@ -181,7 +187,18 @@ export default function AnimalDetailPage() {
       .then((data) => {
         if (data?.ageDisplayMode) setAgeMode(data.ageDisplayMode);
       });
+    fetch("/api/buyers")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => setBuyerOptions(Array.isArray(d) ? d : []));
   }, [id]);
+
+  async function searchBuyers(q: string) {
+    setBuyerSearch(q);
+    const params = new URLSearchParams();
+    if (q.trim()) params.set("q", q.trim());
+    const res = await fetch(`/api/buyers?${params}`);
+    if (res.ok) setBuyerOptions(await res.json());
+  }
 
   function startEditDetails(a: AnimalDetail) {
     const years = a.ageMonths != null ? Math.floor(a.ageMonths / 12) : "";
@@ -358,7 +375,7 @@ export default function AnimalDetailPage() {
   }
 
   async function recordSale() {
-    if (!saleForm.buyer.trim() || !saleForm.priceTzs) {
+    if ((!saleForm.buyerId && !saleForm.buyer.trim()) || !saleForm.priceTzs) {
       alert("Buyer and price are required");
       return;
     }
@@ -368,7 +385,9 @@ export default function AnimalDetailPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        buyer: saleForm.buyer,
+        buyerId: saleForm.buyerId || null,
+        buyer: saleForm.buyerId ? undefined : saleForm.buyer,
+        createBuyer: !saleForm.buyerId && saleForm.createBuyer,
         priceTzs: saleForm.priceTzs,
         weightAtSale: saleForm.weightAtSale || null,
         saleDate: saleForm.saleDate || undefined,
@@ -383,14 +402,20 @@ export default function AnimalDetailPage() {
       return;
     }
     setSaleForm({
+      buyerId: "",
       buyer: "",
+      createBuyer: true,
       priceTzs: "",
       weightAtSale: "",
       saleDate: "",
       transport: "",
       notes: "",
     });
+    setBuyerSearch("");
     loadAnimal();
+    fetch("/api/buyers")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => setBuyerOptions(Array.isArray(d) ? d : []));
   }
 
   if (!animal) {
@@ -911,12 +936,62 @@ export default function AnimalDetailPage() {
                 <p className="text-sm text-muted-foreground">Cannot sell a deceased animal.</p>
               ) : canSell ? (
                 <div className="grid gap-3 sm:grid-cols-2 max-w-2xl">
-                  <Input
-                    placeholder="Buyer name *"
-                    value={saleForm.buyer}
-                    onChange={(e) => setSaleForm({ ...saleForm, buyer: e.target.value })}
-                    className="sm:col-span-2"
-                  />
+                  <div className="sm:col-span-2 space-y-2">
+                    <Label>Buyer contact</Label>
+                    <Input
+                      placeholder="Search buyers..."
+                      value={buyerSearch}
+                      onChange={(e) => searchBuyers(e.target.value)}
+                    />
+                    <Select
+                      value={saleForm.buyerId || "new"}
+                      onValueChange={(v) => {
+                        if (v === "new") {
+                          setSaleForm({ ...saleForm, buyerId: "", buyer: buyerSearch });
+                        } else {
+                          const b = buyerOptions.find((x) => x.id === v);
+                          setSaleForm({
+                            ...saleForm,
+                            buyerId: v,
+                            buyer: b?.name || "",
+                          });
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select buyer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="new">One-off / new name…</SelectItem>
+                        {buyerOptions.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>
+                            {b.name}
+                            {b.phone ? ` · ${b.phone}` : ""}
+                            {b.location ? ` · ${b.location}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {!saleForm.buyerId && (
+                      <>
+                        <Input
+                          placeholder="Buyer name *"
+                          value={saleForm.buyer}
+                          onChange={(e) => setSaleForm({ ...saleForm, buyer: e.target.value })}
+                        />
+                        <label className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={saleForm.createBuyer}
+                            onChange={(e) =>
+                              setSaleForm({ ...saleForm, createBuyer: e.target.checked })
+                            }
+                          />
+                          Save as buyer contact for future sales
+                        </label>
+                      </>
+                    )}
+                  </div>
                   <Input
                     type="number"
                     placeholder="Price (TZS) *"

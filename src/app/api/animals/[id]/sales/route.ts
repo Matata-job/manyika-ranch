@@ -18,6 +18,9 @@ export async function GET(
   const sales = await prisma.sale.findMany({
     where: { animalId: id },
     orderBy: { saleDate: "desc" },
+    include: {
+      buyerContact: { select: { id: true, name: true, phone: true } },
+    },
   });
 
   return NextResponse.json(sales);
@@ -59,24 +62,54 @@ export async function POST(
   }
 
   const body = await req.json();
-  if (!body.buyer?.trim()) {
-    return NextResponse.json({ error: "Buyer is required" }, { status: 400 });
-  }
   const priceTzs = parseFloat(body.priceTzs);
   if (!Number.isFinite(priceTzs) || priceTzs < 0) {
     return NextResponse.json({ error: "Valid price (TZS) is required" }, { status: 400 });
   }
 
-  const weightAtSale = body.weightAtSale
-    ? parseFloat(body.weightAtSale)
-    : null;
+  let buyerId: string | null = body.buyerId || null;
+  let buyerName = typeof body.buyer === "string" ? body.buyer.trim() : "";
+
+  if (buyerId) {
+    const contact = await prisma.buyer.findFirst({
+      where: { id: buyerId, ranchId: result.user.ranchId, isActive: true },
+    });
+    if (!contact) {
+      return NextResponse.json({ error: "Buyer not found" }, { status: 404 });
+    }
+    buyerName = contact.name;
+  } else if (body.createBuyer && buyerName) {
+    const created = await prisma.buyer.create({
+      data: {
+        ranchId: result.user.ranchId,
+        name: buyerName,
+        phone: body.buyerPhone?.trim() || null,
+        location: body.buyerLocation?.trim() || null,
+      },
+    });
+    buyerId = created.id;
+    await createAuditLog(result.user.id, "CREATE", "Buyer", created.id, {
+      name: created.name,
+      fromSale: true,
+    });
+  }
+
+  if (!buyerName) {
+    return NextResponse.json(
+      { error: "Buyer is required (select a contact or enter a name)" },
+      { status: 400 }
+    );
+  }
+
+  const weightAtSale = body.weightAtSale ? parseFloat(body.weightAtSale) : null;
   const saleDate = body.saleDate ? new Date(body.saleDate) : new Date();
 
   const sale = await prisma.$transaction(async (tx) => {
     const created = await tx.sale.create({
       data: {
         animalId: id,
-        buyer: body.buyer.trim(),
+        buyer: buyerName,
+        buyerId,
         priceTzs,
         weightAtSale:
           weightAtSale != null && Number.isFinite(weightAtSale)
@@ -85,6 +118,9 @@ export async function POST(
         saleDate,
         transport: body.transport?.trim() || null,
         notes: body.notes?.trim() || null,
+      },
+      include: {
+        buyerContact: { select: { id: true, name: true } },
       },
     });
 
@@ -117,6 +153,7 @@ export async function POST(
     metadata: {
       saleId: sale.id,
       buyer: sale.buyer,
+      buyerId: sale.buyerId,
       priceTzs: sale.priceTzs,
       weightAtSale: sale.weightAtSale,
     },
@@ -125,6 +162,7 @@ export async function POST(
   await createAuditLog(result.user.id, "SALE", "Animal", id, {
     saleId: sale.id,
     buyer: sale.buyer,
+    buyerId: sale.buyerId,
     priceTzs: sale.priceTzs,
   });
 

@@ -109,6 +109,27 @@ enum AnimalEventType {
   OTHER
 }
 
+enum ExpenseCategory {
+  FEED
+  VET_MEDICINE
+  WAGES
+  TRANSPORT
+  EQUIPMENT
+  MAINTENANCE
+  FUEL
+  WATER
+  INSURANCE
+  OTHER
+}
+
+enum OtherIncomeCategory {
+  GRAZING_FEES
+  MANURE
+  SERVICES
+  SUBSIDY
+  OTHER
+}
+
 model Ranch {
   id        String   @id @default(cuid())
   name      String
@@ -120,6 +141,9 @@ model Ranch {
   camps     Camp[]
   users     User[]
   breeds    BreedCatalog[]
+  buyers    Buyer[]
+  expenses  Expense[]
+  otherIncomes OtherIncome[]
 }
 
 model User {
@@ -154,6 +178,8 @@ model User {
   deathRecords  DeathRecord[]
   animalEvents  AnimalEvent[]
   uploadedAnimalPhotos AnimalPhoto[]
+  expenses      Expense[]
+  otherIncomes  OtherIncome[]
 }
 
 model UserCampAssignment {
@@ -185,6 +211,8 @@ model Camp {
   movementsTo   Movement[]          @relation("MovementTo")
   medicineInventory MedicineInventory[]
   rainfallLogs RainfallLog[]
+  expenses     Expense[]
+  otherIncomes OtherIncome[]
 }
 
 model PastureBlock {
@@ -412,16 +440,80 @@ model OwnershipTransfer {
 }
 
 model Sale {
-  id          String   @id @default(cuid())
-  animalId    String
-  animal      Animal   @relation(fields: [animalId], references: [id])
-  buyer       String
-  priceTzs    Float
+  id           String   @id @default(cuid())
+  animalId     String
+  animal       Animal   @relation(fields: [animalId], references: [id])
+  buyer        String
+  buyerId      String?
+  buyerContact Buyer?   @relation(fields: [buyerId], references: [id], onDelete: SetNull)
+  priceTzs     Float
   weightAtSale Float?
-  saleDate    DateTime @default(now())
-  transport   String?
-  notes       String?
-  createdAt   DateTime @default(now())
+  saleDate     DateTime @default(now())
+  transport    String?
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  @@index([buyerId])
+  @@index([saleDate])
+}
+
+model Buyer {
+  id        String   @id @default(cuid())
+  ranchId   String
+  ranch     Ranch    @relation(fields: [ranchId], references: [id])
+  name      String
+  phone     String?
+  location  String?
+  notes     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sales     Sale[]
+
+  @@index([ranchId])
+  @@index([name])
+}
+
+model Expense {
+  id           String          @id @default(cuid())
+  ranchId      String
+  ranch        Ranch           @relation(fields: [ranchId], references: [id])
+  category     ExpenseCategory
+  amountTzs    Float
+  date         DateTime        @default(now())
+  description  String?
+  campId       String?
+  camp         Camp?           @relation(fields: [campId], references: [id], onDelete: SetNull)
+  recordedById String
+  recordedBy   User            @relation(fields: [recordedById], references: [id])
+  notes        String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([ranchId, date])
+  @@index([category])
+  @@index([campId])
+}
+
+model OtherIncome {
+  id           String              @id @default(cuid())
+  ranchId      String
+  ranch        Ranch               @relation(fields: [ranchId], references: [id])
+  category     OtherIncomeCategory
+  amountTzs    Float
+  date         DateTime            @default(now())
+  description  String?
+  campId       String?
+  camp         Camp?               @relation(fields: [campId], references: [id], onDelete: SetNull)
+  recordedById String
+  recordedBy   User                @relation(fields: [recordedById], references: [id])
+  notes        String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([ranchId, date])
+  @@index([category])
+  @@index([campId])
 }
 
 model DeathRecord {

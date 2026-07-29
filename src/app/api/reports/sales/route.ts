@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
           owner: { select: { id: true, name: true } },
         },
       },
+      buyerContact: { select: { id: true, name: true } },
     },
     orderBy: { saleDate: "desc" },
     take: 500,
@@ -66,7 +67,7 @@ export async function GET(req: NextRequest) {
   const byBreed: Record<string, { count: number; revenue: number }> = {};
   const byCamp: Record<string, { count: number; revenue: number }> = {};
   const bySex: Record<string, { count: number; revenue: number }> = {};
-  const byBuyer: Record<string, { count: number; revenue: number }> = {};
+  const byBuyer: Record<string, { count: number; revenue: number; buyerId: string | null }> = {};
 
   for (const s of sales) {
     const breedKey = s.animal.breed || "Unknown";
@@ -84,8 +85,14 @@ export async function GET(req: NextRequest) {
     bySex[sexKey].count += 1;
     bySex[sexKey].revenue += s.priceTzs;
 
-    const buyerKey = s.buyer;
-    byBuyer[buyerKey] = byBuyer[buyerKey] || { count: 0, revenue: 0 };
+    const buyerKey = s.buyerId
+      ? `id:${s.buyerId}`
+      : `name:${s.buyer}`;
+    byBuyer[buyerKey] = byBuyer[buyerKey] || {
+      count: 0,
+      revenue: 0,
+      buyerId: s.buyerId,
+    };
     byBuyer[buyerKey].count += 1;
     byBuyer[buyerKey].revenue += s.priceTzs;
   }
@@ -108,7 +115,12 @@ export async function GET(req: NextRequest) {
       .map(([name, v]) => ({ name, ...v }))
       .sort((a, b) => b.revenue - a.revenue),
     byBuyer: Object.entries(byBuyer)
-      .map(([name, v]) => ({ name, ...v }))
+      .map(([key, v]) => ({
+        name: key.startsWith("id:")
+          ? sales.find((s) => s.buyerId === key.slice(3))?.buyer || key
+          : key.slice(5),
+        ...v,
+      }))
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 20),
     sales,

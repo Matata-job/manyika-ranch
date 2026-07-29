@@ -21,10 +21,11 @@ interface SalesReport {
   byBreed: { name: string; count: number; revenue: number }[];
   byCamp: { name: string; count: number; revenue: number }[];
   bySex: { name: string; count: number; revenue: number }[];
-  byBuyer: { name: string; count: number; revenue: number }[];
+  byBuyer: { name: string; count: number; revenue: number; buyerId?: string | null }[];
   sales: {
     id: string;
     buyer: string;
+    buyerId?: string | null;
     priceTzs: number;
     weightAtSale: number | null;
     saleDate: string;
@@ -293,9 +294,16 @@ export default function SalesPage() {
                 <p className="text-sm text-muted-foreground">No buyers yet</p>
               ) : (
                 data.byBuyer.map((b) => (
-                  <div key={b.name} className="flex justify-between text-sm border-b pb-2">
+                  <div key={`${b.buyerId || b.name}`} className="flex justify-between text-sm border-b pb-2">
                     <span>
-                      {b.name} <Badge variant="outline" className="ml-1">{b.count}</Badge>
+                      {b.buyerId ? (
+                        <Link href={`/buyers/${b.buyerId}`} className="text-primary hover:underline">
+                          {b.name}
+                        </Link>
+                      ) : (
+                        b.name
+                      )}{" "}
+                      <Badge variant="outline" className="ml-1">{b.count}</Badge>
                     </span>
                     <span className="font-medium">{formatCurrency(b.revenue)}</span>
                   </div>

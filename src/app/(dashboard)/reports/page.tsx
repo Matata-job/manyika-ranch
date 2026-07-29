@@ -83,6 +83,14 @@ export default function ReportsPage() {
             Sales report
           </Link>
           {" · "}
+          <Link href="/finance/pnl" className="text-primary hover:underline">
+            P&amp;L
+          </Link>
+          {" · "}
+          <Link href="/buyers" className="text-primary hover:underline">
+            Buyers
+          </Link>
+          {" · "}
           <Link href="/mortality" className="text-primary hover:underline">
             Mortality report
           </Link>

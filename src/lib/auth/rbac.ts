@@ -75,6 +75,31 @@ export const PERMISSIONS = {
     Role.CAMP_SUPERVISOR,
     Role.RECORDS_CLERK,
   ],
+  manageBuyers: [
+    Role.OWNER,
+    Role.FARM_MANAGER,
+    Role.CAMP_SUPERVISOR,
+    Role.RECORDS_CLERK,
+  ],
+  viewBuyers: [
+    Role.OWNER,
+    Role.FARM_MANAGER,
+    Role.CAMP_SUPERVISOR,
+    Role.RECORDS_CLERK,
+    Role.VIEWER,
+  ],
+  manageFinance: [
+    Role.OWNER,
+    Role.FARM_MANAGER,
+    Role.RECORDS_CLERK,
+  ],
+  viewFinance: [
+    Role.OWNER,
+    Role.FARM_MANAGER,
+    Role.CAMP_SUPERVISOR,
+    Role.RECORDS_CLERK,
+    Role.VIEWER,
+  ],
   manageEvents: [
     Role.OWNER,
     Role.FARM_MANAGER,
