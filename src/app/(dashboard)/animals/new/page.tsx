@@ -172,7 +172,17 @@ export default function NewAnimalPage() {
 
             <div className="space-y-2">
               <Label htmlFor="photo">Photo</Label>
-              <Input id="photo" type="file" accept="image/*" onChange={(e) => setPhotoFile(e.target.files?.[0] || null)} />
+              <Input id="photo" type="file" accept="image/*" capture="environment" onChange={(e) => setPhotoFile(e.target.files?.[0] || null)} />
+              {photoFile && (
+                <div className="mt-2 w-32 h-32 rounded-lg overflow-hidden bg-muted">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={URL.createObjectURL(photoFile)}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/api-guard";
-import { uploadAnimalPhoto } from "@/lib/storage";
+import { uploadPhoto } from "@/lib/storage";
 
 export async function POST(req: NextRequest) {
   const result = await requireAuth();
@@ -22,8 +22,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid file type" }, { status: 400 });
   }
 
+  const folder = (formData.get("folder") as string) || "animals";
+
   try {
-    const { url, storage } = await uploadAnimalPhoto(file);
+    const { url, storage } = await uploadPhoto(file, folder);
     return NextResponse.json({ url, storage });
   } catch (e) {
     console.error("Upload error:", e);

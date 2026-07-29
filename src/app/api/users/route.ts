@@ -17,6 +17,8 @@ export async function GET() {
       email: true,
       name: true,
       role: true,
+      phone: true,
+      photoUrl: true,
       isActive: true,
       campAssignments: {
         include: { camp: { select: { id: true, name: true } } },

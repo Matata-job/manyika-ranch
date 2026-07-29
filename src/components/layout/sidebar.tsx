@@ -37,11 +37,11 @@ const navItems = [
   { href: "/breeding", label: "Breeding", icon: Dna, roles: ["OWNER", "FARM_MANAGER", "CAMP_SUPERVISOR", "RECORDS_CLERK"] },
   { href: "/reports", label: "Reports", icon: BarChart3, roles: ["OWNER", "FARM_MANAGER", "CAMP_SUPERVISOR", "VETERINARIAN", "RECORDS_CLERK", "VIEWER"] },
   { href: "/alerts", label: "Alerts", icon: Bell, roles: "all" },
-  { href: "/settings/users", label: "Users", icon: Users, roles: ["OWNER"] },
+  { href: "/settings/users", label: "Users", icon: Users, roles: ["OWNER", "FARM_MANAGER"] },
 ];
 
 interface SidebarProps {
-  user: { name: string; role: Role };
+  user: { id?: string; name: string; role: Role };
 }
 
 export function Sidebar({ user }: SidebarProps) {
@@ -84,10 +84,14 @@ export function Sidebar({ user }: SidebarProps) {
         })}
       </nav>
       <div className="border-t p-4 space-y-3">
-        <div className="px-3">
+        <Link
+          href={user.id ? `/settings/users/${user.id}` : "#"}
+          onClick={() => setMobileOpen(false)}
+          className="block px-3 rounded-lg hover:bg-muted transition-colors py-1"
+        >
           <p className="text-sm font-medium">{user.name}</p>
           <p className="text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</p>
-        </div>
+        </Link>
         <SyncStatusBadge />
         <Button
           variant="ghost"

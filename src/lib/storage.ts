@@ -24,11 +24,11 @@ export function isCloudStorageConfigured(): boolean {
 }
 
 /**
- * Upload an animal photo.
- * Uses Supabase Storage when configured; otherwise writes to public/uploads (local/dev).
+ * Upload a photo. `folder` controls the path inside the bucket (e.g. "animals", "users").
  */
-export async function uploadAnimalPhoto(
-  file: File
+export async function uploadPhoto(
+  file: File,
+  folder = "animals"
 ): Promise<{ url: string; storage: "supabase" | "local" }> {
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
   const filename = `${randomUUID()}.${ext || "jpg"}`;
@@ -36,7 +36,7 @@ export async function uploadAnimalPhoto(
 
   const supabase = getSupabaseAdmin();
   if (supabase) {
-    const objectPath = `animals/${filename}`;
+    const objectPath = `${folder}/${filename}`;
     const { error } = await supabase.storage.from(BUCKET).upload(objectPath, buffer, {
       contentType: file.type || "image/jpeg",
       upsert: false,
@@ -50,9 +50,11 @@ export async function uploadAnimalPhoto(
     return { url: data.publicUrl, storage: "supabase" };
   }
 
-  // Local fallback (dev / VPS with persistent disk)
   const uploadDir = path.join(process.cwd(), "public", "uploads");
   await mkdir(uploadDir, { recursive: true });
   await writeFile(path.join(uploadDir, filename), buffer);
   return { url: `/uploads/${filename}`, storage: "local" };
 }
+
+/** Backward-compatible alias */
+export const uploadAnimalPhoto = (file: File) => uploadPhoto(file, "animals");
