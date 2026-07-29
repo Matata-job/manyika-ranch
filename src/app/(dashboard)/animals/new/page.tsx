@@ -48,7 +48,10 @@ export default function NewAnimalPage() {
     const fd = new FormData();
     fd.append("file", photoFile);
     const res = await fetch("/api/upload", { method: "POST", body: fd });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Photo upload failed");
+    }
     const { url } = await res.json();
     return url;
   }
@@ -72,7 +75,15 @@ export default function NewAnimalPage() {
     }
 
     let photoUrl = null;
-    if (photoFile) photoUrl = await uploadPhoto();
+    if (photoFile) {
+      try {
+        photoUrl = await uploadPhoto();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Photo upload failed");
+        setLoading(false);
+        return;
+      }
+    }
 
     const res = await fetch("/api/animals", {
       method: "POST",

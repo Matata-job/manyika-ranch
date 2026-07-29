@@ -17,9 +17,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "File too large (max 5MB)" }, { status: 400 });
   }
 
-  const allowed = ["image/jpeg", "image/png", "image/webp"];
-  if (!allowed.includes(file.type)) {
-    return NextResponse.json({ error: "Invalid file type" }, { status: 400 });
+  const allowed = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
+  if (file.type && !allowed.includes(file.type) && !file.type.startsWith("image/")) {
+    return NextResponse.json({ error: `Invalid file type: ${file.type}` }, { status: 400 });
   }
 
   const folder = (formData.get("folder") as string) || "animals";
