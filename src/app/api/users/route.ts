@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/api-guard";
 import bcrypt from "bcryptjs";
+import { Role } from "@prisma/client";
+
+const MANAGER_ALLOWED_ROLES: Role[] = [Role.CAMP_SUPERVISOR];
 
 export async function GET() {
   const result = await requirePermission("manageUsers");
@@ -30,6 +33,18 @@ export async function POST(req: NextRequest) {
   if (!result.ok) return result.error;
 
   const body = await req.json();
+  const targetRole = body.role as Role;
+
+  if (
+    result.user.role === Role.FARM_MANAGER &&
+    !MANAGER_ALLOWED_ROLES.includes(targetRole)
+  ) {
+    return NextResponse.json(
+      { error: "Managers can only create Camp Supervisors" },
+      { status: 403 }
+    );
+  }
+
   const passwordHash = await bcrypt.hash(body.password || "changeme123", 10);
 
   const user = await prisma.user.create({
@@ -37,7 +52,7 @@ export async function POST(req: NextRequest) {
       email: body.email,
       name: body.name,
       passwordHash,
-      role: body.role,
+      role: targetRole,
       ranchId: result.user.ranchId,
       campAssignments: body.campIds?.length
         ? {

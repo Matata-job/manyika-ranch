@@ -89,26 +89,31 @@ async function main() {
     camps.push(camp);
   }
 
-  const supervisor = await prisma.user.upsert({
-    where: { email: "supervisor@manyikaranch.co.tz" },
-    update: { role: "CAMP_SUPERVISOR" },
-    create: {
-      email: "supervisor@manyikaranch.co.tz",
-      name: "Camp Supervisor",
-      passwordHash,
-      role: "CAMP_SUPERVISOR",
-      ranchId: ranch.id,
-    },
-  });
+  const supervisorNames = [
+    "Juma Bakari", "Amina Hassan", "Peter Mwita", "Grace Mwangi",
+    "Said Omar", "Halima Juma", "Daniel Kimaro", "Fatuma Ali",
+    "Joseph Kibwana", "Rehema Saidi", "Charles Masawe", "Neema Baraka",
+  ];
 
-  // Ensure supervisor is assigned only to Camp Alpha & Camp Beta
-  await prisma.userCampAssignment.deleteMany({ where: { userId: supervisor.id } });
-  await prisma.userCampAssignment.createMany({
-    data: [
-      { userId: supervisor.id, campId: camps[0].id },
-      { userId: supervisor.id, campId: camps[1].id },
-    ],
-  });
+  for (let i = 0; i < camps.length; i++) {
+    const email = `supervisor${i + 1}@manyikaranch.co.tz`;
+    const sup = await prisma.user.upsert({
+      where: { email },
+      update: { role: "CAMP_SUPERVISOR" },
+      create: {
+        email,
+        name: supervisorNames[i],
+        passwordHash,
+        role: "CAMP_SUPERVISOR",
+        ranchId: ranch.id,
+      },
+    });
+
+    await prisma.userCampAssignment.deleteMany({ where: { userId: sup.id } });
+    await prisma.userCampAssignment.create({
+      data: { userId: sup.id, campId: camps[i].id },
+    });
+  }
 
   const vaccines = [
     { name: "FMD (Foot and Mouth)", intervalDays: 180 },
@@ -221,7 +226,7 @@ async function main() {
 
   console.log("Seed completed!");
   console.log("Login: owner@manyikaranch.co.tz / admin123");
-  console.log(`Created ${camps.length} camps, ${bulls.length} bulls, ${cows.length} cows`);
+  console.log(`Created ${camps.length} camps (each with a supervisor), ${bulls.length} bulls, ${cows.length} cows`);
 }
 
 main()

@@ -42,7 +42,7 @@ Open [http://localhost:3000](http://localhost:3000)
 |-------|----------|------|
 | owner@manyikaranch.co.tz | admin123 | Owner |
 | manager@manyikaranch.co.tz | admin123 | Farm Manager |
-| supervisor@manyikaranch.co.tz | admin123 | Camp Supervisor (Alpha + Beta only) |
+| supervisor1@manyikaranch.co.tz | admin123 | Camp Supervisor (Camp Alpha) |
 | vet@manyikaranch.co.tz | admin123 | Veterinarian |
 | investor@example.com | admin123 | External Owner |
 

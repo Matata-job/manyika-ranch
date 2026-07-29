@@ -11,7 +11,7 @@ export const ROLE_LABELS: Record<Role, string> = {
 };
 
 export const PERMISSIONS = {
-  manageUsers: [Role.OWNER],
+  manageUsers: [Role.OWNER, Role.FARM_MANAGER],
   manageCamps: [Role.OWNER, Role.FARM_MANAGER],
   viewCamps: [
     Role.OWNER,
