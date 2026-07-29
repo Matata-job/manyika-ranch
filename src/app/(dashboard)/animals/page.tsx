@@ -8,11 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, X } from "lucide-react";
+import { Plus, Search, SlidersHorizontal, X } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
-import { formatAge, type AgeDisplayMode } from "@/lib/utils";
+import { cn, formatAge, type AgeDisplayMode } from "@/lib/utils";
 
 interface Animal {
   id: string;
@@ -54,6 +54,17 @@ const DEFAULTS: Filters = {
   sort: "eartag_asc",
 };
 
+const ADVANCED_KEYS: (keyof Filters)[] = [
+  "sex",
+  "breed",
+  "camp",
+  "ageGroup",
+  "status",
+  "owner",
+  "castrated",
+  "pregnant",
+];
+
 function filtersFromParams(params: URLSearchParams): Filters {
   return {
     search: params.get("search") || "",
@@ -85,10 +96,14 @@ function AnimalsPageContent() {
   const [ageMode, setAgeMode] = useState<AgeDisplayMode>("AUTO");
   const [filters, setFilters] = useState<Filters>(() => filtersFromParams(searchParams));
   const [searchInput, setSearchInput] = useState(filters.search);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => {
-    setFilters(filtersFromParams(searchParams));
+    const next = filtersFromParams(searchParams);
+    setFilters(next);
     setSearchInput(searchParams.get("search") || "");
+    const hasAdvanced = ADVANCED_KEYS.some((k) => next[k] !== DEFAULTS[k]);
+    if (hasAdvanced) setFiltersOpen(true);
   }, [searchParams]);
 
   useEffect(() => {
@@ -121,7 +136,6 @@ function AnimalsPageContent() {
 
   function updateFilter<K extends keyof Filters>(key: K, value: Filters[K]) {
     const next = { ...filters, [key]: value };
-    // Keep sex consistent with castrated / pregnant shortcuts
     if (key === "castrated" && value !== "all") {
       next.sex = "MALE";
       next.pregnant = "all";
@@ -142,12 +156,18 @@ function AnimalsPageContent() {
     let next: Filters = { ...DEFAULTS };
     if (preset === "castrated") {
       next = { ...DEFAULTS, sex: "MALE", castrated: "true" };
+      setFiltersOpen(true);
     } else if (preset === "intact") {
       next = { ...DEFAULTS, sex: "MALE", castrated: "false" };
+      setFiltersOpen(true);
     } else if (preset === "pregnant") {
       next = { ...DEFAULTS, sex: "FEMALE", pregnant: "true" };
+      setFiltersOpen(true);
     } else if (preset === "calves") {
       next = { ...DEFAULTS, ageGroup: "calf" };
+      setFiltersOpen(true);
+    } else {
+      setFiltersOpen(false);
     }
     setFilters(next);
     setSearchInput("");
@@ -157,6 +177,7 @@ function AnimalsPageContent() {
   function clearAll() {
     setFilters(DEFAULTS);
     setSearchInput("");
+    setFiltersOpen(false);
     syncUrl(DEFAULTS);
   }
 
@@ -190,6 +211,11 @@ function AnimalsPageContent() {
       .finally(() => setLoading(false));
   }, [filters]);
 
+  const advancedCount = useMemo(
+    () => ADVANCED_KEYS.filter((k) => filters[k] !== DEFAULTS[k]).length,
+    [filters]
+  );
+
   const hasActiveFilters = useMemo(() => {
     return (Object.keys(DEFAULTS) as (keyof Filters)[]).some(
       (k) => filters[k] !== DEFAULTS[k]
@@ -213,210 +239,266 @@ function AnimalsPageContent() {
               : null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-8">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Animals</h1>
-          <p className="text-muted-foreground">
-            {loading ? "Loading..." : `${animals.length} animal${animals.length === 1 ? "" : "s"}`}
-            {hasActiveFilters && !loading ? " (filtered)" : ""}
-            {animals.length >= 300 ? " · showing first 300" : ""}
+          <h1 className="text-3xl font-semibold tracking-tight">Animals</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {loading
+              ? "Loading…"
+              : `${animals.length} animal${animals.length === 1 ? "" : "s"}`}
+            {hasActiveFilters && !loading ? " · filtered" : ""}
+            {animals.length >= 300 ? " · first 300" : ""}
           </p>
         </div>
         {canCreate && (
           <Link href="/animals/new">
-            <Button><Plus className="h-4 w-4 mr-2" />Add Animal</Button>
+            <Button size="sm">
+              <Plus className="h-4 w-4 mr-1.5" />
+              Add
+            </Button>
           </Link>
         )}
       </div>
 
-      {/* Quick chips */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {[
-          { id: "all", label: "All" },
-          { id: "castrated", label: "Castrated bulls" },
-          { id: "intact", label: "Intact bulls" },
-          { id: "pregnant", label: "Pregnant" },
-          { id: "calves", label: "Calves" },
-        ].map((chip) => (
-          <button
-            key={chip.id}
-            type="button"
-            onClick={() => (chip.id === "all" ? clearAll() : applyPreset(chip.id))}
-            className={`shrink-0 px-3 py-1.5 text-sm rounded-full border transition-colors ${
-              activePreset === chip.id
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-background hover:bg-muted border-border"
-            }`}
-          >
-            {chip.label}
-          </button>
-        ))}
-        {hasActiveFilters && (
-          <button
-            type="button"
-            onClick={clearAll}
-            className="shrink-0 px-3 py-1.5 text-sm rounded-full border border-border inline-flex items-center gap-1 hover:bg-muted"
-          >
-            <X className="h-3 w-3" /> Clear
-          </button>
-        )}
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-col gap-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by eartag or breed..."
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2">
-          <Select value={filters.sex} onValueChange={(v) => updateFilter("sex", v)}>
-            <SelectTrigger><SelectValue placeholder="Sex" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All sexes</SelectItem>
-              <SelectItem value="MALE">Male</SelectItem>
-              <SelectItem value="FEMALE">Female</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={filters.castrated}
-            onValueChange={(v) => updateFilter("castrated", v)}
-            disabled={filters.sex === "FEMALE"}
-          >
-            <SelectTrigger><SelectValue placeholder="Male status" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All males</SelectItem>
-              <SelectItem value="true">Castrated</SelectItem>
-              <SelectItem value="false">Intact</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={filters.pregnant}
-            onValueChange={(v) => updateFilter("pregnant", v)}
-            disabled={filters.sex === "MALE"}
-          >
-            <SelectTrigger><SelectValue placeholder="Female status" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All females</SelectItem>
-              <SelectItem value="true">Pregnant</SelectItem>
-              <SelectItem value="false">Not pregnant</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={filters.breed} onValueChange={(v) => updateFilter("breed", v)}>
-            <SelectTrigger><SelectValue placeholder="Breed" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All breeds</SelectItem>
-              {breeds.map((b) => (
-                <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={filters.camp} onValueChange={(v) => updateFilter("camp", v)}>
-            <SelectTrigger><SelectValue placeholder="Camp" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All camps</SelectItem>
-              {camps.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={filters.ageGroup} onValueChange={(v) => updateFilter("ageGroup", v)}>
-            <SelectTrigger><SelectValue placeholder="Age" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All ages</SelectItem>
-              <SelectItem value="calf">Calves (&lt;1y)</SelectItem>
-              <SelectItem value="yearling">Yearlings (1–2y)</SelectItem>
-              <SelectItem value="adult">Adults (2–5y)</SelectItem>
-              <SelectItem value="mature">Mature (5y+)</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={filters.status} onValueChange={(v) => updateFilter("status", v)}>
-            <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ACTIVE">Active</SelectItem>
-              <SelectItem value="ALL">All statuses</SelectItem>
-              <SelectItem value="DECEASED">Deceased</SelectItem>
-              <SelectItem value="QUARANTINE">Quarantine</SelectItem>
-              <SelectItem value="SOLD">Sold</SelectItem>
-              <SelectItem value="MISSING">Missing</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={filters.owner} onValueChange={(v) => updateFilter("owner", v)}>
-            <SelectTrigger><SelectValue placeholder="Owner" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All owners</SelectItem>
-              {owners.map((o) => (
-                <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
+      {/* Minimal toolbar: search + sort + filters toggle */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
+            <Input
+              placeholder="Search eartag or breed"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="pl-9 h-10 border-muted-foreground/20 bg-background shadow-none"
+            />
+          </div>
           <Select value={filters.sort} onValueChange={(v) => updateFilter("sort", v)}>
-            <SelectTrigger><SelectValue placeholder="Sort" /></SelectTrigger>
+            <SelectTrigger className="h-10 w-full sm:w-[180px] border-muted-foreground/20 shadow-none">
+              <SelectValue placeholder="Sort" />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="eartag_asc">Eartag A–Z</SelectItem>
               <SelectItem value="eartag_desc">Eartag Z–A</SelectItem>
-              <SelectItem value="age_asc">Age: youngest</SelectItem>
-              <SelectItem value="age_desc">Age: oldest</SelectItem>
+              <SelectItem value="age_asc">Youngest first</SelectItem>
+              <SelectItem value="age_desc">Oldest first</SelectItem>
               <SelectItem value="breed_asc">Breed A–Z</SelectItem>
-              <SelectItem value="sex_asc">Sex: Male first</SelectItem>
-              <SelectItem value="sex_desc">Sex: Female first</SelectItem>
+              <SelectItem value="sex_asc">Males first</SelectItem>
+              <SelectItem value="sex_desc">Females first</SelectItem>
               <SelectItem value="camp_asc">Camp A–Z</SelectItem>
-              <SelectItem value="newest">Newest first</SelectItem>
+              <SelectItem value="newest">Newest</SelectItem>
             </SelectContent>
           </Select>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={cn(
+              "h-10 px-3 border-muted-foreground/20 shadow-none",
+              (filtersOpen || advancedCount > 0) && "border-foreground/30 bg-muted/40"
+            )}
+            onClick={() => setFiltersOpen((o) => !o)}
+          >
+            <SlidersHorizontal className="h-4 w-4 mr-1.5" />
+            Filters
+            {advancedCount > 0 && (
+              <span className="ml-1.5 text-xs tabular-nums text-muted-foreground">
+                {advancedCount}
+              </span>
+            )}
+          </Button>
         </div>
+
+        {/* Quiet quick presets */}
+        <div className="flex gap-1.5 overflow-x-auto scrollbar-none -mx-1 px-1">
+          {[
+            { id: "all", label: "All" },
+            { id: "castrated", label: "Castrated" },
+            { id: "intact", label: "Intact" },
+            { id: "pregnant", label: "Pregnant" },
+            { id: "calves", label: "Calves" },
+          ].map((chip) => (
+            <button
+              key={chip.id}
+              type="button"
+              onClick={() => (chip.id === "all" ? clearAll() : applyPreset(chip.id))}
+              className={cn(
+                "shrink-0 px-3 py-1 text-xs tracking-wide transition-colors",
+                activePreset === chip.id
+                  ? "text-foreground font-medium underline underline-offset-4 decoration-foreground/40"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {chip.label}
+            </button>
+          ))}
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearAll}
+              className="shrink-0 px-2 py-1 text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+            >
+              <X className="h-3 w-3" />
+              Reset
+            </button>
+          )}
+        </div>
+
+        {/* Advanced filters — hidden by default */}
+        {filtersOpen && (
+          <div className="rounded-lg border border-muted-foreground/15 bg-muted/20 p-4 space-y-3 animate-in fade-in-0">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+              <Select value={filters.sex} onValueChange={(v) => updateFilter("sex", v)}>
+                <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
+                  <SelectValue placeholder="Sex" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All sexes</SelectItem>
+                  <SelectItem value="MALE">Male</SelectItem>
+                  <SelectItem value="FEMALE">Female</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={filters.castrated}
+                onValueChange={(v) => updateFilter("castrated", v)}
+                disabled={filters.sex === "FEMALE"}
+              >
+                <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
+                  <SelectValue placeholder="Male status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Male status</SelectItem>
+                  <SelectItem value="true">Castrated</SelectItem>
+                  <SelectItem value="false">Intact</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={filters.pregnant}
+                onValueChange={(v) => updateFilter("pregnant", v)}
+                disabled={filters.sex === "MALE"}
+              >
+                <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
+                  <SelectValue placeholder="Female status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Female status</SelectItem>
+                  <SelectItem value="true">Pregnant</SelectItem>
+                  <SelectItem value="false">Not pregnant</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={filters.breed} onValueChange={(v) => updateFilter("breed", v)}>
+                <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
+                  <SelectValue placeholder="Breed" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All breeds</SelectItem>
+                  {breeds.map((b) => (
+                    <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={filters.camp} onValueChange={(v) => updateFilter("camp", v)}>
+                <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
+                  <SelectValue placeholder="Camp" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All camps</SelectItem>
+                  {camps.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={filters.ageGroup} onValueChange={(v) => updateFilter("ageGroup", v)}>
+                <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
+                  <SelectValue placeholder="Age" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All ages</SelectItem>
+                  <SelectItem value="calf">Calves (&lt;1y)</SelectItem>
+                  <SelectItem value="yearling">Yearlings (1–2y)</SelectItem>
+                  <SelectItem value="adult">Adults (2–5y)</SelectItem>
+                  <SelectItem value="mature">Mature (5y+)</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={filters.status} onValueChange={(v) => updateFilter("status", v)}>
+                <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="ALL">All statuses</SelectItem>
+                  <SelectItem value="DECEASED">Deceased</SelectItem>
+                  <SelectItem value="QUARANTINE">Quarantine</SelectItem>
+                  <SelectItem value="SOLD">Sold</SelectItem>
+                  <SelectItem value="MISSING">Missing</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={filters.owner} onValueChange={(v) => updateFilter("owner", v)}>
+                <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
+                  <SelectValue placeholder="Owner" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All owners</SelectItem>
+                  {owners.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
       </div>
 
       {loading ? (
-        <p className="text-muted-foreground">Loading...</p>
+        <p className="text-sm text-muted-foreground">Loading…</p>
       ) : animals.length === 0 ? (
-        <p className="text-muted-foreground">No animals match these filters.</p>
+        <p className="text-sm text-muted-foreground py-12 text-center">
+          No animals match these filters.
+        </p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {animals.map((animal) => (
             <Link key={animal.id} href={`/animals/${animal.id}`}>
-              <Card className="hover:shadow-md transition-shadow overflow-hidden h-full">
-                <div className="aspect-video bg-muted flex items-center justify-center">
+              <Card className="overflow-hidden h-full border-muted-foreground/10 shadow-none hover:border-muted-foreground/25 transition-colors">
+                <div className="aspect-[4/3] bg-muted/50 flex items-center justify-center">
                   {animal.photoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={animal.photoUrl} alt={animal.eartag} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-4xl text-muted-foreground">🐄</span>
+                    <span className="text-xs tracking-widest text-muted-foreground/50 uppercase">
+                      No photo
+                    </span>
                   )}
                 </div>
-                <div className="p-4 space-y-2">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <h3 className="font-bold">{animal.eartag}</h3>
-                    <div className="flex gap-1 flex-wrap">
-                      <Badge variant="secondary">{animal.sex}</Badge>
+                <div className="p-3.5 space-y-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-medium tracking-tight">{animal.eartag}</h3>
+                    <div className="flex gap-1 flex-wrap justify-end">
+                      <Badge variant="secondary" className="font-normal text-[10px] px-1.5">
+                        {animal.sex === "MALE" ? "M" : "F"}
+                      </Badge>
                       {animal.sex === "MALE" && animal.isCastrated && (
-                        <Badge variant="outline">Castrated</Badge>
+                        <Badge variant="outline" className="font-normal text-[10px] px-1.5">
+                          Castrated
+                        </Badge>
                       )}
                       {animal.sex === "FEMALE" && animal.isPregnant && (
-                        <Badge variant="warning">Pregnant</Badge>
-                      )}
-                      {animal.status !== "ACTIVE" && (
-                        <Badge variant="destructive">{animal.status}</Badge>
+                        <Badge variant="warning" className="font-normal text-[10px] px-1.5">
+                          Pregnant
+                        </Badge>
                       )}
                     </div>
                   </div>
                   <p className="text-sm text-muted-foreground">{animal.breed}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {animal.camp.name} · {formatAge(animal.ageMonths, ageMode)} · {animal.owner.name}
+                  <p className="text-xs text-muted-foreground/80">
+                    {animal.camp.name} · {formatAge(animal.ageMonths, ageMode)}
                   </p>
                 </div>
               </Card>
@@ -430,7 +512,7 @@ function AnimalsPageContent() {
 
 export default function AnimalsPage() {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Loading animals...</p>}>
+    <Suspense fallback={<p className="text-sm text-muted-foreground">Loading animals…</p>}>
       <AnimalsPageContent />
     </Suspense>
   );
