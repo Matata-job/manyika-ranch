@@ -25,14 +25,11 @@ export const PERMISSIONS = {
   createAnimal: [
     Role.OWNER,
     Role.FARM_MANAGER,
-    Role.CAMP_SUPERVISOR,
     Role.RECORDS_CLERK,
   ],
   editAnimal: [
     Role.OWNER,
     Role.FARM_MANAGER,
-    Role.CAMP_SUPERVISOR,
-    Role.RECORDS_CLERK,
   ],
   deleteAnimal: [Role.OWNER, Role.FARM_MANAGER],
   viewAnimal: [
@@ -54,7 +51,6 @@ export const PERMISSIONS = {
   manageMovements: [
     Role.OWNER,
     Role.FARM_MANAGER,
-    Role.CAMP_SUPERVISOR,
   ],
   manageBreeding: [
     Role.OWNER,
@@ -72,21 +68,24 @@ export const PERMISSIONS = {
   manageSales: [
     Role.OWNER,
     Role.FARM_MANAGER,
-    Role.CAMP_SUPERVISOR,
     Role.RECORDS_CLERK,
+  ],
+  /** See sales amounts / sales reports (not buyer contact book). */
+  viewSales: [
+    Role.OWNER,
+    Role.FARM_MANAGER,
+    Role.RECORDS_CLERK,
+    Role.VIEWER,
   ],
   manageBuyers: [
     Role.OWNER,
     Role.FARM_MANAGER,
-    Role.CAMP_SUPERVISOR,
     Role.RECORDS_CLERK,
   ],
   viewBuyers: [
     Role.OWNER,
     Role.FARM_MANAGER,
-    Role.CAMP_SUPERVISOR,
     Role.RECORDS_CLERK,
-    Role.VIEWER,
   ],
   manageFinance: [
     Role.OWNER,
@@ -96,7 +95,6 @@ export const PERMISSIONS = {
   viewFinance: [
     Role.OWNER,
     Role.FARM_MANAGER,
-    Role.CAMP_SUPERVISOR,
     Role.RECORDS_CLERK,
     Role.VIEWER,
   ],

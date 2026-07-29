@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import Link from "next/link";
 import { Upload, Download } from "lucide-react";
+import { hasPermission } from "@/lib/auth/rbac";
+import type { Role } from "@prisma/client";
 
 interface CampInventory {
   id: string;
@@ -25,6 +28,13 @@ interface DueVaccination {
 }
 
 export default function ReportsPage() {
+  const { data: session } = useSession();
+  const role = session?.user?.role as Role | undefined;
+  const canViewSales = role ? hasPermission(role, "viewSales") : false;
+  const canViewFinance = role ? hasPermission(role, "viewFinance") : false;
+  const canViewBuyers = role ? hasPermission(role, "viewBuyers") : false;
+  const canImport = role ? hasPermission(role, "importData") : false;
+
   const [inventory, setInventory] = useState<CampInventory[]>([]);
   const [due, setDue] = useState<DueVaccination[]>([]);
   const [importResults, setImportResults] = useState<{ eartag: string; success: boolean; error?: string }[] | null>(null);
@@ -78,18 +88,32 @@ export default function ReportsPage() {
       <div>
         <h1 className="text-3xl font-bold">Reports</h1>
         <p className="text-muted-foreground">
-          Camp inventory, vaccination due, bulk import ·{" "}
-          <Link href="/sales" className="text-primary hover:underline">
-            Sales report
-          </Link>
-          {" · "}
-          <Link href="/finance/pnl" className="text-primary hover:underline">
-            P&amp;L
-          </Link>
-          {" · "}
-          <Link href="/buyers" className="text-primary hover:underline">
-            Buyers
-          </Link>
+          Camp inventory, vaccination due
+          {canImport && ", bulk import"}
+          {canViewSales && (
+            <>
+              {" · "}
+              <Link href="/sales" className="text-primary hover:underline">
+                Sales report
+              </Link>
+            </>
+          )}
+          {canViewFinance && (
+            <>
+              {" · "}
+              <Link href="/finance/pnl" className="text-primary hover:underline">
+                P&amp;L
+              </Link>
+            </>
+          )}
+          {canViewBuyers && (
+            <>
+              {" · "}
+              <Link href="/buyers" className="text-primary hover:underline">
+                Buyers
+              </Link>
+            </>
+          )}
           {" · "}
           <Link href="/mortality" className="text-primary hover:underline">
             Mortality report
@@ -152,6 +176,7 @@ export default function ReportsPage() {
           </Card>
         </div>
 
+        {canImport && (
         <Card>
           <CardHeader><CardTitle>Bulk Import (CSV)</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -178,6 +203,7 @@ export default function ReportsPage() {
             )}
           </CardContent>
         </Card>
+        )}
       </div>
     
   );

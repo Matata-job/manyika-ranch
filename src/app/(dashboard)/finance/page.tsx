@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
+import { hasPermission } from "@/lib/auth/rbac";
+import type { Role } from "@prisma/client";
 import { ArrowRight, Receipt, TrendingUp, Wallet } from "lucide-react";
 
 interface PnLSummary {
@@ -15,6 +18,9 @@ interface PnLSummary {
 }
 
 export default function FinanceHubPage() {
+  const { data: session } = useSession();
+  const role = session?.user?.role as Role | undefined;
+  const canManage = role ? hasPermission(role, "manageFinance") : false;
   const [summary, setSummary] = useState<PnLSummary | null>(null);
 
   useEffect(() => {
@@ -34,6 +40,7 @@ export default function FinanceHubPage() {
         <h1 className="text-3xl font-bold">Finance</h1>
         <p className="text-muted-foreground">
           Ranch ledger · expenses, other income, and profit &amp; loss (this month)
+          {!canManage && " · view only"}
         </p>
       </div>
 

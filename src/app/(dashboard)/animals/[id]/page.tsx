@@ -105,6 +105,7 @@ export default function AnimalDetailPage() {
   const { data: session } = useSession();
   const role = session?.user?.role as Role | undefined;
   const canEdit = role ? hasPermission(role, "editAnimal") : false;
+  const canMove = role ? hasPermission(role, "manageMovements") : false;
   const canManageHealth = role ? hasPermission(role, "manageHealth") : false;
   const canSell = role ? hasPermission(role, "manageSales") : false;
   const [animal, setAnimal] = useState<AnimalDetail | null>(null);
@@ -860,7 +861,7 @@ export default function AnimalDetailPage() {
                   <p className="text-sm text-muted-foreground">{formatDate(m.date)} · {m.authorizedBy.name}</p>
                 </div>
               ))}
-              {!isClosed && (
+              {!isClosed && canMove && (
                 <div className="flex gap-2 pt-4 border-t">
                   <Select value={moveCampId} onValueChange={setMoveCampId}>
                     <SelectTrigger className="max-w-xs"><SelectValue placeholder="Move to camp" /></SelectTrigger>
@@ -872,6 +873,11 @@ export default function AnimalDetailPage() {
                   </Select>
                   <Button onClick={moveAnimal}>Move Animal</Button>
                 </div>
+              )}
+              {!isClosed && !canMove && (
+                <p className="text-sm text-muted-foreground pt-2 border-t">
+                  Only the ranch owner or farm manager can move animals between camps.
+                </p>
               )}
             </CardContent>
           </Card>

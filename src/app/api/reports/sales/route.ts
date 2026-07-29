@@ -4,7 +4,7 @@ import { requirePermission, buildAnimalScope } from "@/lib/auth/api-guard";
 import type { Role } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
-  const result = await requirePermission("viewReports");
+  const result = await requirePermission("viewSales");
   if (!result.ok) return result.error;
 
   const { searchParams } = new URL(req.url);
