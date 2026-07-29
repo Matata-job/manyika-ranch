@@ -56,6 +56,9 @@ export async function GET(
       deathRecord: {
         include: { recordedBy: { select: { id: true, name: true } } },
       },
+      sales: {
+        orderBy: { saleDate: "desc" },
+      },
       events: {
         orderBy: { occurredAt: "desc" },
         take: 50,

@@ -79,6 +79,10 @@ export default function ReportsPage() {
         <h1 className="text-3xl font-bold">Reports</h1>
         <p className="text-muted-foreground">
           Camp inventory, vaccination due, bulk import ·{" "}
+          <Link href="/sales" className="text-primary hover:underline">
+            Sales report
+          </Link>
+          {" · "}
           <Link href="/mortality" className="text-primary hover:underline">
             Mortality report
           </Link>

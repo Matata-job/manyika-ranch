@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatCurrency } from "@/lib/utils";
 import { formatAge, type AgeDisplayMode } from "@/lib/utils";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { PedigreeTree } from "@/components/pedigree-tree";
@@ -46,6 +46,16 @@ interface DeathRecord {
   recordedBy: { name: string };
 }
 
+interface SaleRecord {
+  id: string;
+  buyer: string;
+  priceTzs: number;
+  weightAtSale: number | null;
+  saleDate: string;
+  transport: string | null;
+  notes: string | null;
+}
+
 interface AnimalDetail {
   id: string;
   eartag: string;
@@ -70,6 +80,7 @@ interface AnimalDetail {
   movements: { id: string; date: string; fromCamp: { name: string }; toCamp: { name: string }; authorizedBy: { name: string } }[];
   events: AnimalEvent[];
   deathRecord: DeathRecord | null;
+  sales: SaleRecord[];
   photos: AnimalPhoto[];
 }
 
@@ -92,6 +103,7 @@ export default function AnimalDetailPage() {
   const { data: session } = useSession();
   const role = session?.user?.role as Role | undefined;
   const canEdit = role ? hasPermission(role, "editAnimal") : false;
+  const canSell = role ? hasPermission(role, "manageSales") : false;
   const [animal, setAnimal] = useState<AnimalDetail | null>(null);
   const [ageMode, setAgeMode] = useState<AgeDisplayMode>("AUTO");
   const [statusSaving, setStatusSaving] = useState(false);
@@ -117,6 +129,15 @@ export default function AnimalDetailPage() {
     notes: "",
   });
   const [savingDeath, setSavingDeath] = useState(false);
+  const [savingSale, setSavingSale] = useState(false);
+  const [saleForm, setSaleForm] = useState({
+    buyer: "",
+    priceTzs: "",
+    weightAtSale: "",
+    saleDate: "",
+    transport: "",
+    notes: "",
+  });
 
   async function loadAnimal() {
     const res = await fetch(`/api/animals/${id}`);
@@ -224,11 +245,50 @@ export default function AnimalDetailPage() {
     loadAnimal();
   }
 
+  async function recordSale() {
+    if (!saleForm.buyer.trim() || !saleForm.priceTzs) {
+      alert("Buyer and price are required");
+      return;
+    }
+    if (!confirm("Record this sale and mark the animal as sold?")) return;
+    setSavingSale(true);
+    const res = await fetch(`/api/animals/${id}/sales`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        buyer: saleForm.buyer,
+        priceTzs: saleForm.priceTzs,
+        weightAtSale: saleForm.weightAtSale || null,
+        saleDate: saleForm.saleDate || undefined,
+        transport: saleForm.transport || null,
+        notes: saleForm.notes || null,
+      }),
+    });
+    setSavingSale(false);
+    if (!res.ok) {
+      const err = await res.json();
+      alert(err.error || "Failed to record sale");
+      return;
+    }
+    setSaleForm({
+      buyer: "",
+      priceTzs: "",
+      weightAtSale: "",
+      saleDate: "",
+      transport: "",
+      notes: "",
+    });
+    loadAnimal();
+  }
+
   if (!animal) {
     return <p className="text-muted-foreground">Loading...</p>;
   }
 
   const isDeceased = animal.status === "DECEASED" || !!animal.deathRecord;
+  const isSold = animal.status === "SOLD" || (animal.sales?.length ?? 0) > 0;
+  const isClosed = isDeceased || isSold;
+  const latestSale = animal.sales?.[0] ?? null;
   const weightChart = [...animal.weightLogs].reverse().map((w) => ({
     date: formatDate(w.date),
     weight: w.weightKg,
@@ -245,7 +305,7 @@ export default function AnimalDetailPage() {
           animalId={id}
           initialPhotos={animal.photos || []}
           coverUrl={animal.photoUrl}
-          canEdit={canEdit && !isDeceased}
+          canEdit={canEdit && !isClosed}
           onPhotosChange={loadAnimal}
         />
         <div className="flex-1">
@@ -254,7 +314,7 @@ export default function AnimalDetailPage() {
             <Badge>{animal.sex}</Badge>
             {animal.sex === "MALE" && animal.isCastrated && <Badge variant="outline">Castrated</Badge>}
             {animal.sex === "FEMALE" && animal.isPregnant && <Badge variant="warning">Pregnant</Badge>}
-            <Badge variant={isDeceased ? "destructive" : "secondary"}>{animal.status}</Badge>
+            <Badge variant={isDeceased ? "destructive" : isSold ? "warning" : "secondary"}>{animal.status}</Badge>
             {animal.deathRecord?.isCulling && <Badge variant="warning">Culled</Badge>}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -266,7 +326,7 @@ export default function AnimalDetailPage() {
             <div><span className="text-muted-foreground">Sire</span><p className="font-medium">{animal.sire?.eartag || "—"}</p></div>
             <div><span className="text-muted-foreground">Dam</span><p className="font-medium">{animal.dam?.eartag || "—"}</p></div>
             <div><span className="text-muted-foreground">Markings</span><p className="font-medium">{animal.colorMarkings || "—"}</p></div>
-            {animal.sex === "MALE" && canEdit && !isDeceased && (
+            {animal.sex === "MALE" && canEdit && !isClosed && (
               <div>
                 <span className="text-muted-foreground">Castrated</span>
                 <label className="flex items-center gap-2 mt-1 text-sm font-medium">
@@ -280,7 +340,7 @@ export default function AnimalDetailPage() {
                 </label>
               </div>
             )}
-            {animal.sex === "FEMALE" && canEdit && !isDeceased && (
+            {animal.sex === "FEMALE" && canEdit && !isClosed && (
               <div>
                 <span className="text-muted-foreground">Pregnant</span>
                 <label className="flex items-center gap-2 mt-1 text-sm font-medium">
@@ -305,6 +365,7 @@ export default function AnimalDetailPage() {
           <TabsTrigger value="health">Health</TabsTrigger>
           <TabsTrigger value="vaccinations">Vaccinations</TabsTrigger>
           <TabsTrigger value="movements">Movements</TabsTrigger>
+          <TabsTrigger value="sales">Sales</TabsTrigger>
           <TabsTrigger value="death">Death / Culling</TabsTrigger>
           <TabsTrigger value="pedigree">Pedigree</TabsTrigger>
         </TabsList>
@@ -333,7 +394,7 @@ export default function AnimalDetailPage() {
                 </div>
               )}
 
-              {!isDeceased && (
+              {!isClosed && (
                 <div className="grid gap-2 pt-4 border-t max-w-lg">
                   <Select value={eventForm.type} onValueChange={(v) => setEventForm({ ...eventForm, type: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -370,7 +431,7 @@ export default function AnimalDetailPage() {
               ) : (
                 <p className="text-muted-foreground text-sm">No weight records yet</p>
               )}
-              {!isDeceased && (
+              {!isClosed && (
                 <div className="flex gap-2 mt-4">
                   <Input type="number" placeholder="Weight (kg)" value={weightKg} onChange={(e) => setWeightKg(e.target.value)} className="max-w-xs" />
                   <Button onClick={addWeight}>Record Weight</Button>
@@ -394,7 +455,7 @@ export default function AnimalDetailPage() {
                   {r.treatment && <p className="text-sm text-muted-foreground">{r.treatment}</p>}
                 </div>
               ))}
-              {!isDeceased && (
+              {!isClosed && (
                 <div className="grid gap-2 pt-4 border-t">
                   <Select value={healthForm.type} onValueChange={(v) => setHealthForm({ ...healthForm, type: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -427,7 +488,7 @@ export default function AnimalDetailPage() {
                   {v.nextDue && <p className="text-sm text-muted-foreground">Next due: {formatDate(v.nextDue)}</p>}
                 </div>
               ))}
-              {!isDeceased && (
+              {!isClosed && (
                 <div className="grid gap-2 pt-4 border-t">
                   <Input placeholder="Vaccine name" value={vaccForm.vaccineName} onChange={(e) => setVaccForm({ ...vaccForm, vaccineName: e.target.value })} />
                   <Input placeholder="Batch no." value={vaccForm.batchNo} onChange={(e) => setVaccForm({ ...vaccForm, batchNo: e.target.value })} />
@@ -449,7 +510,7 @@ export default function AnimalDetailPage() {
                   <p className="text-sm text-muted-foreground">{formatDate(m.date)} · {m.authorizedBy.name}</p>
                 </div>
               ))}
-              {!isDeceased && (
+              {!isClosed && (
                 <div className="flex gap-2 pt-4 border-t">
                   <Select value={moveCampId} onValueChange={setMoveCampId}>
                     <SelectTrigger className="max-w-xs"><SelectValue placeholder="Move to camp" /></SelectTrigger>
@@ -461,6 +522,110 @@ export default function AnimalDetailPage() {
                   </Select>
                   <Button onClick={moveAnimal}>Move Animal</Button>
                 </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="sales">
+          <Card>
+            <CardHeader>
+              <CardTitle>{latestSale ? "Sale Record" : "Record Sale"}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {latestSale ? (
+                <div className="grid gap-3 sm:grid-cols-2 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Sale date</span>
+                    <p className="font-medium">{formatDate(latestSale.saleDate)}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Buyer</span>
+                    <p className="font-medium">{latestSale.buyer}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Price</span>
+                    <p className="font-medium">{formatCurrency(latestSale.priceTzs)}</p>
+                  </div>
+                  {latestSale.weightAtSale != null && (
+                    <div>
+                      <span className="text-muted-foreground">Weight at sale</span>
+                      <p className="font-medium">{latestSale.weightAtSale} kg</p>
+                    </div>
+                  )}
+                  {latestSale.weightAtSale != null && latestSale.weightAtSale > 0 && (
+                    <div>
+                      <span className="text-muted-foreground">Price / kg</span>
+                      <p className="font-medium">
+                        {formatCurrency(Math.round(latestSale.priceTzs / latestSale.weightAtSale))}
+                      </p>
+                    </div>
+                  )}
+                  {latestSale.transport && (
+                    <div>
+                      <span className="text-muted-foreground">Transport</span>
+                      <p className="font-medium">{latestSale.transport}</p>
+                    </div>
+                  )}
+                  {latestSale.notes && (
+                    <p className="sm:col-span-2 text-muted-foreground">{latestSale.notes}</p>
+                  )}
+                  {(animal.sales?.length ?? 0) > 1 && (
+                    <div className="sm:col-span-2 space-y-2 pt-2 border-t">
+                      <p className="text-muted-foreground text-xs uppercase tracking-wide">Earlier sales</p>
+                      {animal.sales.slice(1).map((s) => (
+                        <div key={s.id} className="flex justify-between gap-2">
+                          <span>{formatDate(s.saleDate)} · {s.buyer}</span>
+                          <span className="font-medium">{formatCurrency(s.priceTzs)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : isDeceased ? (
+                <p className="text-sm text-muted-foreground">Cannot sell a deceased animal.</p>
+              ) : canSell ? (
+                <div className="grid gap-3 sm:grid-cols-2 max-w-2xl">
+                  <Input
+                    placeholder="Buyer name *"
+                    value={saleForm.buyer}
+                    onChange={(e) => setSaleForm({ ...saleForm, buyer: e.target.value })}
+                    className="sm:col-span-2"
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Price (TZS) *"
+                    value={saleForm.priceTzs}
+                    onChange={(e) => setSaleForm({ ...saleForm, priceTzs: e.target.value })}
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Weight at sale (kg)"
+                    value={saleForm.weightAtSale}
+                    onChange={(e) => setSaleForm({ ...saleForm, weightAtSale: e.target.value })}
+                  />
+                  <Input
+                    type="date"
+                    value={saleForm.saleDate}
+                    onChange={(e) => setSaleForm({ ...saleForm, saleDate: e.target.value })}
+                  />
+                  <Input
+                    placeholder="Transport / logistics"
+                    value={saleForm.transport}
+                    onChange={(e) => setSaleForm({ ...saleForm, transport: e.target.value })}
+                  />
+                  <Textarea
+                    placeholder="Notes"
+                    value={saleForm.notes}
+                    onChange={(e) => setSaleForm({ ...saleForm, notes: e.target.value })}
+                    className="sm:col-span-2"
+                  />
+                  <Button onClick={recordSale} disabled={savingSale} className="sm:col-span-2">
+                    {savingSale ? "Saving..." : "Record Sale"}
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No sale recorded. You do not have permission to record sales.</p>
               )}
             </CardContent>
           </Card>

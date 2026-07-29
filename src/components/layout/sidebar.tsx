@@ -19,6 +19,7 @@ import {
   Activity,
   Skull,
   Settings,
+  CircleDollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ const navItems = [
   { href: "/health", label: "Health", icon: HeartPulse, roles: ["OWNER", "FARM_MANAGER", "CAMP_SUPERVISOR", "VETERINARIAN", "RECORDS_CLERK"] },
   { href: "/events", label: "Events", icon: Activity, roles: "all" },
   { href: "/mortality", label: "Mortality", icon: Skull, roles: ["OWNER", "FARM_MANAGER", "CAMP_SUPERVISOR", "VETERINARIAN", "RECORDS_CLERK", "VIEWER"] },
+  { href: "/sales", label: "Sales", icon: CircleDollarSign, roles: ["OWNER", "FARM_MANAGER", "CAMP_SUPERVISOR", "RECORDS_CLERK", "VIEWER"] },
   { href: "/movements", label: "Movements", icon: ArrowLeftRight, roles: ["OWNER", "FARM_MANAGER", "CAMP_SUPERVISOR"] },
   { href: "/breeding", label: "Breeding", icon: Dna, roles: ["OWNER", "FARM_MANAGER", "CAMP_SUPERVISOR", "RECORDS_CLERK"] },
   { href: "/reports", label: "Reports", icon: BarChart3, roles: ["OWNER", "FARM_MANAGER", "CAMP_SUPERVISOR", "VETERINARIAN", "RECORDS_CLERK", "VIEWER"] },

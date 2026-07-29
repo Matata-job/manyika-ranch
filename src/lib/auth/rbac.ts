@@ -69,6 +69,12 @@ export const PERMISSIONS = {
     Role.VETERINARIAN,
     Role.RECORDS_CLERK,
   ],
+  manageSales: [
+    Role.OWNER,
+    Role.FARM_MANAGER,
+    Role.CAMP_SUPERVISOR,
+    Role.RECORDS_CLERK,
+  ],
   manageEvents: [
     Role.OWNER,
     Role.FARM_MANAGER,
