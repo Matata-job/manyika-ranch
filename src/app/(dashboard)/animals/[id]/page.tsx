@@ -15,10 +15,11 @@ import { formatAge, type AgeDisplayMode } from "@/lib/utils";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { PedigreeTree } from "@/components/pedigree-tree";
 import { AnimalPhotoGallery, type AnimalPhoto } from "@/components/animal-photo-gallery";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
+import { Label } from "@/components/ui/label";
 
 interface AnimalEvent {
   id: string;
@@ -69,6 +70,7 @@ interface AnimalDetail {
   photoUrl: string | null;
   colorMarkings: string | null;
   notes: string | null;
+  acquisitionType?: string | null;
   camp: { id: string; name: string };
   owner: { id: string; name: string };
   sire: { id: string; eartag: string } | null;
@@ -103,12 +105,31 @@ export default function AnimalDetailPage() {
   const { data: session } = useSession();
   const role = session?.user?.role as Role | undefined;
   const canEdit = role ? hasPermission(role, "editAnimal") : false;
+  const canManageHealth = role ? hasPermission(role, "manageHealth") : false;
   const canSell = role ? hasPermission(role, "manageSales") : false;
   const [animal, setAnimal] = useState<AnimalDetail | null>(null);
   const [ageMode, setAgeMode] = useState<AgeDisplayMode>("AUTO");
   const [statusSaving, setStatusSaving] = useState(false);
   const [pedigree, setPedigree] = useState<Record<string, unknown> | null>(null);
   const [camps, setCamps] = useState<{ id: string; name: string }[]>([]);
+  const [breeds, setBreeds] = useState<{ id: string; name: string }[]>([]);
+  const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
+  const [editingDetails, setEditingDetails] = useState(false);
+  const [savingDetails, setSavingDetails] = useState(false);
+  const [editForm, setEditForm] = useState({
+    eartag: "",
+    breed: "",
+    sex: "FEMALE",
+    dob: "",
+    ageYears: "",
+    ageMonthsPart: "",
+    campId: "",
+    ownerId: "",
+    status: "ACTIVE",
+    acquisitionType: "BORN_ON_FARM",
+    colorMarkings: "",
+    notes: "",
+  });
   const [weightKg, setWeightKg] = useState("");
   const [moveCampId, setMoveCampId] = useState("");
   const [healthForm, setHealthForm] = useState({ type: "CHECKUP", diagnosis: "", treatment: "" });
@@ -138,6 +159,7 @@ export default function AnimalDetailPage() {
     transport: "",
     notes: "",
   });
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function loadAnimal() {
     const res = await fetch(`/api/animals/${id}`);
@@ -148,12 +170,102 @@ export default function AnimalDetailPage() {
     loadAnimal();
     fetch(`/api/animals/${id}/pedigree`).then((r) => (r.ok ? r.json() : null)).then(setPedigree);
     fetch(`/api/camps?for=movement`).then((r) => r.json()).then(setCamps);
+    fetch("/api/breeds")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => setBreeds(Array.isArray(d) ? d : []));
+    fetch("/api/owners")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => setOwners(Array.isArray(d) ? d : []));
     fetch("/api/ranch/settings")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.ageDisplayMode) setAgeMode(data.ageDisplayMode);
       });
   }, [id]);
+
+  function startEditDetails(a: AnimalDetail) {
+    const years = a.ageMonths != null ? Math.floor(a.ageMonths / 12) : "";
+    const months = a.ageMonths != null ? a.ageMonths % 12 : "";
+    setEditForm({
+      eartag: a.eartag,
+      breed: a.breed,
+      sex: a.sex,
+      dob: a.dob ? a.dob.slice(0, 10) : "",
+      ageYears: years === "" ? "" : String(years),
+      ageMonthsPart: months === "" ? "" : String(months),
+      campId: a.camp.id,
+      ownerId: a.owner.id,
+      status: a.status,
+      acquisitionType: a.acquisitionType || "BORN_ON_FARM",
+      colorMarkings: a.colorMarkings || "",
+      notes: a.notes || "",
+    });
+    setEditingDetails(true);
+  }
+
+  async function saveDetails() {
+    if (!editForm.eartag.trim() || !editForm.breed) {
+      alert("Eartag and breed are required");
+      return;
+    }
+    setSavingDetails(true);
+    const payload: Record<string, unknown> = {
+      eartag: editForm.eartag.trim(),
+      breed: editForm.breed,
+      sex: editForm.sex,
+      campId: editForm.campId,
+      ownerId: editForm.ownerId,
+      colorMarkings: editForm.colorMarkings || null,
+      notes: editForm.notes || null,
+      acquisitionType: editForm.acquisitionType,
+    };
+    if (editForm.dob) {
+      payload.dob = editForm.dob;
+    } else {
+      payload.dob = null;
+      payload.ageYears = editForm.ageYears || 0;
+      payload.ageMonthsPart = editForm.ageMonthsPart || 0;
+    }
+    if (!["SOLD", "DECEASED"].includes(animal?.status || "")) {
+      payload.status = editForm.status;
+    }
+
+    const res = await fetch(`/api/animals/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    setSavingDetails(false);
+    if (!res.ok) {
+      const err = await res.json();
+      alert(err.error || "Failed to update animal");
+      return;
+    }
+    setEditingDetails(false);
+    loadAnimal();
+  }
+
+  async function deleteSubRecord(
+    kind: "weights" | "health" | "vaccinations" | "treatments",
+    recordId: string
+  ) {
+    if (!confirm("Delete this record? This cannot be undone.")) return;
+    const pathMap = {
+      weights: `weights/${recordId}`,
+      health: `health/${recordId}`,
+      vaccinations: `vaccinations/${recordId}`,
+      treatments: `treatments/${recordId}`,
+    };
+    setDeletingId(recordId);
+    const res = await fetch(`/api/animals/${id}/${pathMap[kind]}`, { method: "DELETE" });
+    setDeletingId(null);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || "Failed to delete");
+      return;
+    }
+    loadAnimal();
+  }
 
   async function toggleSexStatus(field: "isCastrated" | "isPregnant", value: boolean) {
     setStatusSaving(true);
@@ -316,6 +428,11 @@ export default function AnimalDetailPage() {
             {animal.sex === "FEMALE" && animal.isPregnant && <Badge variant="warning">Pregnant</Badge>}
             <Badge variant={isDeceased ? "destructive" : isSold ? "warning" : "secondary"}>{animal.status}</Badge>
             {animal.deathRecord?.isCulling && <Badge variant="warning">Culled</Badge>}
+            {canEdit && !editingDetails && (
+              <Button variant="outline" size="sm" onClick={() => startEditDetails(animal)}>
+                <Pencil className="h-3.5 w-3.5 mr-1" /> Edit details
+              </Button>
+            )}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div><span className="text-muted-foreground">Breed</span><p className="font-medium">{animal.breed}</p></div>
@@ -357,6 +474,159 @@ export default function AnimalDetailPage() {
           </div>
         </div>
       </div>
+
+      {editingDetails && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Edit Animal Details</CardTitle>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={saveDetails} disabled={savingDetails}>
+                {savingDetails ? "Saving..." : "Save"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setEditingDetails(false)}>
+                Cancel
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2 max-w-3xl">
+              <div className="space-y-2">
+                <Label>Eartag *</Label>
+                <Input
+                  value={editForm.eartag}
+                  onChange={(e) => setEditForm({ ...editForm, eartag: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Breed *</Label>
+                <Select value={editForm.breed} onValueChange={(v) => setEditForm({ ...editForm, breed: v })}>
+                  <SelectTrigger><SelectValue placeholder="Breed" /></SelectTrigger>
+                  <SelectContent>
+                    {breeds.map((b) => (
+                      <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
+                    ))}
+                    {editForm.breed && !breeds.some((b) => b.name === editForm.breed) && (
+                      <SelectItem value={editForm.breed}>{editForm.breed}</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Sex</Label>
+                <Select value={editForm.sex} onValueChange={(v) => setEditForm({ ...editForm, sex: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MALE">Male</SelectItem>
+                    <SelectItem value="FEMALE">Female</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {!isClosed && (
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ACTIVE">Active</SelectItem>
+                      <SelectItem value="MISSING">Missing</SelectItem>
+                      <SelectItem value="QUARANTINE">Quarantine</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label>Date of birth</Label>
+                <Input
+                  type="date"
+                  value={editForm.dob}
+                  onChange={(e) => setEditForm({ ...editForm, dob: e.target.value })}
+                />
+              </div>
+              {!editForm.dob && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Age — years</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={editForm.ageYears}
+                      onChange={(e) => setEditForm({ ...editForm, ageYears: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Age — months</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={11}
+                      value={editForm.ageMonthsPart}
+                      onChange={(e) => setEditForm({ ...editForm, ageMonthsPart: e.target.value })}
+                    />
+                  </div>
+                </>
+              )}
+              <div className="space-y-2">
+                <Label>Camp</Label>
+                <Select value={editForm.campId} onValueChange={(v) => setEditForm({ ...editForm, campId: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {camps.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Owner</Label>
+                <Select value={editForm.ownerId} onValueChange={(v) => setEditForm({ ...editForm, ownerId: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {owners.map((o) => (
+                      <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                    ))}
+                    {editForm.ownerId && !owners.some((o) => o.id === editForm.ownerId) && (
+                      <SelectItem value={editForm.ownerId}>{animal.owner.name}</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Acquisition</Label>
+                <Select
+                  value={editForm.acquisitionType}
+                  onValueChange={(v) => setEditForm({ ...editForm, acquisitionType: v })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BORN_ON_FARM">Born on farm</SelectItem>
+                    <SelectItem value="PURCHASED">Purchased</SelectItem>
+                    <SelectItem value="GIFT">Gift</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Color / markings</Label>
+                <Input
+                  value={editForm.colorMarkings}
+                  onChange={(e) => setEditForm({ ...editForm, colorMarkings: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Notes</Label>
+                <Textarea
+                  value={editForm.notes}
+                  onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                />
+              </div>
+              {isClosed && (
+                <p className="text-sm text-muted-foreground sm:col-span-2">
+                  This animal is {animal.status.toLowerCase()}. Identity fields can still be corrected; status cannot be changed here.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs defaultValue="events">
         <TabsList className="flex flex-wrap h-auto gap-1">
@@ -431,7 +701,32 @@ export default function AnimalDetailPage() {
               ) : (
                 <p className="text-muted-foreground text-sm">No weight records yet</p>
               )}
-              {!isClosed && (
+              {animal.weightLogs.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  {animal.weightLogs.map((w) => (
+                    <div key={w.id} className="flex items-center justify-between border-b pb-2 text-sm">
+                      <div>
+                        <span className="font-medium">{w.weightKg} kg</span>
+                        <span className="text-muted-foreground ml-2">
+                          {formatDate(w.date)} · {w.recordedBy.name}
+                        </span>
+                      </div>
+                      {canEdit && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={deletingId === w.id}
+                          onClick={() => deleteSubRecord("weights", w.id)}
+                          aria-label="Delete weight"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {!isClosed && canEdit && (
                 <div className="flex gap-2 mt-4">
                   <Input type="number" placeholder="Weight (kg)" value={weightKg} onChange={(e) => setWeightKg(e.target.value)} className="max-w-xs" />
                   <Button onClick={addWeight}>Record Weight</Button>
@@ -447,15 +742,30 @@ export default function AnimalDetailPage() {
             <CardContent className="space-y-4">
               {animal.healthRecords.map((r) => (
                 <div key={r.id} className="border-b pb-2">
-                  <div className="flex justify-between">
-                    <Badge variant="outline">{r.type}</Badge>
-                    <span className="text-sm text-muted-foreground">{formatDate(r.date)}</span>
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex-1">
+                      <div className="flex justify-between">
+                        <Badge variant="outline">{r.type}</Badge>
+                        <span className="text-sm text-muted-foreground">{formatDate(r.date)}</span>
+                      </div>
+                      {r.diagnosis && <p className="text-sm mt-1">{r.diagnosis}</p>}
+                      {r.treatment && <p className="text-sm text-muted-foreground">{r.treatment}</p>}
+                    </div>
+                    {canManageHealth && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={deletingId === r.id}
+                        onClick={() => deleteSubRecord("health", r.id)}
+                        aria-label="Delete health record"
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
                   </div>
-                  {r.diagnosis && <p className="text-sm mt-1">{r.diagnosis}</p>}
-                  {r.treatment && <p className="text-sm text-muted-foreground">{r.treatment}</p>}
                 </div>
               ))}
-              {!isClosed && (
+              {!isClosed && canManageHealth && (
                 <div className="grid gap-2 pt-4 border-t">
                   <Select value={healthForm.type} onValueChange={(v) => setHealthForm({ ...healthForm, type: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -481,14 +791,29 @@ export default function AnimalDetailPage() {
             <CardContent className="space-y-4">
               {animal.vaccinations.map((v) => (
                 <div key={v.id} className="border-b pb-2">
-                  <div className="flex justify-between">
-                    <span className="font-medium">{v.vaccineName}</span>
-                    <span className="text-sm text-muted-foreground">{formatDate(v.date)}</span>
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex-1">
+                      <div className="flex justify-between">
+                        <span className="font-medium">{v.vaccineName}</span>
+                        <span className="text-sm text-muted-foreground">{formatDate(v.date)}</span>
+                      </div>
+                      {v.nextDue && <p className="text-sm text-muted-foreground">Next due: {formatDate(v.nextDue)}</p>}
+                    </div>
+                    {canManageHealth && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={deletingId === v.id}
+                        onClick={() => deleteSubRecord("vaccinations", v.id)}
+                        aria-label="Delete vaccination"
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
                   </div>
-                  {v.nextDue && <p className="text-sm text-muted-foreground">Next due: {formatDate(v.nextDue)}</p>}
                 </div>
               ))}
-              {!isClosed && (
+              {!isClosed && canManageHealth && (
                 <div className="grid gap-2 pt-4 border-t">
                   <Input placeholder="Vaccine name" value={vaccForm.vaccineName} onChange={(e) => setVaccForm({ ...vaccForm, vaccineName: e.target.value })} />
                   <Input placeholder="Batch no." value={vaccForm.batchNo} onChange={(e) => setVaccForm({ ...vaccForm, batchNo: e.target.value })} />

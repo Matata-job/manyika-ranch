@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ROLE_LABELS } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 import { ArrowLeft, Camera, Save } from "lucide-react";
@@ -29,7 +31,12 @@ interface UserProfile {
 
 export default function UserProfilePage() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
+  const { data: session } = useSession();
+  const isSelf = session?.user?.id === id;
+  const isManager =
+    session?.user?.role === "OWNER" || session?.user?.role === "FARM_MANAGER";
+  const canManageAccount = isManager && !isSelf;
+
   const [user, setUser] = useState<UserProfile | null>(null);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
@@ -38,9 +45,18 @@ export default function UserProfilePage() {
     nationalId: "",
     address: "",
     nextOfKin: "",
+    email: "",
+    role: "CAMP_SUPERVISOR" as Role,
   });
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordMsg, setPasswordMsg] = useState<string | null>(null);
 
   async function loadUser() {
     const res = await fetch(`/api/users/${id}`);
@@ -53,11 +69,15 @@ export default function UserProfilePage() {
         nationalId: data.nationalId || "",
         address: data.address || "",
         nextOfKin: data.nextOfKin || "",
+        email: data.email || "",
+        role: data.role,
       });
     }
   }
 
-  useEffect(() => { loadUser(); }, [id]);
+  useEffect(() => {
+    loadUser();
+  }, [id]);
 
   async function uploadPhoto(): Promise<string | null> {
     if (!photoFile) return null;
@@ -78,26 +98,85 @@ export default function UserProfilePage() {
       if (url) photoUrl = url;
     }
 
-    await fetch(`/api/users/${id}`, {
+    const payload: Record<string, unknown> = {
+      name: form.name,
+      phone: form.phone,
+      nationalId: form.nationalId,
+      address: form.address,
+      nextOfKin: form.nextOfKin,
+      ...(photoUrl !== undefined ? { photoUrl } : {}),
+    };
+    if (canManageAccount) {
+      payload.email = form.email;
+      payload.role = form.role;
+    }
+
+    const res = await fetch(`/api/users/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...form,
-        ...(photoUrl !== undefined ? { photoUrl } : {}),
-      }),
+      body: JSON.stringify(payload),
     });
 
     setSaving(false);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || "Failed to save");
+      return;
+    }
     setEditing(false);
     setPhotoFile(null);
     loadUser();
   }
 
+  async function handlePasswordChange() {
+    setPasswordMsg(null);
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordMsg("New password must be at least 6 characters");
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordMsg("New passwords do not match");
+      return;
+    }
+
+    setPasswordSaving(true);
+    const body: Record<string, string> = {
+      password: passwordForm.newPassword,
+    };
+    if (isSelf) {
+      body.currentPassword = passwordForm.currentPassword;
+    }
+
+    const res = await fetch(`/api/users/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    setPasswordSaving(false);
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      setPasswordMsg(err.error || "Failed to update password");
+      return;
+    }
+
+    setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    setPasswordMsg(isSelf ? "Password updated" : "Password reset for user");
+  }
+
   if (!user) return <p className="text-muted-foreground">Loading...</p>;
+
+  const roleOptions =
+    session?.user?.role === "FARM_MANAGER"
+      ? (["CAMP_SUPERVISOR"] as Role[])
+      : (Object.keys(ROLE_LABELS) as Role[]);
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <Link href="/settings/users" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        href="/settings/users"
+        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4 mr-1" /> Back to users
       </Link>
 
@@ -109,13 +188,21 @@ export default function UserProfilePage() {
               <img src={user.photoUrl} alt={user.name} className="w-full h-full object-cover" />
             ) : (
               <span className="text-4xl font-bold text-muted-foreground">
-                {user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}
+                {user.name
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2)}
               </span>
             )}
           </div>
           {editing && (
             <div className="mt-3">
-              <Label htmlFor="photo" className="cursor-pointer inline-flex items-center gap-1 text-sm text-primary hover:underline">
+              <Label
+                htmlFor="photo"
+                className="cursor-pointer inline-flex items-center gap-1 text-sm text-primary hover:underline"
+              >
                 <Camera className="h-4 w-4" /> Change photo
               </Label>
               <Input
@@ -155,13 +242,24 @@ export default function UserProfilePage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Profile Details</CardTitle>
           {!editing ? (
-            <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Edit</Button>
+            <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+              Edit
+            </Button>
           ) : (
             <div className="flex gap-2">
               <Button size="sm" onClick={handleSave} disabled={saving}>
                 <Save className="h-4 w-4 mr-1" /> {saving ? "Saving..." : "Save"}
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setPhotoFile(null); }}>Cancel</Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setEditing(false);
+                  setPhotoFile(null);
+                }}
+              >
+                Cancel
+              </Button>
             </div>
           )}
         </CardHeader>
@@ -172,33 +270,152 @@ export default function UserProfilePage() {
                 <Label>Full Name</Label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </div>
+              {canManageAccount && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Email</Label>
+                    <Input
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Role</Label>
+                    <Select
+                      value={form.role}
+                      onValueChange={(v) => setForm({ ...form, role: v as Role })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {roleOptions.map((key) => (
+                          <SelectItem key={key} value={key}>
+                            {ROLE_LABELS[key]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
               <div className="space-y-2">
                 <Label>Phone</Label>
-                <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+255 xxx xxx xxx" />
+                <Input
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  placeholder="+255 xxx xxx xxx"
+                />
               </div>
               <div className="space-y-2">
                 <Label>National ID</Label>
-                <Input value={form.nationalId} onChange={(e) => setForm({ ...form, nationalId: e.target.value })} placeholder="ID number" />
+                <Input
+                  value={form.nationalId}
+                  onChange={(e) => setForm({ ...form, nationalId: e.target.value })}
+                  placeholder="ID number"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Address</Label>
-                <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Village, District" />
+                <Input
+                  value={form.address}
+                  onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  placeholder="Village, District"
+                />
               </div>
               <div className="space-y-2 sm:col-span-2">
                 <Label>Next of Kin</Label>
-                <Input value={form.nextOfKin} onChange={(e) => setForm({ ...form, nextOfKin: e.target.value })} placeholder="Name — Phone" />
+                <Input
+                  value={form.nextOfKin}
+                  onChange={(e) => setForm({ ...form, nextOfKin: e.target.value })}
+                  placeholder="Name — Phone"
+                />
               </div>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 text-sm">
-              <div><span className="text-muted-foreground">Phone</span><p className="font-medium">{user.phone || "—"}</p></div>
-              <div><span className="text-muted-foreground">National ID</span><p className="font-medium">{user.nationalId || "—"}</p></div>
-              <div><span className="text-muted-foreground">Address</span><p className="font-medium">{user.address || "—"}</p></div>
-              <div><span className="text-muted-foreground">Next of Kin</span><p className="font-medium">{user.nextOfKin || "—"}</p></div>
+              <div>
+                <span className="text-muted-foreground">Phone</span>
+                <p className="font-medium">{user.phone || "—"}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">National ID</span>
+                <p className="font-medium">{user.nationalId || "—"}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Address</span>
+                <p className="font-medium">{user.address || "—"}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Next of Kin</span>
+                <p className="font-medium">{user.nextOfKin || "—"}</p>
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
+
+      {(isSelf || canManageAccount) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{isSelf ? "Change Password" : "Reset Password"}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 max-w-md">
+              {isSelf && (
+                <div className="space-y-2">
+                  <Label>Current password</Label>
+                  <Input
+                    type="password"
+                    value={passwordForm.currentPassword}
+                    onChange={(e) =>
+                      setPasswordForm({ ...passwordForm, currentPassword: e.target.value })
+                    }
+                    autoComplete="current-password"
+                  />
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label>{isSelf ? "New password" : "Temporary password"}</Label>
+                <Input
+                  type="password"
+                  value={passwordForm.newPassword}
+                  onChange={(e) =>
+                    setPasswordForm({ ...passwordForm, newPassword: e.target.value })
+                  }
+                  autoComplete="new-password"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Confirm password</Label>
+                <Input
+                  type="password"
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) =>
+                    setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })
+                  }
+                  autoComplete="new-password"
+                />
+              </div>
+              {passwordMsg && (
+                <p
+                  className={`text-sm ${
+                    passwordMsg.includes("updated") || passwordMsg.includes("reset")
+                      ? "text-green-600"
+                      : "text-destructive"
+                  }`}
+                >
+                  {passwordMsg}
+                </p>
+              )}
+              <Button onClick={handlePasswordChange} disabled={passwordSaving}>
+                {passwordSaving ? "Saving..." : isSelf ? "Update password" : "Reset password"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

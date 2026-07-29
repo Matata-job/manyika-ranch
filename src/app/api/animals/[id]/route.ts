@@ -88,7 +88,12 @@ export async function PATCH(
   if (!result.ok) return result.error;
 
   const body = await req.json();
-  const dob = body.dob ? new Date(body.dob) : undefined;
+  const dob =
+    body.dob === null
+      ? null
+      : body.dob
+        ? new Date(body.dob)
+        : undefined;
 
   if (body.campId && body.campId !== currentCampId) {
     const campAccess = await requireCampAccess(body.campId);
@@ -108,6 +113,20 @@ export async function PATCH(
     where: { id },
     select: { status: true },
   });
+
+  if (
+    previous &&
+    (previous.status === "SOLD" || previous.status === "DECEASED") &&
+    body.status &&
+    body.status !== previous.status
+  ) {
+    return NextResponse.json(
+      {
+        error: `Cannot change status of a ${previous.status.toLowerCase()} animal. Use ownership or records corrections carefully.`,
+      },
+      { status: 400 }
+    );
+  }
 
   const animal = await prisma.animal.update({
     where: { id },
@@ -130,13 +149,20 @@ export async function PATCH(
             : Boolean(body.isPregnant)
           : undefined,
       dob,
-      ageMonths: dob
-        ? computeAgeMonths(dob)
-        : body.ageMonths !== undefined
-          ? body.ageMonths
-          : body.ageYears != null || body.ageMonthsPart != null
-            ? Math.max(0, (Number(body.ageYears) || 0) * 12 + (Number(body.ageMonthsPart) || 0))
-            : undefined,
+      ageMonths:
+        dob instanceof Date
+          ? computeAgeMonths(dob)
+          : dob === null
+            ? body.ageMonths !== undefined
+              ? body.ageMonths
+              : body.ageYears != null || body.ageMonthsPart != null
+                ? Math.max(0, (Number(body.ageYears) || 0) * 12 + (Number(body.ageMonthsPart) || 0))
+                : null
+            : body.ageMonths !== undefined
+              ? body.ageMonths
+              : body.ageYears != null || body.ageMonthsPart != null
+                ? Math.max(0, (Number(body.ageYears) || 0) * 12 + (Number(body.ageMonthsPart) || 0))
+                : undefined,
       ownerId: body.ownerId,
       sireId: body.sireId,
       damId: body.damId,
@@ -149,7 +175,7 @@ export async function PATCH(
     },
   });
 
-  if (dob) await updateAnimalAgeMonths(id, dob);
+  if (dob instanceof Date) await updateAnimalAgeMonths(id, dob);
 
   if (body.status && previous && body.status !== previous.status) {
     await logAnimalEvent({

@@ -74,6 +74,41 @@ export async function PATCH(
   if (body.address !== undefined) updateData.address = body.address;
   if (body.nextOfKin !== undefined) updateData.nextOfKin = body.nextOfKin;
 
+  if (body.password) {
+    if (typeof body.password !== "string" || body.password.length < 6) {
+      return NextResponse.json(
+        { error: "Password must be at least 6 characters" },
+        { status: 400 }
+      );
+    }
+
+    if (isSelf) {
+      if (!body.currentPassword) {
+        return NextResponse.json(
+          { error: "Current password is required" },
+          { status: 400 }
+        );
+      }
+      const existing = await prisma.user.findUnique({
+        where: { id },
+        select: { passwordHash: true },
+      });
+      if (!existing) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+      const valid = await bcrypt.compare(body.currentPassword, existing.passwordHash);
+      if (!valid) {
+        return NextResponse.json(
+          { error: "Current password is incorrect" },
+          { status: 400 }
+        );
+      }
+      updateData.passwordHash = await bcrypt.hash(body.password, 10);
+    } else if (isManager) {
+      updateData.passwordHash = await bcrypt.hash(body.password, 10);
+    }
+  }
+
   if (isManager && !isSelf) {
     if (body.email !== undefined) updateData.email = body.email;
     if (body.isActive !== undefined) updateData.isActive = body.isActive;
@@ -89,9 +124,15 @@ export async function PATCH(
       }
       updateData.role = body.role;
     }
-    if (body.password) {
-      updateData.passwordHash = await bcrypt.hash(body.password, 10);
-    }
+  }
+
+  // Managers may also reset their own account fields except role/email via self path above
+  if (isManager && isSelf) {
+    if (body.email !== undefined) updateData.email = body.email;
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return NextResponse.json({ error: "No changes provided" }, { status: 400 });
   }
 
   const user = await prisma.user.update({

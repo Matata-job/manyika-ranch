@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ROLE_LABELS } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
-import { Plus, Pencil, Check, X, UserCircle, Search } from "lucide-react";
+import { Plus, Pencil, Check, X, UserCircle, Search, KeyRound } from "lucide-react";
+import { useSession } from "next-auth/react";
 
 interface Camp { id: string; name: string }
 interface User {
@@ -27,12 +28,24 @@ interface User {
 type SortKey = "name" | "role" | "status";
 
 export default function UsersPage() {
+  const { data: session } = useSession();
+  const isOwner = session?.user?.role === "OWNER";
+  const isManager =
+    session?.user?.role === "OWNER" || session?.user?.role === "FARM_MANAGER";
+
   const [users, setUsers] = useState<User[]>([]);
   const [camps, setCamps] = useState<Camp[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ email: "", name: "", password: "", role: "CAMP_SUPERVISOR" as Role, campIds: [] as string[] });
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editCampIds, setEditCampIds] = useState<string[]>([]);
+  const [accountEditId, setAccountEditId] = useState<string | null>(null);
+  const [accountForm, setAccountForm] = useState({
+    email: "",
+    role: "CAMP_SUPERVISOR" as Role,
+    password: "",
+  });
+  const [accountSaving, setAccountSaving] = useState(false);
   const [roleFilter, setRoleFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
@@ -97,6 +110,44 @@ export default function UsersPage() {
     setTogglingId(null);
     loadUsers();
   }
+
+  function startAccountEdit(user: User) {
+    setAccountEditId(user.id);
+    setAccountForm({
+      email: user.email,
+      role: user.role,
+      password: "",
+    });
+  }
+
+  async function saveAccountEdit(userId: string) {
+    setAccountSaving(true);
+    const payload: Record<string, string> = {
+      email: accountForm.email,
+      role: accountForm.role,
+    };
+    if (accountForm.password) {
+      payload.password = accountForm.password;
+    }
+    const res = await fetch(`/api/users/${userId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    setAccountSaving(false);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || "Failed to update account");
+      return;
+    }
+    setAccountEditId(null);
+    loadUsers();
+  }
+
+  const roleOptionsForEdit =
+    isOwner
+      ? (Object.keys(ROLE_LABELS) as Role[])
+      : (["CAMP_SUPERVISOR"] as Role[]);
 
   const filtered = users
     .filter((u) => roleFilter === "ALL" || u.role === roleFilter)
@@ -182,6 +233,61 @@ export default function UsersPage() {
                 Create User
               </Button>
             </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {accountEditId && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Edit account</CardTitle>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => saveAccountEdit(accountEditId)} disabled={accountSaving}>
+                {accountSaving ? "Saving..." : "Save"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setAccountEditId(null)}>
+                Cancel
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-3 max-w-3xl">
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={accountForm.email}
+                  onChange={(e) => setAccountForm({ ...accountForm, email: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Role</Label>
+                <Select
+                  value={accountForm.role}
+                  onValueChange={(v) => setAccountForm({ ...accountForm, role: v as Role })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roleOptionsForEdit.map((key) => (
+                      <SelectItem key={key} value={key}>
+                        {ROLE_LABELS[key]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Reset password (optional)</Label>
+                <Input
+                  type="password"
+                  value={accountForm.password}
+                  onChange={(e) => setAccountForm({ ...accountForm, password: e.target.value })}
+                  placeholder="Leave blank to keep"
+                />
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -305,10 +411,20 @@ export default function UsersPage() {
                     <td className="p-3">
                       <div className="flex gap-1">
                         <Link href={`/settings/users/${user.id}`}>
-                          <Button size="sm" variant="ghost">
+                          <Button size="sm" variant="ghost" title="Open profile">
                             <UserCircle className="h-4 w-4" />
                           </Button>
                         </Link>
+                        {isManager && session?.user?.id !== user.id && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            title="Edit email, role, password"
+                            onClick={() => startAccountEdit(user)}
+                          >
+                            <KeyRound className="h-4 w-4" />
+                          </Button>
+                        )}
                         {user.role === "CAMP_SUPERVISOR" && (
                           editingUserId === user.id ? (
                             <>
@@ -320,7 +436,7 @@ export default function UsersPage() {
                               </Button>
                             </>
                           ) : (
-                            <Button size="sm" variant="ghost" onClick={() => startEditCamps(user)}>
+                            <Button size="sm" variant="ghost" onClick={() => startEditCamps(user)} title="Assign camps">
                               <Pencil className="h-4 w-4" />
                             </Button>
                           )
