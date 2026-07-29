@@ -12,7 +12,7 @@ import { Beef } from "lucide-react";
 function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
-  const [email, setEmail] = useState("owner@yabuu.co.tz");
+  const [email, setEmail] = useState("owner@manyikaranch.co.tz");
   const [password, setPassword] = useState("admin123");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -46,7 +46,7 @@ function LoginForm() {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
             <Beef className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-2xl">Ya Buu Ranch</CardTitle>
+          <CardTitle className="text-2xl">Manyika Ranch</CardTitle>
           <CardDescription>Livestock Management — Singida</CardDescription>
         </CardHeader>
         <CardContent>
@@ -58,7 +58,7 @@ function LoginForm() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="owner@yabuu.co.tz"
+                placeholder="owner@manyikaranch.co.tz"
                 required
               />
             </div>
@@ -78,7 +78,7 @@ function LoginForm() {
             </Button>
           </form>
           <p className="mt-4 text-center text-xs text-muted-foreground">
-            Demo: owner@yabuu.co.tz / admin123
+            Demo: owner@manyikaranch.co.tz / admin123
           </p>
         </CardContent>
       </Card>

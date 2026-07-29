@@ -1,4 +1,4 @@
-# Deploy Ya Buu Ranch (Vercel + Neon + Supabase)
+# Deploy Manyika Ranch (Vercel + Neon + Supabase)
 
 Recommended production stack:
 
@@ -48,9 +48,9 @@ npm run storage:setup
 cd "/Users/john/Documents/App Ya Buu"
 git init
 git add .
-git commit -m "Ya Buu livestock management — ready for deploy"
+git commit -m "Manyika Ranch livestock management — ready for deploy"
 # Create a private repo on GitHub, then:
-git remote add origin https://github.com/YOUR_USER/ya-buu.git
+git remote add origin https://github.com/YOUR_USER/manyika-ranch.git
 git branch -M main
 git push -u origin main
 ```
@@ -97,7 +97,7 @@ DATABASE_URL="postgresql://..." npm run db:seed
 
 Then log in:
 
-- Email: `owner@yabuu.co.tz`
+- Email: `owner@manyikaranch.co.tz`
 - Password: `admin123`
 
 **Change this password** after first login (or create real users under Users).

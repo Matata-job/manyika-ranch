@@ -7,21 +7,21 @@ async function main() {
   const passwordHash = await bcrypt.hash("admin123", 10);
 
   const ranch = await prisma.ranch.upsert({
-    where: { id: "ranch-ya-buu" },
-    update: {},
+    where: { id: "ranch-manyika" },
+    update: { name: "Manyika Ranch" },
     create: {
-      id: "ranch-ya-buu",
-      name: "Ya Buu Ranch",
+      id: "ranch-manyika",
+      name: "Manyika Ranch",
       location: "Singida, Tanzania",
       timezone: "Africa/Dar_es_Salaam",
     },
   });
 
   const owner = await prisma.user.upsert({
-    where: { email: "owner@yabuu.co.tz" },
+    where: { email: "owner@manyikaranch.co.tz" },
     update: {},
     create: {
-      email: "owner@yabuu.co.tz",
+      email: "owner@manyikaranch.co.tz",
       name: "Ranch Owner",
       passwordHash,
       role: "OWNER",
@@ -30,10 +30,10 @@ async function main() {
   });
 
   const manager = await prisma.user.upsert({
-    where: { email: "manager@yabuu.co.tz" },
+    where: { email: "manager@manyikaranch.co.tz" },
     update: {},
     create: {
-      email: "manager@yabuu.co.tz",
+      email: "manager@manyikaranch.co.tz",
       name: "Farm Manager",
       passwordHash,
       role: "FARM_MANAGER",
@@ -42,10 +42,10 @@ async function main() {
   });
 
   const vet = await prisma.user.upsert({
-    where: { email: "vet@yabuu.co.tz" },
+    where: { email: "vet@manyikaranch.co.tz" },
     update: {},
     create: {
-      email: "vet@yabuu.co.tz",
+      email: "vet@manyikaranch.co.tz",
       name: "Dr. Mwangi",
       passwordHash,
       role: "VETERINARIAN",
@@ -90,10 +90,10 @@ async function main() {
   }
 
   const supervisor = await prisma.user.upsert({
-    where: { email: "supervisor@yabuu.co.tz" },
+    where: { email: "supervisor@manyikaranch.co.tz" },
     update: { role: "CAMP_SUPERVISOR" },
     create: {
-      email: "supervisor@yabuu.co.tz",
+      email: "supervisor@manyikaranch.co.tz",
       name: "Camp Supervisor",
       passwordHash,
       role: "CAMP_SUPERVISOR",
@@ -220,7 +220,7 @@ async function main() {
   });
 
   console.log("Seed completed!");
-  console.log("Login: owner@yabuu.co.tz / admin123");
+  console.log("Login: owner@manyikaranch.co.tz / admin123");
   console.log(`Created ${camps.length} camps, ${bulls.length} bulls, ${cows.length} cows`);
 }
 

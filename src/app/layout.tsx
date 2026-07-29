@@ -6,13 +6,13 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Ya Buu Ranch — Livestock Management",
+  title: "Manyika Ranch — Livestock Management",
   description: "Livestock management system for Singida ranch operations",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Ya Buu Ranch",
+    title: "Manyika Ranch",
   },
 };
 

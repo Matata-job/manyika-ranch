@@ -68,7 +68,7 @@ export default async function DashboardPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">Ya Buu Ranch — Singida, Tanzania</p>
+        <p className="text-muted-foreground">Manyika Ranch — Singida, Tanzania</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
