@@ -338,6 +338,7 @@ model VaccineCatalog {
   species      String        @default("cattle")
   description  String?
   createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
   vaccinations Vaccination[]
 }
 
@@ -360,21 +361,37 @@ model Vaccination {
   @@index([nextDue])
 }
 
+model TreatmentCatalog {
+  id               String         @id @default(cuid())
+  name             String         @unique
+  type             TreatmentType  @default(OTHER)
+  intervalDays     Int?
+  withdrawalPeriod Int?
+  description      String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  treatments       Treatment[]
+}
+
 model Treatment {
-  id                String        @id @default(cuid())
-  animalId          String
-  animal            Animal        @relation(fields: [animalId], references: [id], onDelete: Cascade)
-  date              DateTime      @default(now())
-  type              TreatmentType
-  product           String
-  dose              String?
-  withdrawalPeriod  Int?
-  administeredById  String
-  administeredBy    User          @relation(fields: [administeredById], references: [id])
-  notes             String?
-  createdAt         DateTime      @default(now())
+  id                 String            @id @default(cuid())
+  animalId           String
+  animal             Animal            @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  treatmentCatalogId String?
+  treatmentCatalog   TreatmentCatalog? @relation(fields: [treatmentCatalogId], references: [id])
+  date               DateTime          @default(now())
+  type               TreatmentType
+  product            String
+  dose               String?
+  withdrawalPeriod   Int?
+  nextDue            DateTime?
+  administeredById   String
+  administeredBy     User              @relation(fields: [administeredById], references: [id])
+  notes              String?
+  createdAt          DateTime          @default(now())
 
   @@index([animalId, date])
+  @@index([nextDue])
 }
 
 model BreedingEvent {

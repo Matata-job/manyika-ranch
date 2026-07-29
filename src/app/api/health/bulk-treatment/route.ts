@@ -41,11 +41,45 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  if (!body.product?.trim()) {
+
+  const date = body.date ? new Date(body.date) : new Date();
+  let treatmentType = body.type as TreatmentType | undefined;
+  let product = body.product?.trim() || "";
+  let withdrawalPeriod =
+    body.withdrawalPeriod != null && body.withdrawalPeriod !== ""
+      ? parseInt(String(body.withdrawalPeriod), 10)
+      : null;
+  let nextDue = body.nextDue ? new Date(body.nextDue) : null;
+  let treatmentCatalogId: string | null = body.treatmentCatalogId || null;
+
+  if (treatmentCatalogId) {
+    const catalog = await prisma.treatmentCatalog.findUnique({
+      where: { id: treatmentCatalogId },
+    });
+    if (!catalog) {
+      return NextResponse.json(
+        { error: "Treatment schedule not found" },
+        { status: 400 }
+      );
+    }
+    treatmentType = catalog.type;
+    if (!product) product = catalog.name;
+    if (withdrawalPeriod == null && catalog.withdrawalPeriod != null) {
+      withdrawalPeriod = catalog.withdrawalPeriod;
+    }
+    if (!nextDue && catalog.intervalDays) {
+      nextDue = new Date(date.getTime() + catalog.intervalDays * 86400000);
+    }
+  }
+
+  if (!product) {
     return NextResponse.json({ error: "Product is required" }, { status: 400 });
   }
-  if (!body.type || !TREATMENT_TYPES.includes(body.type)) {
-    return NextResponse.json({ error: "Valid treatment type is required" }, { status: 400 });
+  if (!treatmentType || !TREATMENT_TYPES.includes(treatmentType)) {
+    return NextResponse.json(
+      { error: "Valid treatment type is required" },
+      { status: 400 }
+    );
   }
 
   const scope = await buildAnimalScope(
@@ -70,29 +104,23 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const date = body.date ? new Date(body.date) : new Date();
-  const product = body.product.trim();
   const dose = body.dose?.trim() || null;
   const notes = body.notes?.trim() || null;
-  const withdrawalPeriod =
-    body.withdrawalPeriod != null && body.withdrawalPeriod !== ""
-      ? parseInt(String(body.withdrawalPeriod), 10)
-      : null;
   const withdrawal =
     withdrawalPeriod != null && Number.isFinite(withdrawalPeriod)
       ? withdrawalPeriod
       : null;
 
-  const treatmentType = body.type as TreatmentType;
-
   await prisma.$transaction(async (tx) => {
     await tx.treatment.createMany({
       data: animals.map((a) => ({
         animalId: a.id,
-        type: treatmentType,
+        treatmentCatalogId,
+        type: treatmentType!,
         product,
         dose,
         withdrawalPeriod: withdrawal,
+        nextDue,
         date,
         administeredById: result.user.id,
         notes,
@@ -103,11 +131,12 @@ export async function POST(req: NextRequest) {
       data: animals.map((a) => ({
         animalId: a.id,
         type: "TREATMENT" as const,
-        title: `Treatment: ${treatmentType.replace(/_/g, " ")}`,
+        title: `Treatment: ${treatmentType!.replace(/_/g, " ")}`,
         description: [
           product,
           dose ? `Dose: ${dose}` : null,
           withdrawal != null ? `Withdrawal: ${withdrawal} days` : null,
+          nextDue ? `Next due ${nextDue.toISOString().slice(0, 10)}` : null,
           notes,
         ]
           .filter(Boolean)
@@ -119,6 +148,8 @@ export async function POST(req: NextRequest) {
           type: treatmentType,
           product,
           withdrawalPeriod: withdrawal,
+          nextDue,
+          treatmentCatalogId,
         },
       })),
     });
@@ -130,6 +161,7 @@ export async function POST(req: NextRequest) {
     count: animals.length,
     animalIds: animals.map((a) => a.id),
     skipped: animalIds.length - animals.length,
+    treatmentCatalogId,
   });
 
   return NextResponse.json(

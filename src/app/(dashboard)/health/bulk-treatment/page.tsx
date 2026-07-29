@@ -41,6 +41,7 @@ export default function BulkTreatmentPage() {
   const [loadingAnimals, setLoadingAnimals] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
+    treatmentCatalogId: "",
     type: "DIPPING",
     product: "",
     dose: "",
@@ -48,6 +49,15 @@ export default function BulkTreatmentPage() {
     date: "",
     notes: "",
   });
+  const [schedules, setSchedules] = useState<
+    {
+      id: string;
+      name: string;
+      type: string;
+      intervalDays: number | null;
+      withdrawalPeriod: number | null;
+    }[]
+  >([]);
   const [result, setResult] = useState<{
     applied: number;
     skipped: number;
@@ -57,6 +67,9 @@ export default function BulkTreatmentPage() {
     fetch("/api/camps")
       .then((r) => r.json())
       .then((d) => setCamps(Array.isArray(d) ? d : []));
+    fetch("/api/health/treatment-schedules")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => setSchedules(Array.isArray(d) ? d : []));
   }, []);
 
   async function loadAnimals(nextCampId: string, nextSex: string) {
@@ -131,6 +144,7 @@ export default function BulkTreatmentPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         animalIds: [...selected],
+        treatmentCatalogId: form.treatmentCatalogId || null,
         type: form.type,
         product: form.product,
         dose: form.dose || null,
@@ -150,6 +164,7 @@ export default function BulkTreatmentPage() {
     const data = await res.json();
     setResult({ applied: data.applied, skipped: data.skipped });
     setForm({
+      treatmentCatalogId: "",
       type: "DIPPING",
       product: "",
       dose: "",
@@ -170,7 +185,12 @@ export default function BulkTreatmentPage() {
         </Link>
         <h1 className="text-3xl font-bold">Bulk treatment</h1>
         <p className="text-muted-foreground">
-          Apply one treatment to many animals in a camp (dip, deworm, etc.)
+          Apply one treatment to many animals in a camp (dip, deworm, etc.). Use a
+          schedule from{" "}
+          <Link href="/health/schedules" className="text-primary hover:underline">
+            Health schedules
+          </Link>{" "}
+          to set next due automatically.
         </p>
       </div>
 
@@ -282,11 +302,53 @@ export default function BulkTreatmentPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+            {schedules.length > 0 && (
+              <div className="space-y-2 sm:col-span-2">
+                <Label>From schedule</Label>
+                <Select
+                  value={form.treatmentCatalogId || "__custom__"}
+                  onValueChange={(v) => {
+                    if (v === "__custom__") {
+                      setForm({ ...form, treatmentCatalogId: "" });
+                      return;
+                    }
+                    const s = schedules.find((x) => x.id === v);
+                    setForm({
+                      ...form,
+                      treatmentCatalogId: v,
+                      type: s?.type || form.type,
+                      product: s?.name || form.product,
+                      withdrawalPeriod:
+                        s?.withdrawalPeriod != null
+                          ? String(s.withdrawalPeriod)
+                          : form.withdrawalPeriod,
+                    });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Optional schedule…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__custom__">Custom / one-off</SelectItem>
+                    {schedules.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                        {s.intervalDays ? ` (every ${s.intervalDays}d)` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Schedule interval sets next due automatically for each animal.
+                </p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Type *</Label>
               <Select
                 value={form.type}
                 onValueChange={(v) => setForm({ ...form, type: v })}
+                disabled={!!form.treatmentCatalogId}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -304,7 +366,13 @@ export default function BulkTreatmentPage() {
               <Label>Product *</Label>
               <Input
                 value={form.product}
-                onChange={(e) => setForm({ ...form, product: e.target.value })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    product: e.target.value,
+                    treatmentCatalogId: "",
+                  })
+                }
                 placeholder="e.g. Amitraz, Albendazole"
                 required
               />

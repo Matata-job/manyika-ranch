@@ -38,22 +38,32 @@ export async function POST(
 
   const body = await req.json();
   let nextDue = body.nextDue ? new Date(body.nextDue) : null;
+  let vaccineName = body.vaccineName?.trim() || "";
+  let vaccineCatalogId = body.vaccineCatalogId || null;
 
-  if (!nextDue && body.vaccineCatalogId) {
+  if (vaccineCatalogId) {
     const catalog = await prisma.vaccineCatalog.findUnique({
-      where: { id: body.vaccineCatalogId },
+      where: { id: vaccineCatalogId },
     });
-    if (catalog?.intervalDays) {
+    if (!catalog) {
+      return NextResponse.json({ error: "Vaccine not found" }, { status: 400 });
+    }
+    if (!vaccineName) vaccineName = catalog.name;
+    if (!nextDue && catalog.intervalDays) {
       const date = body.date ? new Date(body.date) : new Date();
       nextDue = new Date(date.getTime() + catalog.intervalDays * 86400000);
     }
   }
 
+  if (!vaccineName) {
+    return NextResponse.json({ error: "Vaccine name is required" }, { status: 400 });
+  }
+
   const vaccination = await prisma.vaccination.create({
     data: {
       animalId: id,
-      vaccineCatalogId: body.vaccineCatalogId,
-      vaccineName: body.vaccineName,
+      vaccineCatalogId,
+      vaccineName,
       batchNo: body.batchNo,
       date: body.date ? new Date(body.date) : new Date(),
       nextDue,

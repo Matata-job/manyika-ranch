@@ -78,7 +78,15 @@ interface AnimalDetail {
   weightLogs: { id: string; date: string; weightKg: number; recordedBy: { name: string } }[];
   healthRecords: { id: string; date: string; type: string; diagnosis: string | null; treatment: string | null }[];
   vaccinations: { id: string; date: string; vaccineName: string; nextDue: string | null; batchNo: string | null }[];
-  treatments: { id: string; date: string; type: string; product: string; dose: string | null }[];
+  treatments: {
+    id: string;
+    date: string;
+    type: string;
+    product: string;
+    dose: string | null;
+    nextDue?: string | null;
+    withdrawalPeriod?: number | null;
+  }[];
   movements: { id: string; date: string; fromCamp: { name: string }; toCamp: { name: string }; authorizedBy: { name: string } }[];
   events: AnimalEvent[];
   deathRecord: DeathRecord | null;
@@ -134,7 +142,32 @@ export default function AnimalDetailPage() {
   const [weightKg, setWeightKg] = useState("");
   const [moveCampId, setMoveCampId] = useState("");
   const [healthForm, setHealthForm] = useState({ type: "CHECKUP", diagnosis: "", treatment: "" });
-  const [vaccForm, setVaccForm] = useState({ vaccineName: "", batchNo: "", nextDue: "" });
+  const [vaccForm, setVaccForm] = useState({
+    vaccineCatalogId: "",
+    vaccineName: "",
+    batchNo: "",
+    nextDue: "",
+  });
+  const [vaccineOptions, setVaccineOptions] = useState<
+    { id: string; name: string; intervalDays: number | null }[]
+  >([]);
+  const [treatForm, setTreatForm] = useState({
+    treatmentCatalogId: "",
+    type: "DIPPING",
+    product: "",
+    dose: "",
+    withdrawalPeriod: "",
+    nextDue: "",
+  });
+  const [treatmentOptions, setTreatmentOptions] = useState<
+    {
+      id: string;
+      name: string;
+      type: string;
+      intervalDays: number | null;
+      withdrawalPeriod: number | null;
+    }[]
+  >([]);
   const [eventForm, setEventForm] = useState({ type: "NOTE", title: "", description: "", occurredAt: "" });
   const [deathForm, setDeathForm] = useState({
     date: "",
@@ -191,6 +224,12 @@ export default function AnimalDetailPage() {
     fetch("/api/buyers")
       .then((r) => (r.ok ? r.json() : []))
       .then((d) => setBuyerOptions(Array.isArray(d) ? d : []));
+    fetch("/api/health/vaccines")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => setVaccineOptions(Array.isArray(d) ? d : []));
+    fetch("/api/health/treatment-schedules")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => setTreatmentOptions(Array.isArray(d) ? d : []));
   }, [id]);
 
   async function searchBuyers(q: string) {
@@ -318,13 +357,85 @@ export default function AnimalDetailPage() {
   }
 
   async function addVaccination() {
+    if (!vaccForm.vaccineName.trim() && !vaccForm.vaccineCatalogId) {
+      alert("Select a vaccine or enter a name");
+      return;
+    }
     await fetch(`/api/animals/${id}/vaccinations`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...vaccForm, nextDue: vaccForm.nextDue || null }),
+      body: JSON.stringify({
+        vaccineCatalogId: vaccForm.vaccineCatalogId || null,
+        vaccineName: vaccForm.vaccineName,
+        batchNo: vaccForm.batchNo || null,
+        nextDue: vaccForm.nextDue || null,
+      }),
     });
-    setVaccForm({ vaccineName: "", batchNo: "", nextDue: "" });
+    setVaccForm({ vaccineCatalogId: "", vaccineName: "", batchNo: "", nextDue: "" });
     loadAnimal();
+  }
+
+  function onVaccineCatalogChange(catalogId: string) {
+    if (catalogId === "__custom__") {
+      setVaccForm({ ...vaccForm, vaccineCatalogId: "", vaccineName: "" });
+      return;
+    }
+    const v = vaccineOptions.find((x) => x.id === catalogId);
+    setVaccForm({
+      ...vaccForm,
+      vaccineCatalogId: catalogId,
+      vaccineName: v?.name || "",
+      nextDue: "",
+    });
+  }
+
+  async function addTreatment() {
+    if (!treatForm.product.trim() && !treatForm.treatmentCatalogId) {
+      alert("Select a schedule or enter a product");
+      return;
+    }
+    await fetch(`/api/animals/${id}/treatments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        treatmentCatalogId: treatForm.treatmentCatalogId || null,
+        type: treatForm.type,
+        product: treatForm.product,
+        dose: treatForm.dose || null,
+        withdrawalPeriod: treatForm.withdrawalPeriod || null,
+        nextDue: treatForm.nextDue || null,
+      }),
+    });
+    setTreatForm({
+      treatmentCatalogId: "",
+      type: "DIPPING",
+      product: "",
+      dose: "",
+      withdrawalPeriod: "",
+      nextDue: "",
+    });
+    loadAnimal();
+  }
+
+  function onTreatmentCatalogChange(catalogId: string) {
+    if (catalogId === "__custom__") {
+      setTreatForm({
+        ...treatForm,
+        treatmentCatalogId: "",
+        product: "",
+      });
+      return;
+    }
+    const t = treatmentOptions.find((x) => x.id === catalogId);
+    setTreatForm({
+      ...treatForm,
+      treatmentCatalogId: catalogId,
+      type: t?.type || treatForm.type,
+      product: t?.name || "",
+      withdrawalPeriod:
+        t?.withdrawalPeriod != null ? String(t.withdrawalPeriod) : treatForm.withdrawalPeriod,
+      nextDue: "",
+    });
   }
 
   async function moveAnimal() {
@@ -660,6 +771,7 @@ export default function AnimalDetailPage() {
           <TabsTrigger value="weights">Weights</TabsTrigger>
           <TabsTrigger value="health">Health</TabsTrigger>
           <TabsTrigger value="vaccinations">Vaccinations</TabsTrigger>
+          <TabsTrigger value="treatments">Treatments</TabsTrigger>
           <TabsTrigger value="movements">Movements</TabsTrigger>
           <TabsTrigger value="sales">Sales</TabsTrigger>
           <TabsTrigger value="death">Death / Culling</TabsTrigger>
@@ -841,10 +953,179 @@ export default function AnimalDetailPage() {
               ))}
               {!isClosed && canManageHealth && (
                 <div className="grid gap-2 pt-4 border-t">
-                  <Input placeholder="Vaccine name" value={vaccForm.vaccineName} onChange={(e) => setVaccForm({ ...vaccForm, vaccineName: e.target.value })} />
-                  <Input placeholder="Batch no." value={vaccForm.batchNo} onChange={(e) => setVaccForm({ ...vaccForm, batchNo: e.target.value })} />
-                  <Input type="date" value={vaccForm.nextDue} onChange={(e) => setVaccForm({ ...vaccForm, nextDue: e.target.value })} />
+                  {vaccineOptions.length > 0 && (
+                    <Select
+                      value={vaccForm.vaccineCatalogId || "__custom__"}
+                      onValueChange={onVaccineCatalogChange}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="From schedule…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__custom__">Custom / one-off</SelectItem>
+                        {vaccineOptions.map((v) => (
+                          <SelectItem key={v.id} value={v.id}>
+                            {v.name}
+                            {v.intervalDays ? ` (every ${v.intervalDays}d)` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  <Input
+                    placeholder="Vaccine name"
+                    value={vaccForm.vaccineName}
+                    onChange={(e) =>
+                      setVaccForm({
+                        ...vaccForm,
+                        vaccineName: e.target.value,
+                        vaccineCatalogId: "",
+                      })
+                    }
+                  />
+                  <Input
+                    placeholder="Batch no."
+                    value={vaccForm.batchNo}
+                    onChange={(e) => setVaccForm({ ...vaccForm, batchNo: e.target.value })}
+                  />
+                  <div>
+                    <Label className="text-xs text-muted-foreground">
+                      Next due (optional — auto-filled from schedule interval)
+                    </Label>
+                    <Input
+                      type="date"
+                      value={vaccForm.nextDue}
+                      onChange={(e) => setVaccForm({ ...vaccForm, nextDue: e.target.value })}
+                    />
+                  </div>
                   <Button onClick={addVaccination}>Record Vaccination</Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="treatments">
+          <Card>
+            <CardHeader><CardTitle>Treatments</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              {animal.treatments.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No treatments recorded</p>
+              ) : (
+                animal.treatments.map((t) => (
+                  <div key={t.id} className="border-b pb-2">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex-1">
+                        <div className="flex justify-between gap-2">
+                          <span className="font-medium">
+                            {t.product}{" "}
+                            <Badge variant="outline" className="ml-1">
+                              {t.type.replace(/_/g, " ")}
+                            </Badge>
+                          </span>
+                          <span className="text-sm text-muted-foreground shrink-0">
+                            {formatDate(t.date)}
+                          </span>
+                        </div>
+                        {t.dose && (
+                          <p className="text-sm text-muted-foreground">Dose: {t.dose}</p>
+                        )}
+                        {t.nextDue && (
+                          <p className="text-sm text-muted-foreground">
+                            Next due: {formatDate(t.nextDue)}
+                          </p>
+                        )}
+                      </div>
+                      {canManageHealth && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={deletingId === t.id}
+                          onClick={() => deleteSubRecord("treatments", t.id)}
+                          aria-label="Delete treatment"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+              {!isClosed && canManageHealth && (
+                <div className="grid gap-2 pt-4 border-t">
+                  {treatmentOptions.length > 0 && (
+                    <Select
+                      value={treatForm.treatmentCatalogId || "__custom__"}
+                      onValueChange={onTreatmentCatalogChange}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="From schedule…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__custom__">Custom / one-off</SelectItem>
+                        {treatmentOptions.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.name}
+                            {t.intervalDays ? ` (every ${t.intervalDays}d)` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {!treatForm.treatmentCatalogId && (
+                    <Select
+                      value={treatForm.type}
+                      onValueChange={(v) => setTreatForm({ ...treatForm, type: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DEWORMING">Deworming</SelectItem>
+                        <SelectItem value="DIPPING">Dipping</SelectItem>
+                        <SelectItem value="ANTIBIOTIC">Antibiotic</SelectItem>
+                        <SelectItem value="OTHER">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                  <Input
+                    placeholder="Product"
+                    value={treatForm.product}
+                    onChange={(e) =>
+                      setTreatForm({
+                        ...treatForm,
+                        product: e.target.value,
+                        treatmentCatalogId: "",
+                      })
+                    }
+                  />
+                  <Input
+                    placeholder="Dose"
+                    value={treatForm.dose}
+                    onChange={(e) => setTreatForm({ ...treatForm, dose: e.target.value })}
+                  />
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="Withdrawal (days)"
+                    value={treatForm.withdrawalPeriod}
+                    onChange={(e) =>
+                      setTreatForm({ ...treatForm, withdrawalPeriod: e.target.value })
+                    }
+                  />
+                  <div>
+                    <Label className="text-xs text-muted-foreground">
+                      Next due (optional — auto-filled from schedule interval)
+                    </Label>
+                    <Input
+                      type="date"
+                      value={treatForm.nextDue}
+                      onChange={(e) =>
+                        setTreatForm({ ...treatForm, nextDue: e.target.value })
+                      }
+                    />
+                  </div>
+                  <Button onClick={addTreatment}>Record Treatment</Button>
                 </div>
               )}
             </CardContent>
