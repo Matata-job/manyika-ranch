@@ -6,6 +6,8 @@ import {
   requireAnimalAccess,
 } from "@/lib/auth/api-guard";
 import { computeAgeMonths } from "@/lib/utils";
+import { createAuditLog } from "@/lib/services/animal-service";
+import { logAnimalEvent } from "@/lib/services/event-service";
 
 function resolveAgeMonths(payload: Record<string, unknown>): number | null {
   const dob = payload.dob ? new Date(payload.dob as string) : null;
@@ -29,7 +31,7 @@ export async function POST(req: NextRequest) {
 
   for (const item of items) {
     try {
-      const { action, entity, payload } = item;
+      const { action, entity, payload, timestamp } = item;
 
       if (entity === "animal" && action === "create") {
         const campAccess = await requireCampAccess(payload.campId as string);
@@ -75,6 +77,12 @@ export async function POST(req: NextRequest) {
           ? (payload.photoUrls as string[])
           : [];
         const primaryPhoto = photoUrls[0] || (payload.photoUrl as string) || null;
+        const occurredAt =
+          typeof timestamp === "number"
+            ? new Date(timestamp)
+            : payload.recordedOfflineAt
+              ? new Date(payload.recordedOfflineAt as string)
+              : new Date();
 
         const animal = await prisma.animal.create({
           data: {
@@ -103,6 +111,9 @@ export async function POST(req: NextRequest) {
             colorMarkings: (payload.colorMarkings as string) || null,
             notes: (payload.notes as string) || null,
           },
+          include: {
+            camp: { select: { id: true, name: true } },
+          },
         });
 
         if (photoUrls.length > 0) {
@@ -110,11 +121,41 @@ export async function POST(req: NextRequest) {
             data: photoUrls.map((url) => ({
               animalId: animal.id,
               url,
-              takenAt: new Date(),
+              takenAt: occurredAt,
               uploadedById: result.user.id,
             })),
           });
         }
+
+        await createAuditLog(result.user.id, "CREATE", "Animal", animal.id, {
+          eartag: animal.eartag,
+          breed: animal.breed,
+          sex: animal.sex,
+          campId: animal.campId,
+          ownerId: animal.ownerId,
+          acquisitionType: animal.acquisitionType,
+          acquisitionDate: animal.acquisitionDate,
+          dob: animal.dob,
+          photoCount: photoUrls.length,
+          syncedFromOffline: true,
+        });
+
+        await logAnimalEvent({
+          animalId: animal.id,
+          type: "REGISTERED",
+          title: `Registered ${animal.eartag}`,
+          description: `${animal.breed} · ${animal.sex} · Camp ${animal.camp.name}${
+            photoUrls.length ? ` · ${photoUrls.length} photo(s)` : ""
+          } · synced from offline`,
+          occurredAt,
+          recordedById: result.user.id,
+          metadata: {
+            campId: animal.campId,
+            breed: animal.breed,
+            syncedFromOffline: true,
+            photoCount: photoUrls.length,
+          },
+        });
       } else if (entity === "weight" && action === "create") {
         const animalAccess = await requireAnimalAccess(payload.animalId as string);
         if (!animalAccess.ok) {

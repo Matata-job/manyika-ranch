@@ -91,6 +91,8 @@ const en = {
   // Sync
   offline: "Offline",
   savedOffline: "Saved offline. It will sync when you are back online.",
+  savedOfflineWithPhotos:
+    "Saved offline with {n} photo(s). Photos upload when you sync online.",
   synced: "Synced",
   pendingCount: "{n} pending",
 
@@ -665,6 +667,8 @@ const sw: Dict = {
 
   offline: "Nje ya mtandao",
   savedOffline: "Imehifadhiwa nje ya mtandao. Itasawazishwa ukirudi mtandaoni.",
+  savedOfflineWithPhotos:
+    "Imehifadhiwa nje ya mtandao na picha {n}. Picha zitapakiwa ukisawazisha mtandaoni.",
   synced: "Imesawazishwa",
   pendingCount: "{n} inasubiri",
 

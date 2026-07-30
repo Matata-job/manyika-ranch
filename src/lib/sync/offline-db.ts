@@ -14,7 +14,8 @@ export interface SyncQueueItem {
 export interface PendingPhoto {
   id?: number;
   queueId: number;
-  blob: Blob;
+  /** ArrayBuffer survives IndexedDB more reliably than File/Blob across browsers. */
+  data: ArrayBuffer;
   fileName: string;
   mimeType: string;
 }
@@ -72,21 +73,32 @@ export async function enqueueSync(
   const queueId = await db.syncQueue.add({
     action,
     entity,
-    payload,
+    payload: {
+      ...payload,
+      photoCount: photos.length,
+      recordedOfflineAt: new Date().toISOString(),
+    },
     timestamp: Date.now(),
     retryCount: 0,
     status: "pending",
   });
 
   if (photos.length > 0) {
-    await db.pendingPhotos.bulkAdd(
-      photos.map((file) => ({
+    const rows: Omit<PendingPhoto, "id">[] = [];
+    for (let i = 0; i < photos.length; i++) {
+      const file = photos[i];
+      const data = await file.arrayBuffer();
+      if (!data.byteLength) {
+        throw new Error("Photo data was empty — try choosing the photo again");
+      }
+      rows.push({
         queueId,
-        blob: file,
-        fileName: file.name || `photo-${Date.now()}.jpg`,
+        data,
+        fileName: file.name || `photo-${Date.now()}-${i}.jpg`,
         mimeType: file.type || "image/jpeg",
-      }))
-    );
+      });
+    }
+    await db.pendingPhotos.bulkAdd(rows);
   }
 
   return queueId;
@@ -108,8 +120,33 @@ async function uploadQueuedPhotos(queueId: number): Promise<string[]> {
   const urls: string[] = [];
 
   for (const photo of photos) {
-    const file = new File([photo.blob], photo.fileName, {
-      type: photo.mimeType,
+    const bytes = photo.data;
+    if (!bytes || !(bytes instanceof ArrayBuffer) || bytes.byteLength === 0) {
+      // Legacy rows may still have a Blob in `blob` from older schema
+      const legacy = photo as PendingPhoto & { blob?: Blob };
+      if (legacy.blob instanceof Blob && legacy.blob.size > 0) {
+        const file = new File([legacy.blob], photo.fileName, {
+          type: photo.mimeType || "image/jpeg",
+        });
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("folder", "animals");
+        const res = await fetch("/api/upload", { method: "POST", body: fd });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(
+            (err as { error?: string }).error || "Photo upload failed during sync"
+          );
+        }
+        const { url } = await res.json();
+        urls.push(url as string);
+        continue;
+      }
+      throw new Error("Stored photo data is missing — re-save the animal with photos");
+    }
+
+    const file = new File([bytes], photo.fileName, {
+      type: photo.mimeType || "image/jpeg",
     });
     const fd = new FormData();
     fd.append("file", file);
@@ -153,9 +190,15 @@ export async function flushSyncQueue(): Promise<{ synced: number; failed: number
     try {
       await db.syncQueue.update(item.id, { status: "syncing" });
       let payload = { ...item.payload };
+      const expectedPhotos = Number(payload.photoCount || 0);
 
       if (item.entity === "animal" && item.action === "create") {
         const photoUrls = await uploadQueuedPhotos(item.id);
+        if (expectedPhotos > 0 && photoUrls.length === 0) {
+          throw new Error(
+            "Photos were attached offline but could not be uploaded. Try sync again."
+          );
+        }
         if (photoUrls.length > 0) {
           payload = {
             ...payload,

@@ -199,8 +199,18 @@ export default function NewAnimalPage() {
     };
 
     if (!navigator.onLine) {
-      await enqueueSync("create", "animal", payload, photoFiles);
-      alert(t("savedOffline"));
+      try {
+        await enqueueSync("create", "animal", payload, photoFiles);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : t("failedToCreateAnimal"));
+        setLoading(false);
+        return;
+      }
+      alert(
+        photoFiles.length > 0
+          ? t("savedOfflineWithPhotos", { n: photoFiles.length })
+          : t("savedOffline")
+      );
       router.push("/animals");
       return;
     }
