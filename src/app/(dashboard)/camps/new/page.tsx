@@ -1,13 +1,27 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ArrowLeft } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
+
+const CampLocationPicker = dynamic(
+  () =>
+    import("@/components/camp-location-picker").then((m) => m.CampLocationPicker),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-64 rounded-lg border bg-muted animate-pulse" />
+    ),
+  }
+);
 
 export default function NewCampPage() {
   const t = useT();
@@ -15,7 +29,7 @@ export default function NewCampPage() {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     name: "",
-    capacity: "",
+    sizeAcres: "",
     latitude: "",
     longitude: "",
     waterSources: "",
@@ -31,9 +45,9 @@ export default function NewCampPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: form.name,
-        capacity: form.capacity ? parseInt(form.capacity) : null,
-        latitude: form.latitude ? parseFloat(form.latitude) : null,
-        longitude: form.longitude ? parseFloat(form.longitude) : null,
+        sizeAcres: form.sizeAcres || null,
+        latitude: form.latitude || null,
+        longitude: form.longitude || null,
         waterSources: form.waterSources || null,
         notes: form.notes || null,
       }),
@@ -43,51 +57,87 @@ export default function NewCampPage() {
       const camp = await res.json();
       router.push(`/camps/${camp.id}`);
     } else {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || t("failedToSave"));
       setLoading(false);
     }
   }
 
   return (
-    
-      <Card className="max-w-lg">
+    <div className="space-y-4 max-w-2xl">
+      <Link
+        href="/camps"
+        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4 mr-1" /> {t("navCamps")}
+      </Link>
+
+      <Card>
         <CardHeader>
           <CardTitle>{t("addCamp")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">{t("campName")}</Label>
-              <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+              <Label htmlFor="name">{t("campName")} *</Label>
+              <Input
+                id="name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                required
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="capacity">{t("capacity")}</Label>
-              <Input id="capacity" type="number" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} />
+              <Label htmlFor="sizeAcres">{t("sizeAcres")}</Label>
+              <Input
+                id="sizeAcres"
+                type="number"
+                min={0}
+                step={0.1}
+                value={form.sizeAcres}
+                onChange={(e) => setForm({ ...form, sizeAcres: e.target.value })}
+                placeholder="e.g. 120"
+              />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="latitude">Latitude</Label>
-                <Input id="latitude" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="longitude">Longitude</Label>
-                <Input id="longitude" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: e.target.value })} />
-              </div>
+
+            <CampLocationPicker
+              latitude={form.latitude}
+              longitude={form.longitude}
+              onChange={({ latitude, longitude }) =>
+                setForm({ ...form, latitude, longitude })
+              }
+            />
+
+            <div className="space-y-2">
+              <Label htmlFor="waterSources">{t("waterSources")}</Label>
+              <Input
+                id="waterSources"
+                value={form.waterSources}
+                onChange={(e) =>
+                  setForm({ ...form, waterSources: e.target.value })
+                }
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="waterSources">Water Sources</Label>
-              <Input id="waterSources" value={form.waterSources} onChange={(e) => setForm({ ...form, waterSources: e.target.value })} />
+              <Label htmlFor="notes">{t("notes")}</Label>
+              <Textarea
+                id="notes"
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea id="notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-            </div>
+            <p className="text-xs text-muted-foreground">{t("campPhotosAfterSave")}</p>
             <div className="flex gap-2">
-              <Button type="submit" disabled={loading}>{loading ? t("saving") : t("save")}</Button>
-              <Button type="button" variant="outline" onClick={() => router.back()}>{t("cancel")}</Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? t("saving") : t("save")}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => router.back()}>
+                {t("cancel")}
+              </Button>
             </div>
           </form>
         </CardContent>
       </Card>
-    
+    </div>
   );
 }

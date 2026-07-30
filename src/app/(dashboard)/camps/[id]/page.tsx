@@ -1,42 +1,122 @@
-import { prisma } from "@/lib/db";
-import { auth } from "@/lib/auth";
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
-import { userCanAccessCamp, getScopedAnimalWhere } from "@/lib/auth/scope";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { ArrowLeft, Pencil } from "lucide-react";
+import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
+import { useT } from "@/components/providers/locale-provider";
+import {
+  CampPhotoGallery,
+  type CampPhoto,
+} from "@/components/camp-photo-gallery";
 
-export default async function CampDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const session = await auth();
-  if (!session?.user) redirect("/login");
+const CampLocationPicker = dynamic(
+  () =>
+    import("@/components/camp-location-picker").then((m) => m.CampLocationPicker),
+  { ssr: false }
+);
 
-  const role = session.user.role as Role;
-  const allowed = await userCanAccessCamp(session.user.id, role, id);
-  if (!allowed) notFound();
+interface CampDetail {
+  id: string;
+  name: string;
+  latitude: number | null;
+  longitude: number | null;
+  sizeAcres: number | null;
+  logoUrl: string | null;
+  waterSources: string | null;
+  notes: string | null;
+  animals: {
+    id: string;
+    eartag: string;
+    breed: string;
+    sex: string;
+    ageMonths: number | null;
+  }[];
+  assignments: { user: { name: string; role: string } }[];
+  photos: CampPhoto[];
+}
 
-  const animalWhere = await getScopedAnimalWhere(session.user.id, role, {
-    campId: id,
+export default function CampDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const t = useT();
+  const { data: session } = useSession();
+  const role = session?.user?.role as Role | undefined;
+  const canManage = role ? hasPermission(role, "manageCamps") : false;
+
+  const [camp, setCamp] = useState<CampDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    name: "",
+    sizeAcres: "",
+    latitude: "",
+    longitude: "",
+    waterSources: "",
+    notes: "",
   });
 
-  const camp = await prisma.camp.findUnique({
-    where: { id },
-    include: {
-      animals: {
-        where: { status: "ACTIVE", ...animalWhere },
-        select: { id: true, eartag: true, breed: true, sex: true, ageMonths: true },
-        orderBy: { eartag: "asc" },
-      },
-      assignments: { include: { user: { select: { name: true, role: true } } } },
-    },
-  });
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/camps/${id}`);
+    if (res.ok) {
+      const data = await res.json();
+      setCamp(data);
+      setForm({
+        name: data.name || "",
+        sizeAcres: data.sizeAcres != null ? String(data.sizeAcres) : "",
+        latitude: data.latitude != null ? String(data.latitude) : "",
+        longitude: data.longitude != null ? String(data.longitude) : "",
+        waterSources: data.waterSources || "",
+        notes: data.notes || "",
+      });
+    }
+    setLoading(false);
+  }, [id]);
 
-  if (!camp) notFound();
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function saveDetails() {
+    setSaving(true);
+    const res = await fetch(`/api/camps/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: form.name,
+        sizeAcres: form.sizeAcres || null,
+        latitude: form.latitude || null,
+        longitude: form.longitude || null,
+        waterSources: form.waterSources || null,
+        notes: form.notes || null,
+      }),
+    });
+    setSaving(false);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || t("failedToSave"));
+      return;
+    }
+    setEditing(false);
+    load();
+  }
+
+  if (loading) {
+    return <p className="text-muted-foreground">{t("loading")}</p>;
+  }
+  if (!camp) {
+    return <p className="text-muted-foreground">{t("noResults")}</p>;
+  }
 
   const bySex = camp.animals.reduce(
     (acc, a) => {
@@ -48,56 +128,184 @@ export default async function CampDetailPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">{camp.name}</h1>
-        <p className="text-muted-foreground">
-          {camp.animals.length} active animals
-          {camp.capacity && ` · Capacity ${camp.capacity}`}
-          {role === "CAMP_SUPERVISOR" && " · Your assigned camp"}
-          {role === "EXTERNAL_OWNER" && " · Your animals only"}
-        </p>
+      <Link
+        href="/camps"
+        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4 mr-1" /> {t("navCamps")}
+      </Link>
+
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div className="flex items-start gap-4">
+          {camp.logoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={camp.logoUrl}
+              alt=""
+              className="h-16 w-16 rounded-lg border object-cover"
+            />
+          )}
+          <div>
+            <h1 className="text-3xl font-bold">{camp.name}</h1>
+            <p className="text-muted-foreground">
+              {camp.animals.length} {t("activeAnimals").toLowerCase()}
+              {camp.sizeAcres != null &&
+                ` · ${camp.sizeAcres} ${t("acres")}`}
+            </p>
+          </div>
+        </div>
+        {canManage && !editing && (
+          <Button variant="outline" onClick={() => setEditing(true)}>
+            <Pencil className="h-4 w-4 mr-2" />
+            {t("editDetails")}
+          </Button>
+        )}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      {editing ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Male</CardTitle>
+            <CardTitle>{t("editDetails")}</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{bySex.MALE || 0}</p>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t("campName")}</Label>
+              <Input
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("sizeAcres")}</Label>
+              <Input
+                type="number"
+                min={0}
+                step={0.1}
+                value={form.sizeAcres}
+                onChange={(e) =>
+                  setForm({ ...form, sizeAcres: e.target.value })
+                }
+              />
+            </div>
+            <CampLocationPicker
+              latitude={form.latitude}
+              longitude={form.longitude}
+              onChange={({ latitude, longitude }) =>
+                setForm({ ...form, latitude, longitude })
+              }
+            />
+            <div className="space-y-2">
+              <Label>{t("waterSources")}</Label>
+              <Input
+                value={form.waterSources}
+                onChange={(e) =>
+                  setForm({ ...form, waterSources: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("notes")}</Label>
+              <Textarea
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={saveDetails} disabled={saving}>
+                {saving ? t("saving") : t("save")}
+              </Button>
+              <Button variant="outline" onClick={() => setEditing(false)}>
+                {t("cancel")}
+              </Button>
+            </div>
           </CardContent>
         </Card>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">{t("male")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">{bySex.MALE || 0}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">{t("female")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">{bySex.FEMALE || 0}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">{t("sizeAcres")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">
+                {camp.sizeAcres != null ? camp.sizeAcres : "—"}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">{t("waterSources")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm">{camp.waterSources || "—"}</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {!editing && camp.latitude != null && camp.longitude != null && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Female</CardTitle>
+            <CardTitle>{t("campLocation")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{bySex.FEMALE || 0}</p>
+            <CampLocationPicker
+              latitude={String(camp.latitude)}
+              longitude={String(camp.longitude)}
+              onChange={() => {}}
+              disabled
+            />
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Water Sources</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm">{camp.waterSources || "—"}</p>
-          </CardContent>
-        </Card>
-      </div>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("campPhotos")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CampPhotoGallery
+            campId={camp.id}
+            initialPhotos={camp.photos || []}
+            logoUrl={camp.logoUrl}
+            canEdit={canManage}
+            onPhotosChange={load}
+            onLogoChange={(url) =>
+              setCamp((c) => (c ? { ...c, logoUrl: url } : c))
+            }
+          />
+        </CardContent>
+      </Card>
 
       <div>
-        <h2 className="text-xl font-semibold mb-4">Animals in Camp</h2>
+        <h2 className="text-xl font-semibold mb-4">{t("animalsInCamp")}</h2>
         {camp.animals.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No animals visible for your role.</p>
+          <p className="text-muted-foreground text-sm">{t("noAnimalsInCamp")}</p>
         ) : (
           <div className="rounded-lg border">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/50">
-                  <th className="p-3 text-left">Eartag</th>
-                  <th className="p-3 text-left">Breed</th>
-                  <th className="p-3 text-left">Sex</th>
-                  <th className="p-3 text-left">Age (mo)</th>
+                  <th className="p-3 text-left">{t("eartag")}</th>
+                  <th className="p-3 text-left">{t("breed")}</th>
+                  <th className="p-3 text-left">{t("sex")}</th>
+                  <th className="p-3 text-left">{t("age")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -113,9 +321,15 @@ export default async function CampDetailPage({
                     </td>
                     <td className="p-3">{animal.breed}</td>
                     <td className="p-3">
-                      <Badge variant="secondary">{animal.sex}</Badge>
+                      <Badge variant="secondary">
+                        {animal.sex === "MALE" ? t("male") : t("female")}
+                      </Badge>
                     </td>
-                    <td className="p-3">{animal.ageMonths != null ? `${Math.floor(animal.ageMonths / 12)}y ${animal.ageMonths % 12}mo` : "—"}</td>
+                    <td className="p-3">
+                      {animal.ageMonths != null
+                        ? `${Math.floor(animal.ageMonths / 12)}y ${animal.ageMonths % 12}mo`
+                        : "—"}
+                    </td>
                   </tr>
                 ))}
               </tbody>

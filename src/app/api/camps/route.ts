@@ -5,6 +5,13 @@ import { createAuditLog } from "@/lib/services/animal-service";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 
+function parseOptionalFloat(value: unknown): number | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  const n = parseFloat(String(value));
+  return Number.isFinite(n) ? n : null;
+}
+
 export async function GET(req: NextRequest) {
   const result = await requirePermission("viewCamps");
   if (!result.ok) return result.error;
@@ -12,7 +19,6 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const forMovement = searchParams.get("for") === "movement";
 
-  // Movement destination picker: any ranch camp (id+name only) if user can manage movements
   if (forMovement && hasPermission(result.user.role as Role, "manageMovements")) {
     const camps = await prisma.camp.findMany({
       where: { ranchId: result.user.ranchId },
@@ -47,15 +53,20 @@ export async function POST(req: NextRequest) {
   if (!result.ok) return result.error;
 
   const body = await req.json();
+  if (!body.name?.trim()) {
+    return NextResponse.json({ error: "Camp name is required" }, { status: 400 });
+  }
+
   const camp = await prisma.camp.create({
     data: {
       ranchId: result.user.ranchId,
-      name: body.name,
-      latitude: body.latitude,
-      longitude: body.longitude,
-      capacity: body.capacity,
-      waterSources: body.waterSources,
-      notes: body.notes,
+      name: body.name.trim(),
+      latitude: parseOptionalFloat(body.latitude) ?? null,
+      longitude: parseOptionalFloat(body.longitude) ?? null,
+      sizeAcres: parseOptionalFloat(body.sizeAcres) ?? null,
+      logoUrl: body.logoUrl?.trim() || null,
+      waterSources: body.waterSources?.trim() || null,
+      notes: body.notes?.trim() || null,
     },
   });
 

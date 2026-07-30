@@ -189,6 +189,7 @@ model User {
   deathRecords  DeathRecord[]
   animalEvents  AnimalEvent[]
   uploadedAnimalPhotos AnimalPhoto[]
+  uploadedCampPhotos CampPhoto[]
   expenses      Expense[]
   otherIncomes  OtherIncome[]
   ownerInvoices OwnerInvoice[]
@@ -213,7 +214,9 @@ model Camp {
   name         String
   latitude     Float?
   longitude    Float?
-  capacity     Int?
+  /** Farm / camp size in acres */
+  sizeAcres    Float?
+  logoUrl      String?
   waterSources String?
   notes        String?
   createdAt    DateTime             @default(now())
@@ -226,6 +229,21 @@ model Camp {
   rainfallLogs RainfallLog[]
   expenses     Expense[]
   otherIncomes OtherIncome[]
+  photos       CampPhoto[]
+}
+
+model CampPhoto {
+  id           String   @id @default(cuid())
+  campId       String
+  camp         Camp     @relation(fields: [campId], references: [id], onDelete: Cascade)
+  url          String
+  caption      String?
+  takenAt      DateTime @default(now())
+  uploadedById String?
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([campId])
 }
 
 model PastureBlock {

@@ -15,7 +15,7 @@ import { useT } from "@/components/providers/locale-provider";
 interface CampInventory {
   id: string;
   name: string;
-  capacity: number | null;
+  sizeAcres: number | null;
   totalActive: number;
   bySex: Record<string, number>;
   byBreed: Record<string, number>;
@@ -141,7 +141,11 @@ export default function ReportsPage() {
                     <div className="flex gap-4 mt-1 text-sm text-muted-foreground">
                       <span>M: {camp.bySex.MALE || 0}</span>
                       <span>F: {camp.bySex.FEMALE || 0}</span>
-                      {camp.capacity && <span>Cap: {camp.capacity}</span>}
+                      {camp.sizeAcres != null && (
+                        <span>
+                          {camp.sizeAcres} {t("acres")}
+                        </span>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {Object.entries(camp.byBreed).map(([breed, count]) => (

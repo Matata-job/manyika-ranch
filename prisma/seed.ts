@@ -82,7 +82,7 @@ async function main() {
         name: campNames[i],
         latitude: -4.8167 + (Math.random() - 0.5) * 0.5,
         longitude: 34.75 + (Math.random() - 0.5) * 0.5,
-        capacity: 100 + Math.floor(Math.random() * 200),
+        sizeAcres: 50 + Math.floor(Math.random() * 200),
         waterSources: "Borehole, seasonal river",
       },
     });

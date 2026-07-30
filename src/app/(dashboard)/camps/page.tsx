@@ -58,13 +58,23 @@ export default async function CampsPage() {
                   <CardTitle>{camp.name}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <p className="text-2xl font-bold">{camp._count.animals} animals</p>
-                  {camp.capacity && (
-                    <p className="text-sm text-muted-foreground">{t("capacity")}: {camp.capacity}</p>
+                  <p className="text-2xl font-bold">{camp._count.animals} {t("animalsTitle").toLowerCase()}</p>
+                  {camp.sizeAcres != null && (
+                    <p className="text-sm text-muted-foreground">
+                      {camp.sizeAcres} {t("acres")}
+                    </p>
+                  )}
+                  {camp.logoUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={camp.logoUrl}
+                      alt=""
+                      className="mt-2 h-10 w-10 rounded object-cover border"
+                    />
                   )}
                   {camp.assignments.length > 0 && (
                     <p className="text-sm text-muted-foreground">
-                      Supervisor: {camp.assignments.map((a) => a.user.name).join(", ")}
+                      {t("supervisor")}: {camp.assignments.map((a) => a.user.name).join(", ")}
                     </p>
                   )}
                 </CardContent>

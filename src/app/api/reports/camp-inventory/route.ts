@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
     return {
       id: camp.id,
       name: camp.name,
-      capacity: camp.capacity,
+      sizeAcres: camp.sizeAcres,
       totalActive: camp._count.animals,
       bySex,
       byBreed,
