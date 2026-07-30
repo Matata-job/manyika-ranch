@@ -19,9 +19,9 @@ export default function NewAnimalPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [camps, setCamps] = useState<{ id: string; name: string }[]>([]);
-  const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
+  const [owners, setOwners] = useState<{ id: string; name: string; role?: string }[]>([]);
   const [breeds, setBreeds] = useState<{ id: string; name: string }[]>([]);
-  const [animals, setAnimals] = useState<{ id: string; eartag: string }[]>([]);
+  const [animals, setAnimals] = useState<{ id: string; eartag: string; sex: string }[]>([]);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [form, setForm] = useState({
     eartag: "",
@@ -39,6 +39,7 @@ export default function NewAnimalPage() {
     colorMarkings: "",
     notes: "",
     acquisitionType: "BORN_ON_FARM",
+    acquisitionDate: "",
   });
 
   useEffect(() => {
@@ -49,9 +50,25 @@ export default function NewAnimalPage() {
       fetch("/api/animals?status=ACTIVE").then((r) => r.json()),
     ]).then(([c, o, b, a]) => {
       setCamps(c);
-      setOwners(o);
+      const ownerList = Array.isArray(o) ? o : [];
+      setOwners(ownerList);
       setBreeds(b);
-      setAnimals(a);
+      setAnimals(
+        (Array.isArray(a) ? a : []).map(
+          (row: { id: string; eartag: string; sex: string }) => ({
+            id: row.id,
+            eartag: row.eartag,
+            sex: row.sex,
+          })
+        )
+      );
+      // Default to ranch Owner (not farm manager / external owner)
+      const ranchOwner = ownerList.find((u: { role?: string }) => u.role === "OWNER");
+      if (ranchOwner) {
+        setForm((prev) =>
+          prev.ownerId ? prev : { ...prev, ownerId: ranchOwner.id }
+        );
+      }
     });
   }, []);
 
@@ -85,6 +102,8 @@ export default function NewAnimalPage() {
       damId: form.damId || null,
       ownerId: form.ownerId || undefined,
       dob: form.dob || null,
+      acquisitionType: form.acquisitionType,
+      acquisitionDate: form.acquisitionDate || null,
       isCastrated: form.sex === "MALE" ? form.isCastrated : false,
       isPregnant: form.sex === "FEMALE" ? form.isPregnant : false,
       ageYears: form.dob ? undefined : form.ageYears ? Number(form.ageYears) : 0,
@@ -230,6 +249,36 @@ export default function NewAnimalPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
+              <Label>{t("acquisitionType")}</Label>
+              <Select
+                value={form.acquisitionType}
+                onValueChange={(v) => setForm({ ...form, acquisitionType: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BORN_ON_FARM">{t("bornOnFarm")}</SelectItem>
+                  <SelectItem value="PURCHASED">{t("purchased")}</SelectItem>
+                  <SelectItem value="GIFT">{t("gift")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="acquisitionDate">{t("acquisitionDate")}</Label>
+              <Input
+                id="acquisitionDate"
+                type="date"
+                value={form.acquisitionDate}
+                onChange={(e) =>
+                  setForm({ ...form, acquisitionDate: e.target.value })
+                }
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label>{t("camp")} *</Label>
               <Select value={form.campId} onValueChange={(v) => setForm({ ...form, campId: v })} required>
                 <SelectTrigger><SelectValue placeholder={t("selectCamp")} /></SelectTrigger>
@@ -244,7 +293,10 @@ export default function NewAnimalPage() {
                 <SelectTrigger><SelectValue placeholder={t("defaultOwner")} /></SelectTrigger>
                 <SelectContent>
                   {owners.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                    <SelectItem key={o.id} value={o.id}>
+                      {o.name}
+                      {o.role === "OWNER" ? ` (${t("roleOWNER")})` : ""}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -258,7 +310,13 @@ export default function NewAnimalPage() {
                 <SelectTrigger><SelectValue placeholder={t("none")} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">{t("none")}</SelectItem>
-                  {animals.map((a) => <SelectItem key={a.id} value={a.id}>{a.eartag}</SelectItem>)}
+                  {animals
+                    .filter((a) => a.sex === "MALE")
+                    .map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.eartag}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
@@ -268,7 +326,13 @@ export default function NewAnimalPage() {
                 <SelectTrigger><SelectValue placeholder={t("none")} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">{t("none")}</SelectItem>
-                  {animals.map((a) => <SelectItem key={a.id} value={a.id}>{a.eartag}</SelectItem>)}
+                  {animals
+                    .filter((a) => a.sex === "FEMALE")
+                    .map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.eartag}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { formatAge, type AgeDisplayMode } from "@/lib/utils";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { PedigreeTree } from "@/components/pedigree-tree";
+import { PedigreeTree, OffspringTree } from "@/components/pedigree-tree";
 import { AnimalPhotoGallery, type AnimalPhoto } from "@/components/animal-photo-gallery";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -186,7 +186,18 @@ export default function AnimalDetailPage() {
   const [animal, setAnimal] = useState<AnimalDetail | null>(null);
   const [ageMode, setAgeMode] = useState<AgeDisplayMode>("AUTO");
   const [statusSaving, setStatusSaving] = useState(false);
-  const [pedigree, setPedigree] = useState<Record<string, unknown> | null>(null);
+  const [pedigree, setPedigree] = useState<{
+    offspring?: {
+      id: string;
+      eartag: string;
+      breed: string;
+      sex: string;
+      dob?: string | null;
+      offspring?: unknown[];
+    }[];
+    offspringCount?: number;
+    [key: string]: unknown;
+  } | null>(null);
   const [camps, setCamps] = useState<{ id: string; name: string }[]>([]);
   const [breeds, setBreeds] = useState<{ id: string; name: string }[]>([]);
   const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
@@ -1468,11 +1479,38 @@ export default function AnimalDetailPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="pedigree">
+        <TabsContent value="pedigree" className="space-y-4">
           <Card>
-            <CardHeader><CardTitle>{t("pedigreeTree")}</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle>{t("pedigreeTree")}</CardTitle>
+            </CardHeader>
             <CardContent>
-              {pedigree ? <PedigreeTree node={pedigree} /> : <p className="text-muted-foreground">{t("loadingPedigree")}</p>}
+              {pedigree ? (
+                <PedigreeTree node={pedigree} />
+              ) : (
+                <p className="text-muted-foreground">{t("loadingPedigree")}</p>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                {t("offspringTree")}
+                {pedigree?.offspringCount != null && pedigree.offspringCount > 0
+                  ? ` (${pedigree.offspringCount})`
+                  : ""}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {pedigree ? (
+                <OffspringTree
+                  nodes={(pedigree.offspring || []) as Parameters<
+                    typeof OffspringTree
+                  >[0]["nodes"]}
+                />
+              ) : (
+                <p className="text-muted-foreground">{t("loadingPedigree")}</p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

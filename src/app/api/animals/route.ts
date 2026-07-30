@@ -139,6 +139,71 @@ export async function POST(req: NextRequest) {
       : [];
   const primaryPhoto = photoUrls[0] || body.photoUrl || null;
 
+  let ownerId = typeof body.ownerId === "string" && body.ownerId.trim()
+    ? body.ownerId.trim()
+    : null;
+
+  if (!ownerId) {
+    // Default cattle ownership to the ranch Owner — not the staff member registering
+    const ranchOwner = await prisma.user.findFirst({
+      where: {
+        ranchId: result.user.ranchId,
+        role: "OWNER",
+        isActive: true,
+      },
+      select: { id: true },
+      orderBy: { createdAt: "asc" },
+    });
+    ownerId = ranchOwner?.id || null;
+  }
+
+  if (!ownerId) {
+    return NextResponse.json(
+      { error: "No ranch owner found to assign as animal owner" },
+      { status: 400 }
+    );
+  }
+
+  const ownerOk = await prisma.user.findFirst({
+    where: {
+      id: ownerId,
+      ranchId: result.user.ranchId,
+      isActive: true,
+      role: { in: ["OWNER", "EXTERNAL_OWNER"] },
+    },
+    select: { id: true },
+  });
+  if (!ownerOk) {
+    return NextResponse.json({ error: "Invalid animal owner" }, { status: 400 });
+  }
+
+  const sireId = body.sireId || null;
+  const damId = body.damId || null;
+  if (sireId) {
+    const sire = await prisma.animal.findFirst({
+      where: { id: sireId, sex: "MALE" },
+      select: { id: true },
+    });
+    if (!sire) {
+      return NextResponse.json(
+        { error: "Sire must be a male animal" },
+        { status: 400 }
+      );
+    }
+  }
+  if (damId) {
+    const dam = await prisma.animal.findFirst({
+      where: { id: damId, sex: "FEMALE" },
+      select: { id: true },
+    });
+    if (!dam) {
+      return NextResponse.json(
+        { error: "Dam must be a female animal" },
+        { status: 400 }
+      );
+    }
+  }
+
   const animal = await prisma.animal.create({
     data: {
       eartag: body.eartag,
@@ -156,9 +221,9 @@ export async function POST(req: NextRequest) {
           : body.ageYears != null || body.ageMonthsPart != null
             ? Math.max(0, (Number(body.ageYears) || 0) * 12 + (Number(body.ageMonthsPart) || 0))
             : null,
-      ownerId: body.ownerId || result.user.id,
-      sireId: body.sireId || null,
-      damId: body.damId || null,
+      ownerId,
+      sireId,
+      damId,
       campId: body.campId,
       status: body.status || "ACTIVE",
       acquisitionType: body.acquisitionType || "BORN_ON_FARM",

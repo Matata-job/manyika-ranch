@@ -14,7 +14,14 @@ export async function GET() {
       role: { in: [Role.OWNER, Role.EXTERNAL_OWNER] },
     },
     select: { id: true, name: true, role: true },
-    orderBy: { name: "asc" },
+    orderBy: [{ role: "asc" }, { name: "asc" }],
+  });
+
+  // Put ranch OWNER first for default selection
+  owners.sort((a, b) => {
+    if (a.role === Role.OWNER && b.role !== Role.OWNER) return -1;
+    if (b.role === Role.OWNER && a.role !== Role.OWNER) return 1;
+    return a.name.localeCompare(b.name);
   });
 
   return NextResponse.json(owners);
