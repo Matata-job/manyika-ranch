@@ -130,6 +130,14 @@ enum OtherIncomeCategory {
   OTHER
 }
 
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PARTIAL
+  PAID
+  VOID
+}
+
 model Ranch {
   id        String   @id @default(cuid())
   name      String
@@ -144,6 +152,7 @@ model Ranch {
   buyers    Buyer[]
   expenses  Expense[]
   otherIncomes OtherIncome[]
+  ownerInvoices OwnerInvoice[]
 }
 
 model User {
@@ -160,6 +169,8 @@ model User {
   photoUrl      String?
   address       String?
   nextOfKin     String?
+  /** Skip auto grazing invoices for this cattle owner (e.g. ranch itself). */
+  grazingFeeExempt Boolean            @default(false)
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
   campAssignments UserCampAssignment[]
@@ -180,6 +191,8 @@ model User {
   uploadedAnimalPhotos AnimalPhoto[]
   expenses      Expense[]
   otherIncomes  OtherIncome[]
+  ownerInvoices OwnerInvoice[]
+  ownerPayments OwnerPayment[]       @relation("OwnerPaymentRecorder")
 }
 
 model UserCampAssignment {
@@ -527,10 +540,53 @@ model OtherIncome {
   notes        String?
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
+  ownerPayment OwnerPayment?
 
   @@index([ranchId, date])
   @@index([category])
   @@index([campId])
+}
+
+/** Monthly grazing / management bill for a cattle owner on the ranch. */
+model OwnerInvoice {
+  id            String        @id @default(cuid())
+  ranchId       String
+  ranch         Ranch         @relation(fields: [ranchId], references: [id])
+  ownerId       String
+  owner         User          @relation(fields: [ownerId], references: [id])
+  periodYear    Int
+  periodMonth   Int
+  animalCount   Int
+  rateTzs       Float
+  amountTzs     Float
+  amountPaidTzs Float         @default(0)
+  status        InvoiceStatus @default(ISSUED)
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  payments      OwnerPayment[]
+
+  @@unique([ranchId, ownerId, periodYear, periodMonth])
+  @@index([ranchId, status])
+  @@index([ownerId])
+}
+
+model OwnerPayment {
+  id            String       @id @default(cuid())
+  invoiceId     String
+  invoice       OwnerInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amountTzs     Float
+  paidAt        DateTime     @default(now())
+  method        String?
+  notes         String?
+  recordedById  String
+  recordedBy    User         @relation("OwnerPaymentRecorder", fields: [recordedById], references: [id])
+  otherIncomeId String?      @unique
+  otherIncome   OtherIncome? @relation(fields: [otherIncomeId], references: [id], onDelete: SetNull)
+  createdAt     DateTime     @default(now())
+
+  @@index([invoiceId])
+  @@index([paidAt])
 }
 
 model DeathRecord {

@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { AgeDisplayMode } from "@/lib/utils";
@@ -13,6 +15,7 @@ import { useT } from "@/components/providers/locale-provider";
 export default function RanchSettingsPage() {
   const t = useT();
   const [mode, setMode] = useState<AgeDisplayMode>("AUTO");
+  const [grazingFee, setGrazingFee] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -21,6 +24,9 @@ export default function RanchSettingsPage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.ageDisplayMode) setMode(data.ageDisplayMode);
+        if (data?.grazingFeePerAnimalTzs != null) {
+          setGrazingFee(String(data.grazingFeePerAnimalTzs));
+        }
       });
   }, []);
 
@@ -30,7 +36,10 @@ export default function RanchSettingsPage() {
     const res = await fetch("/api/ranch/settings", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ageDisplayMode: mode }),
+      body: JSON.stringify({
+        ageDisplayMode: mode,
+        grazingFeePerAnimalTzs: grazingFee === "" ? 0 : grazingFee,
+      }),
     });
     setSaving(false);
     if (res.ok) {
@@ -57,6 +66,31 @@ export default function RanchSettingsPage() {
             {t("languagePreferenceHelp")}
           </p>
           <LanguageSwitcher />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("ownersBillingTitle")}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>{t("grazingFeeRate")}</Label>
+            <Input
+              type="number"
+              min={0}
+              step={1000}
+              value={grazingFee}
+              onChange={(e) => setGrazingFee(e.target.value)}
+              placeholder="e.g. 5000"
+            />
+            <p className="text-sm text-muted-foreground">
+              {t("grazingFeeRateHelp")}
+            </p>
+          </div>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/owners">{t("navOwnersBilling")}</Link>
+          </Button>
         </CardContent>
       </Card>
 

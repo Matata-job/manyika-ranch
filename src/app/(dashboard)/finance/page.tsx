@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
-import { ArrowRight, Receipt, TrendingUp, Wallet } from "lucide-react";
+import { ArrowRight, HandCoins, Receipt, TrendingUp, Wallet } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 
 interface PnLSummary {
@@ -89,7 +89,24 @@ export default function FinanceHubPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <HandCoins className="h-4 w-4" /> {t("navOwnersBilling")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              {t("ownersBillingSubtitle")}
+            </p>
+            <Button asChild variant="outline">
+              <Link href="/owners">
+                {t("navOwnersBilling")} <ArrowRight className="h-4 w-4 ml-2" />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">

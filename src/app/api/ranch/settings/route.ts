@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth, requirePermission } from "@/lib/auth/api-guard";
-import { getRanchAgeDisplayMode, type AgeDisplayMode } from "@/lib/utils";
+import {
+  getRanchAgeDisplayMode,
+  getRanchGrazingFeePerAnimal,
+  type AgeDisplayMode,
+} from "@/lib/utils";
 import type { Prisma } from "@prisma/client";
 
 export async function GET() {
@@ -21,6 +25,7 @@ export async function GET() {
     id: ranch.id,
     name: ranch.name,
     ageDisplayMode: getRanchAgeDisplayMode(ranch.settings),
+    grazingFeePerAnimalTzs: getRanchGrazingFeePerAnimal(ranch.settings),
     settings: ranch.settings,
   });
 }
@@ -46,6 +51,17 @@ export async function PATCH(req: NextRequest) {
     next.ageDisplayMode = mode;
   }
 
+  if (body.grazingFeePerAnimalTzs !== undefined) {
+    const fee = parseFloat(String(body.grazingFeePerAnimalTzs));
+    if (!Number.isFinite(fee) || fee < 0) {
+      return NextResponse.json(
+        { error: "Grazing fee must be a non-negative number" },
+        { status: 400 }
+      );
+    }
+    next.grazingFeePerAnimalTzs = fee;
+  }
+
   const updated = await prisma.ranch.update({
     where: { id: result.user.ranchId },
     data: { settings: next as Prisma.InputJsonValue },
@@ -56,6 +72,7 @@ export async function PATCH(req: NextRequest) {
     id: updated.id,
     name: updated.name,
     ageDisplayMode: getRanchAgeDisplayMode(updated.settings),
+    grazingFeePerAnimalTzs: getRanchGrazingFeePerAnimal(updated.settings),
     settings: updated.settings,
   });
 }

@@ -62,6 +62,15 @@ export function getRanchAgeDisplayMode(settings: unknown): AgeDisplayMode {
   return "AUTO";
 }
 
+/** Monthly grazing / management fee per active animal (TZS). */
+export function getRanchGrazingFeePerAnimal(settings: unknown): number {
+  const raw = (settings as { grazingFeePerAnimalTzs?: unknown } | null)
+    ?.grazingFeePerAnimalTzs;
+  const n = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return n;
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-TZ", {
     style: "currency",

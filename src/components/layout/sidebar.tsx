@@ -22,6 +22,7 @@ import {
   CircleDollarSign,
   Contact,
   Wallet,
+  HandCoins,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,12 @@ const navItems: {
     href: "/finance",
     labelKey: "navFinance",
     icon: Wallet,
+    roles: ["OWNER", "FARM_MANAGER", "RECORDS_CLERK", "VIEWER"],
+  },
+  {
+    href: "/owners",
+    labelKey: "navOwnersBilling",
+    icon: HandCoins,
     roles: ["OWNER", "FARM_MANAGER", "RECORDS_CLERK", "VIEWER"],
   },
   {
