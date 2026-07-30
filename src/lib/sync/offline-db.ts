@@ -94,7 +94,11 @@ export async function enqueueSync(
 
 export async function getPendingSyncCount(): Promise<number> {
   if (!db) return 0;
-  return db.syncQueue.where("status").anyOf(["pending", "failed"]).count();
+  try {
+    return await db.syncQueue.where("status").anyOf(["pending", "failed"]).count();
+  } catch {
+    return 0;
+  }
 }
 
 async function uploadQueuedPhotos(queueId: number): Promise<string[]> {

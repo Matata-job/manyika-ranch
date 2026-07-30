@@ -33,16 +33,25 @@ export function SyncStatusBadge() {
   }, []);
 
   async function refreshPending() {
-    const count = await getPendingSyncCount();
-    setPending(count);
+    try {
+      const count = await getPendingSyncCount();
+      setPending(count);
+    } catch {
+      setPending(0);
+    }
   }
 
   async function handleSync() {
     if (!navigator.onLine) return;
     setSyncing(true);
-    await flushSyncQueue();
-    await refreshPending();
-    setSyncing(false);
+    try {
+      await flushSyncQueue();
+      await refreshPending();
+    } catch {
+      // keep badge usable even if IndexedDB/sync fails
+    } finally {
+      setSyncing(false);
+    }
   }
 
   if (!online) {
