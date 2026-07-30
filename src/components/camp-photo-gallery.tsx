@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { formatDate } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Plus, X, ZoomIn } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
+import { PhotoSourcePicker } from "@/components/photo-source-picker";
 
 export interface CampPhoto {
   id: string;
@@ -142,21 +143,11 @@ export function CampPhotoGallery({
           )}
           {canEdit && (
             <div className="flex flex-wrap gap-2">
-              <label className="inline-flex items-center">
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] || null;
-                    e.target.value = "";
-                    uploadLogo(file);
-                  }}
-                />
-                <span className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent cursor-pointer">
-                  {logoUploading ? t("saving") : t("uploadLogo")}
-                </span>
-              </label>
+              <PhotoSourcePicker
+                multiple={false}
+                disabled={logoUploading}
+                onFiles={(files) => uploadLogo(files[0] || null)}
+              />
               {logoUrl && (
                 <Button type="button" size="sm" variant="ghost" onClick={clearLogo}>
                   {t("removeLogo")}
@@ -168,18 +159,15 @@ export function CampPhotoGallery({
       </div>
 
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <Label>{t("campPhotos")}</Label>
           {canEdit && (
-            <div className="flex items-center gap-2">
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(e) =>
-                  setNewFiles(Array.from(e.target.files || []))
+            <div className="flex flex-wrap items-center gap-2">
+              <PhotoSourcePicker
+                disabled={uploading}
+                onFiles={(files) =>
+                  setNewFiles((prev) => [...prev, ...files])
                 }
-                className="text-sm max-w-[12rem]"
               />
               <Button
                 size="sm"
@@ -194,6 +182,32 @@ export function CampPhotoGallery({
             </div>
           )}
         </div>
+        {canEdit && newFiles.length > 0 && (
+          <div className="flex gap-2 flex-wrap">
+            {newFiles.map((f, i) => (
+              <div
+                key={`${f.name}-${i}`}
+                className="relative w-14 h-14 rounded overflow-hidden bg-muted"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={URL.createObjectURL(f)}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+                <button
+                  type="button"
+                  className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5 text-white"
+                  onClick={() =>
+                    setNewFiles((prev) => prev.filter((_, idx) => idx !== i))
+                  }
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         {photos.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t("noCampPhotos")}</p>

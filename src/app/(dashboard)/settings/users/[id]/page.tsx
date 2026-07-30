@@ -12,7 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ROLE_LABELS } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
-import { ArrowLeft, Camera, Save } from "lucide-react";
+import { ArrowLeft, Save } from "lucide-react";
+import { PhotoSourcePicker } from "@/components/photo-source-picker";
 
 interface UserProfile {
   id: string;
@@ -198,22 +199,14 @@ export default function UserProfilePage() {
             )}
           </div>
           {editing && (
-            <div className="mt-3">
-              <Label
-                htmlFor="photo"
-                className="cursor-pointer inline-flex items-center gap-1 text-sm text-primary hover:underline"
-              >
-                <Camera className="h-4 w-4" /> Change photo
-              </Label>
-              <Input
-                id="photo"
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
+            <div className="mt-3 space-y-2">
+              <PhotoSourcePicker
+                multiple={false}
+                onFiles={(files) => setPhotoFile(files[0] || null)}
               />
-              {photoFile && <p className="text-xs text-muted-foreground mt-1">{photoFile.name}</p>}
+              {photoFile && (
+                <p className="text-xs text-muted-foreground">{photoFile.name}</p>
+              )}
             </div>
           )}
         </div>

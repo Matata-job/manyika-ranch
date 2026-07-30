@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { enqueueSync } from "@/lib/sync/offline-db";
 import { X } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
+import { PhotoSourcePicker } from "@/components/photo-source-picker";
 
 export default function NewAnimalPage() {
   const t = useT();
@@ -53,11 +54,6 @@ export default function NewAnimalPage() {
       setAnimals(a);
     });
   }, []);
-
-  function addPhotoFiles(files: FileList | null) {
-    if (!files) return;
-    setPhotoFiles((prev) => [...prev, ...Array.from(files)]);
-  }
 
   function removePhoto(index: number) {
     setPhotoFiles((prev) => prev.filter((_, i) => i !== index));
@@ -279,19 +275,16 @@ export default function NewAnimalPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="photos">{t("photos")}</Label>
-            <Input
-              id="photos"
-              type="file"
-              accept="image/*"
-              multiple
-              capture="environment"
-              onChange={(e) => addPhotoFiles(e.target.files)}
+            <Label>{t("photos")}</Label>
+            <PhotoSourcePicker
+              onFiles={(files) =>
+                setPhotoFiles((prev) => [...prev, ...files])
+              }
             />
             {photoFiles.length > 0 && (
               <div className="flex gap-2 flex-wrap mt-2">
                 {photoFiles.map((file, i) => (
-                  <div key={i} className="relative w-24 h-24 rounded-lg overflow-hidden bg-muted group">
+                  <div key={`${file.name}-${i}`} className="relative w-24 h-24 rounded-lg overflow-hidden bg-muted group">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
                     <button

@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatDate } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Plus, X, ZoomIn } from "lucide-react";
+import { useT } from "@/components/providers/locale-provider";
+import { PhotoSourcePicker } from "@/components/photo-source-picker";
 
 export interface AnimalPhoto {
   id: string;
@@ -30,6 +31,7 @@ export function AnimalPhotoGallery({
   canEdit = false,
   onPhotosChange,
 }: AnimalPhotoGalleryProps) {
+  const t = useT();
   const [photos, setPhotos] = useState<AnimalPhoto[]>(initialPhotos);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -55,10 +57,14 @@ export function AnimalPhotoGallery({
     const res = await fetch("/api/upload", { method: "POST", body: fd });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || "Upload failed");
+      throw new Error(err.error || t("photoUploadFailed"));
     }
     const { url } = await res.json();
     return url;
+  }
+
+  function onPickFiles(files: File[]) {
+    setNewFiles((prev) => [...prev, ...files]);
   }
 
   async function addPhotos() {
@@ -80,7 +86,7 @@ export function AnimalPhotoGallery({
       setNewFiles([]);
       onPhotosChange?.();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to upload photos");
+      alert(err instanceof Error ? err.message : t("photoUploadFailed"));
     } finally {
       setUploading(false);
     }
@@ -119,7 +125,7 @@ export function AnimalPhotoGallery({
             </div>
             {displayPhotos.length > 1 && (
               <span className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded">
-                {displayPhotos.length} photos
+                {displayPhotos.length} {t("photos").toLowerCase()}
               </span>
             )}
           </>
@@ -146,27 +152,43 @@ export function AnimalPhotoGallery({
 
       {canEdit && (
         <div className="space-y-2 max-w-md">
-          <Label>Add photos</Label>
-          <Input
-            type="file"
-            accept="image/*"
-            multiple
-            capture="environment"
-            onChange={(e) => setNewFiles(Array.from(e.target.files || []))}
-          />
+          <Label>{t("addPhotos")}</Label>
+          <PhotoSourcePicker onFiles={onPickFiles} disabled={uploading} />
           {newFiles.length > 0 && (
             <div className="flex gap-2 flex-wrap">
               {newFiles.map((f, i) => (
-                <div key={i} className="w-14 h-14 rounded overflow-hidden bg-muted">
+                <div
+                  key={`${f.name}-${i}`}
+                  className="relative w-14 h-14 rounded overflow-hidden bg-muted"
+                >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
+                  <img
+                    src={URL.createObjectURL(f)}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5 text-white"
+                    onClick={() =>
+                      setNewFiles((prev) => prev.filter((_, idx) => idx !== i))
+                    }
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
                 </div>
               ))}
             </div>
           )}
-          <Button size="sm" onClick={addPhotos} disabled={uploading || newFiles.length === 0}>
+          <Button
+            size="sm"
+            onClick={addPhotos}
+            disabled={uploading || newFiles.length === 0}
+          >
             <Plus className="h-4 w-4 mr-1" />
-            {uploading ? "Uploading..." : `Upload ${newFiles.length || ""} photo${newFiles.length === 1 ? "" : "s"}`}
+            {uploading
+              ? t("saving")
+              : t("uploadPhotos", { n: newFiles.length || "" })}
           </Button>
         </div>
       )}
@@ -189,21 +211,30 @@ export function AnimalPhotoGallery({
               <button
                 type="button"
                 className="absolute left-4 text-white hover:text-gray-300 p-2"
-                onClick={(e) => { e.stopPropagation(); prevPhoto(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  prevPhoto();
+                }}
               >
                 <ChevronLeft className="h-10 w-10" />
               </button>
               <button
                 type="button"
                 className="absolute right-4 text-white hover:text-gray-300 p-2"
-                onClick={(e) => { e.stopPropagation(); nextPhoto(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  nextPhoto();
+                }}
               >
                 <ChevronRight className="h-10 w-10" />
               </button>
             </>
           )}
 
-          <div className="max-w-4xl max-h-[85vh] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="max-w-4xl max-h-[85vh] flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={displayPhotos[lightboxIndex].url}
@@ -213,10 +244,14 @@ export function AnimalPhotoGallery({
             <div className="mt-3 text-center text-white text-sm">
               <p>{formatDate(displayPhotos[lightboxIndex].takenAt)}</p>
               {displayPhotos[lightboxIndex].caption && (
-                <p className="text-gray-300">{displayPhotos[lightboxIndex].caption}</p>
+                <p className="text-gray-300">
+                  {displayPhotos[lightboxIndex].caption}
+                </p>
               )}
               {displayPhotos[lightboxIndex].uploadedBy && (
-                <p className="text-gray-400 text-xs">Added by {displayPhotos[lightboxIndex].uploadedBy!.name}</p>
+                <p className="text-gray-400 text-xs">
+                  {displayPhotos[lightboxIndex].uploadedBy!.name}
+                </p>
               )}
               <p className="text-gray-500 text-xs mt-1">
                 {lightboxIndex + 1} / {displayPhotos.length}
