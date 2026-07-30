@@ -3,21 +3,84 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { enqueueSync } from "@/lib/sync/offline-db";
-import { X } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, X } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 import { PhotoSourcePicker } from "@/components/photo-source-picker";
+import { cn } from "@/lib/utils";
+
+function Section({
+  step,
+  title,
+  description,
+  children,
+}: {
+  step: number;
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-4">
+      <div className="flex items-start gap-3 border-b pb-3">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+          {step}
+        </span>
+        <div>
+          <h2 className="text-base font-semibold leading-none">{title}</h2>
+          {description && (
+            <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>
+          )}
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Field({
+  label,
+  required,
+  hint,
+  children,
+  className,
+}: {
+  label: string;
+  required?: boolean;
+  hint?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("space-y-1.5", className)}>
+      <Label className="text-sm font-medium">
+        {label}
+        {required && <span className="text-destructive"> *</span>}
+      </Label>
+      {children}
+      {hint && <div className="text-xs text-muted-foreground">{hint}</div>}
+    </div>
+  );
+}
 
 export default function NewAnimalPage() {
   const t = useT();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [showParents, setShowParents] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const [camps, setCamps] = useState<{ id: string; name: string }[]>([]);
   const [owners, setOwners] = useState<{ id: string; name: string; role?: string }[]>([]);
   const [breeds, setBreeds] = useState<{ id: string; name: string }[]>([]);
@@ -49,10 +112,10 @@ export default function NewAnimalPage() {
       fetch("/api/breeds").then((r) => (r.ok ? r.json() : [])),
       fetch("/api/animals?status=ACTIVE").then((r) => r.json()),
     ]).then(([c, o, b, a]) => {
-      setCamps(c);
+      setCamps(Array.isArray(c) ? c : []);
       const ownerList = Array.isArray(o) ? o : [];
       setOwners(ownerList);
-      setBreeds(b);
+      setBreeds(Array.isArray(b) ? b : []);
       setAnimals(
         (Array.isArray(a) ? a : []).map(
           (row: { id: string; eartag: string; sex: string }) => ({
@@ -62,8 +125,9 @@ export default function NewAnimalPage() {
           })
         )
       );
-      // Default to ranch Owner (not farm manager / external owner)
-      const ranchOwner = ownerList.find((u: { role?: string }) => u.role === "OWNER");
+      const ranchOwner = ownerList.find(
+        (u: { role?: string }) => u.role === "OWNER"
+      );
       if (ranchOwner) {
         setForm((prev) =>
           prev.ownerId ? prev : { ...prev, ownerId: ranchOwner.id }
@@ -71,6 +135,11 @@ export default function NewAnimalPage() {
       }
     });
   }, []);
+
+  useEffect(() => {
+    // Parents matter most for calves born on farm
+    if (form.acquisitionType === "BORN_ON_FARM") setShowParents(true);
+  }, [form.acquisitionType]);
 
   function removePhoto(index: number) {
     setPhotoFiles((prev) => prev.filter((_, i) => i !== index));
@@ -94,6 +163,10 @@ export default function NewAnimalPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!form.eartag.trim() || !form.breed || !form.campId) {
+      alert(t("eartagBreedRequired"));
+      return;
+    }
     setLoading(true);
 
     const payload = {
@@ -107,7 +180,11 @@ export default function NewAnimalPage() {
       isCastrated: form.sex === "MALE" ? form.isCastrated : false,
       isPregnant: form.sex === "FEMALE" ? form.isPregnant : false,
       ageYears: form.dob ? undefined : form.ageYears ? Number(form.ageYears) : 0,
-      ageMonthsPart: form.dob ? undefined : form.ageMonthsPart ? Number(form.ageMonthsPart) : 0,
+      ageMonthsPart: form.dob
+        ? undefined
+        : form.ageMonthsPart
+          ? Number(form.ageMonthsPart)
+          : 0,
     };
 
     if (!navigator.onLine) {
@@ -130,7 +207,11 @@ export default function NewAnimalPage() {
     const res = await fetch("/api/animals", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...payload, photoUrls, photoUrl: photoUrls[0] || null }),
+      body: JSON.stringify({
+        ...payload,
+        photoUrls,
+        photoUrl: photoUrls[0] || null,
+      }),
     });
 
     if (res.ok) {
@@ -143,246 +224,422 @@ export default function NewAnimalPage() {
     }
   }
 
+  const males = animals.filter((a) => a.sex === "MALE");
+  const females = animals.filter((a) => a.sex === "FEMALE");
+
   return (
-    <Card className="max-w-2xl">
-      <CardHeader><CardTitle>{t("registerAnimal")}</CardTitle></CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="eartag">{t("eartag")} *</Label>
-              <Input id="eartag" value={form.eartag} onChange={(e) => setForm({ ...form, eartag: e.target.value })} required />
-            </div>
-            <div className="space-y-2">
-              <Label>{t("breed")} *</Label>
-              <Select value={form.breed} onValueChange={(v) => setForm({ ...form, breed: v })} required>
-                <SelectTrigger><SelectValue placeholder={t("selectBreed")} /></SelectTrigger>
-                <SelectContent>
-                  {breeds.map((b) => (
-                    <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Link href="/settings/breeds" className="text-xs text-primary hover:underline">
-                {t("manageBreeds")}
-              </Link>
-            </div>
-          </div>
+    <div className="mx-auto max-w-2xl space-y-6 pb-8">
+      <div>
+        <Link
+          href="/animals"
+          className="mb-3 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="mr-1 h-4 w-4" />
+          {t("navAnimals")}
+        </Link>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+          {t("registerAnimal")}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {t("registerAnimalSubtitle")}
+        </p>
+      </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>{t("sex")}</Label>
-              <Select
-                value={form.sex}
-                onValueChange={(v) =>
-                  setForm({
-                    ...form,
-                    sex: v,
-                    isCastrated: v === "MALE" ? form.isCastrated : false,
-                    isPregnant: v === "FEMALE" ? form.isPregnant : false,
-                  })
-                }
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="MALE">{t("male")}</SelectItem>
-                  <SelectItem value="FEMALE">{t("female")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="dob">{t("dob")}</Label>
-              <Input id="dob" type="date" value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })} />
-            </div>
-          </div>
-
-          {form.sex === "MALE" && (
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.isCastrated}
-                onChange={(e) => setForm({ ...form, isCastrated: e.target.checked })}
-              />
-              {t("castrated")}
-            </label>
-          )}
-
-          {form.sex === "FEMALE" && (
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.isPregnant}
-                onChange={(e) => setForm({ ...form, isPregnant: e.target.checked })}
-              />
-              {t("pregnant")}
-            </label>
-          )}
-
-          {!form.dob && (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>{t("ageYears")}</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={form.ageYears}
-                  onChange={(e) => setForm({ ...form, ageYears: e.target.value })}
-                  placeholder="0"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>{t("ageMonthsPart")}</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={11}
-                  value={form.ageMonthsPart}
-                  onChange={(e) => setForm({ ...form, ageMonthsPart: e.target.value })}
-                  placeholder="0"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground sm:col-span-2">
-                {t("ageHelperText")}
-              </p>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>{t("acquisitionType")}</Label>
-              <Select
-                value={form.acquisitionType}
-                onValueChange={(v) => setForm({ ...form, acquisitionType: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="BORN_ON_FARM">{t("bornOnFarm")}</SelectItem>
-                  <SelectItem value="PURCHASED">{t("purchased")}</SelectItem>
-                  <SelectItem value="GIFT">{t("gift")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="acquisitionDate">{t("acquisitionDate")}</Label>
-              <Input
-                id="acquisitionDate"
-                type="date"
-                value={form.acquisitionDate}
-                onChange={(e) =>
-                  setForm({ ...form, acquisitionDate: e.target.value })
-                }
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>{t("camp")} *</Label>
-              <Select value={form.campId} onValueChange={(v) => setForm({ ...form, campId: v })} required>
-                <SelectTrigger><SelectValue placeholder={t("selectCamp")} /></SelectTrigger>
-                <SelectContent>
-                  {camps.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>{t("owner")}</Label>
-              <Select value={form.ownerId} onValueChange={(v) => setForm({ ...form, ownerId: v })}>
-                <SelectTrigger><SelectValue placeholder={t("defaultOwner")} /></SelectTrigger>
-                <SelectContent>
-                  {owners.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>
-                      {o.name}
-                      {o.role === "OWNER" ? ` (${t("roleOWNER")})` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>{t("sire")}</Label>
-              <Select value={form.sireId} onValueChange={(v) => setForm({ ...form, sireId: v })}>
-                <SelectTrigger><SelectValue placeholder={t("none")} /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">{t("none")}</SelectItem>
-                  {animals
-                    .filter((a) => a.sex === "MALE")
-                    .map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.eartag}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>{t("dam")}</Label>
-              <Select value={form.damId} onValueChange={(v) => setForm({ ...form, damId: v })}>
-                <SelectTrigger><SelectValue placeholder={t("none")} /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">{t("none")}</SelectItem>
-                  {animals
-                    .filter((a) => a.sex === "FEMALE")
-                    .map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.eartag}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>{t("photos")}</Label>
-            <PhotoSourcePicker
-              onFiles={(files) =>
-                setPhotoFiles((prev) => [...prev, ...files])
-              }
-            />
-            {photoFiles.length > 0 && (
-              <div className="flex gap-2 flex-wrap mt-2">
-                {photoFiles.map((file, i) => (
-                  <div key={`${file.name}-${i}`} className="relative w-24 h-24 rounded-lg overflow-hidden bg-muted group">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => removePhoto(i)}
-                      className="absolute top-1 right-1 bg-black/60 rounded-full p-0.5 text-white opacity-0 group-hover:opacity-100"
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <Card>
+          <CardContent className="space-y-8 pt-6">
+            <Section
+              step={1}
+              title={t("sectionIdentity")}
+              description={t("sectionIdentityHelp")}
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label={t("eartag")} required>
+                  <Input
+                    id="eartag"
+                    value={form.eartag}
+                    onChange={(e) =>
+                      setForm({ ...form, eartag: e.target.value })
+                    }
+                    placeholder="e.g. MY-0042"
+                    required
+                    autoFocus
+                  />
+                </Field>
+                <Field
+                  label={t("breed")}
+                  required
+                  hint={
+                    <Link
+                      href="/settings/breeds"
+                      className="text-primary hover:underline"
                     >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
+                      {t("manageBreeds")}
+                    </Link>
+                  }
+                >
+                  <Select
+                    value={form.breed || undefined}
+                    onValueChange={(v) => setForm({ ...form, breed: v })}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t("selectBreed")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {breeds.map((b) => (
+                        <SelectItem key={b.id} value={b.name}>
+                          {b.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label={t("sex")} required>
+                  <Select
+                    value={form.sex}
+                    onValueChange={(v) =>
+                      setForm({
+                        ...form,
+                        sex: v,
+                        isCastrated: v === "MALE" ? form.isCastrated : false,
+                        isPregnant: v === "FEMALE" ? form.isPregnant : false,
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="MALE">{t("male")}</SelectItem>
+                      <SelectItem value="FEMALE">{t("female")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label={t("camp")} required>
+                  <Select
+                    value={form.campId || undefined}
+                    onValueChange={(v) => setForm({ ...form, campId: v })}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t("selectCamp")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {camps.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+
+              {form.sex === "MALE" && (
+                <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    className="rounded border"
+                    checked={form.isCastrated}
+                    onChange={(e) =>
+                      setForm({ ...form, isCastrated: e.target.checked })
+                    }
+                  />
+                  {t("castrated")}
+                </label>
+              )}
+              {form.sex === "FEMALE" && (
+                <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    className="rounded border"
+                    checked={form.isPregnant}
+                    onChange={(e) =>
+                      setForm({ ...form, isPregnant: e.target.checked })
+                    }
+                  />
+                  {t("pregnant")}
+                </label>
+              )}
+            </Section>
+
+            <Section
+              step={2}
+              title={t("sectionArrival")}
+              description={t("sectionArrivalHelp")}
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label={t("acquisitionType")}>
+                  <Select
+                    value={form.acquisitionType}
+                    onValueChange={(v) =>
+                      setForm({ ...form, acquisitionType: v })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="BORN_ON_FARM">
+                        {t("bornOnFarm")}
+                      </SelectItem>
+                      <SelectItem value="PURCHASED">{t("purchased")}</SelectItem>
+                      <SelectItem value="GIFT">{t("gift")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field
+                  label={t("acquisitionDate")}
+                  hint={
+                    form.acquisitionType === "PURCHASED"
+                      ? t("purchaseDateHint")
+                      : undefined
+                  }
+                >
+                  <Input
+                    type="date"
+                    value={form.acquisitionDate}
+                    onChange={(e) =>
+                      setForm({ ...form, acquisitionDate: e.target.value })
+                    }
+                  />
+                </Field>
+                <Field
+                  label={t("owner")}
+                  hint={t("defaultOwner")}
+                  className="sm:col-span-2"
+                >
+                  <Select
+                    value={form.ownerId || undefined}
+                    onValueChange={(v) => setForm({ ...form, ownerId: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t("defaultOwner")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {owners.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>
+                          {o.name}
+                          {o.role === "OWNER" ? ` (${t("roleOWNER")})` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </Section>
+
+            <Section
+              step={3}
+              title={t("sectionAge")}
+              description={t("sectionAgeHelp")}
+            >
+              <Field label={t("dob")}>
+                <Input
+                  type="date"
+                  value={form.dob}
+                  onChange={(e) => setForm({ ...form, dob: e.target.value })}
+                />
+              </Field>
+              {!form.dob && (
+                <div className="grid gap-4 rounded-lg border bg-muted/30 p-4 sm:grid-cols-2">
+                  <Field label={t("ageYears")}>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={form.ageYears}
+                      onChange={(e) =>
+                        setForm({ ...form, ageYears: e.target.value })
+                      }
+                      placeholder="0"
+                    />
+                  </Field>
+                  <Field label={t("ageMonthsPart")}>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={11}
+                      value={form.ageMonthsPart}
+                      onChange={(e) =>
+                        setForm({ ...form, ageMonthsPart: e.target.value })
+                      }
+                      placeholder="0"
+                    />
+                  </Field>
+                  <p className="text-xs text-muted-foreground sm:col-span-2">
+                    {t("ageHelperText")}
+                  </p>
+                </div>
+              )}
+            </Section>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-4">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between py-2 text-left"
+              onClick={() => setShowParents(!showParents)}
+            >
+              <div>
+                <p className="font-semibold">{t("sectionParents")}</p>
+                <p className="text-sm text-muted-foreground">
+                  {t("sectionParentsHelp")}
+                </p>
+              </div>
+              {showParents ? (
+                <ChevronDown className="h-5 w-5 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              )}
+            </button>
+            {showParents && (
+              <div className="mt-4 grid gap-4 border-t pt-4 sm:grid-cols-2">
+                <Field label={t("sire")} hint={t("sireMaleOnly")}>
+                  <Select
+                    value={form.sireId || "__none__"}
+                    onValueChange={(v) =>
+                      setForm({
+                        ...form,
+                        sireId: v === "__none__" ? "" : v,
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t("none")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">{t("none")}</SelectItem>
+                      {males.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.eartag}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label={t("dam")} hint={t("damFemaleOnly")}>
+                  <Select
+                    value={form.damId || "__none__"}
+                    onValueChange={(v) =>
+                      setForm({
+                        ...form,
+                        damId: v === "__none__" ? "" : v,
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t("none")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">{t("none")}</SelectItem>
+                      {females.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.eartag}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
               </div>
             )}
-            <p className="text-xs text-muted-foreground">{t("photosHelperText")}</p>
-          </div>
+          </CardContent>
+        </Card>
 
-          <div className="space-y-2">
-            <Label htmlFor="colorMarkings">{t("colorMarkings")}</Label>
-            <Input id="colorMarkings" value={form.colorMarkings} onChange={(e) => setForm({ ...form, colorMarkings: e.target.value })} />
-          </div>
+        <Card>
+          <CardContent className="pt-4">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between py-2 text-left"
+              onClick={() => setShowMore(!showMore)}
+            >
+              <div>
+                <p className="font-semibold">{t("sectionPhotosNotes")}</p>
+                <p className="text-sm text-muted-foreground">
+                  {t("sectionPhotosNotesHelp")}
+                </p>
+              </div>
+              {showMore ? (
+                <ChevronDown className="h-5 w-5 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              )}
+            </button>
+            {showMore && (
+              <div className="mt-4 space-y-4 border-t pt-4">
+                <Field label={t("photos")} hint={t("photosHelperText")}>
+                  <PhotoSourcePicker
+                    onFiles={(files) =>
+                      setPhotoFiles((prev) => [...prev, ...files])
+                    }
+                  />
+                  {photoFiles.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {photoFiles.map((file, i) => (
+                        <div
+                          key={`${file.name}-${i}`}
+                          className="group relative h-20 w-20 overflow-hidden rounded-lg bg-muted"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removePhoto(i)}
+                            className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white opacity-0 group-hover:opacity-100"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Field>
+                <Field label={t("colorMarkings")}>
+                  <Input
+                    value={form.colorMarkings}
+                    onChange={(e) =>
+                      setForm({ ...form, colorMarkings: e.target.value })
+                    }
+                    placeholder={t("colorMarkingsPlaceholder")}
+                  />
+                </Field>
+                <Field label={t("notes")}>
+                  <Textarea
+                    value={form.notes}
+                    onChange={(e) =>
+                      setForm({ ...form, notes: e.target.value })
+                    }
+                    rows={3}
+                  />
+                </Field>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-          <div className="space-y-2">
-            <Label htmlFor="notes">{t("notes")}</Label>
-            <Textarea id="notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-          </div>
-
-          <div className="flex gap-2">
-            <Button type="submit" disabled={loading || !form.breed}>
-              {loading ? t("saving") : t("registerAnimal")}
-            </Button>
-            <Button type="button" variant="outline" onClick={() => router.back()}>{t("cancel")}</Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+        <div className="flex sticky bottom-0 z-10 -mx-1 items-center gap-3 border-t bg-background/95 px-1 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <Button
+            type="submit"
+            disabled={loading || !form.breed || !form.campId || !form.eartag}
+            className="min-w-[10rem]"
+          >
+            {loading ? t("saving") : t("registerAnimal")}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.back()}
+          >
+            {t("cancel")}
+          </Button>
+        </div>
+      </form>
+    </div>
   );
 }
