@@ -80,12 +80,14 @@ export default function NewAnimalPage() {
     form.acquisitionType === "PURCHASED" || form.acquisitionType === "GIFT";
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/camps").then((r) => r.json()),
-      fetch("/api/owners").then((r) => (r.ok ? r.json() : [])),
-      fetch("/api/breeds").then((r) => (r.ok ? r.json() : [])),
-      fetch("/api/animals?status=ACTIVE").then((r) => r.json()),
-    ]).then(([c, o, b, a]) => {
+    const CACHE_KEY = "register-lookups-v1";
+
+    function applyLookups(
+      c: unknown,
+      o: unknown,
+      b: unknown,
+      a: unknown
+    ) {
       setCamps(Array.isArray(c) ? c : []);
       const ownerList = Array.isArray(o) ? o : [];
       setOwners(ownerList);
@@ -107,7 +109,45 @@ export default function NewAnimalPage() {
           prev.ownerId ? prev : { ...prev, ownerId: ranchOwner.id }
         );
       }
-    });
+    }
+
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached) as {
+          camps?: unknown;
+          owners?: unknown;
+          breeds?: unknown;
+          animals?: unknown;
+        };
+        applyLookups(parsed.camps, parsed.owners, parsed.breeds, parsed.animals);
+      }
+    } catch {
+      // ignore bad cache
+    }
+
+    if (!navigator.onLine) return;
+
+    Promise.all([
+      fetch("/api/camps").then((r) => r.json()),
+      fetch("/api/owners").then((r) => (r.ok ? r.json() : [])),
+      fetch("/api/breeds").then((r) => (r.ok ? r.json() : [])),
+      fetch("/api/animals?status=ACTIVE").then((r) => r.json()),
+    ])
+      .then(([c, o, b, a]) => {
+        applyLookups(c, o, b, a);
+        try {
+          localStorage.setItem(
+            CACHE_KEY,
+            JSON.stringify({ camps: c, owners: o, breeds: b, animals: a })
+          );
+        } catch {
+          // quota / private mode
+        }
+      })
+      .catch(() => {
+        // keep cached lookups if online fetch fails
+      });
   }, []);
 
   function removePhoto(index: number) {
@@ -157,7 +197,8 @@ export default function NewAnimalPage() {
     };
 
     if (!navigator.onLine) {
-      await enqueueSync("create", "animal", payload);
+      await enqueueSync("create", "animal", payload, photoFiles);
+      alert(t("savedOffline"));
       router.push("/animals");
       return;
     }

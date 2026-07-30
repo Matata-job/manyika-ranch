@@ -90,6 +90,7 @@ const en = {
 
   // Sync
   offline: "Offline",
+  savedOffline: "Saved offline. It will sync when you are back online.",
   synced: "Synced",
   pendingCount: "{n} pending",
 
@@ -658,6 +659,7 @@ const sw: Dict = {
   manageSchedules: "Simamia ratiba",
 
   offline: "Nje ya mtandao",
+  savedOffline: "Imehifadhiwa nje ya mtandao. Itasawazishwa ukirudi mtandaoni.",
   synced: "Imesawazishwa",
   pendingCount: "{n} inasubiri",
 

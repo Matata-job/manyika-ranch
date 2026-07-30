@@ -7,6 +7,19 @@ import {
 } from "@/lib/auth/api-guard";
 import { computeAgeMonths } from "@/lib/utils";
 
+function resolveAgeMonths(payload: Record<string, unknown>): number | null {
+  const dob = payload.dob ? new Date(payload.dob as string) : null;
+  if (dob) return computeAgeMonths(dob);
+  if (typeof payload.ageMonths === "number") return payload.ageMonths as number;
+  if (payload.ageYears != null || payload.ageMonthsPart != null) {
+    return Math.max(
+      0,
+      (Number(payload.ageYears) || 0) * 12 + (Number(payload.ageMonthsPart) || 0)
+    );
+  }
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   const result = await requireAuth();
   if (!result.ok) return result.error;
@@ -32,20 +45,76 @@ export async function POST(req: NextRequest) {
           results.push({ success: false, error: "Eartag conflict" });
           continue;
         }
+
+        const sireId = (payload.sireId as string) || null;
+        const damId = (payload.damId as string) || null;
+        if (sireId) {
+          const sire = await prisma.animal.findFirst({
+            where: { id: sireId, sex: "MALE" },
+            select: { id: true },
+          });
+          if (!sire) {
+            results.push({ success: false, error: "Sire must be a male animal" });
+            continue;
+          }
+        }
+        if (damId) {
+          const dam = await prisma.animal.findFirst({
+            where: { id: damId, sex: "FEMALE" },
+            select: { id: true },
+          });
+          if (!dam) {
+            results.push({ success: false, error: "Dam must be a female animal" });
+            continue;
+          }
+        }
+
         const dob = payload.dob ? new Date(payload.dob as string) : null;
-        await prisma.animal.create({
+        const sex = payload.sex as "MALE" | "FEMALE";
+        const photoUrls: string[] = Array.isArray(payload.photoUrls)
+          ? (payload.photoUrls as string[])
+          : [];
+        const primaryPhoto = photoUrls[0] || (payload.photoUrl as string) || null;
+
+        const animal = await prisma.animal.create({
           data: {
             eartag: payload.eartag as string,
+            rfidChip: (payload.rfidChip as string) || null,
+            photoUrl: primaryPhoto,
             breed: payload.breed as string,
-            sex: payload.sex as "MALE" | "FEMALE",
-            campId: payload.campId as string,
-            ownerId: (payload.ownerId as string) || result.user.id,
+            sex,
+            isCastrated: sex === "MALE" ? Boolean(payload.isCastrated) : false,
+            isPregnant: sex === "FEMALE" ? Boolean(payload.isPregnant) : false,
             dob,
-            ageMonths: dob ? computeAgeMonths(dob) : null,
-            notes: payload.notes as string | undefined,
-            status: "ACTIVE",
+            ageMonths: resolveAgeMonths(payload),
+            ownerId: (payload.ownerId as string) || result.user.id,
+            sireId,
+            damId,
+            campId: payload.campId as string,
+            status: (payload.status as "ACTIVE") || "ACTIVE",
+            acquisitionType:
+              (payload.acquisitionType as
+                | "BORN_ON_FARM"
+                | "PURCHASED"
+                | "GIFT") || "BORN_ON_FARM",
+            acquisitionDate: payload.acquisitionDate
+              ? new Date(payload.acquisitionDate as string)
+              : null,
+            colorMarkings: (payload.colorMarkings as string) || null,
+            notes: (payload.notes as string) || null,
           },
         });
+
+        if (photoUrls.length > 0) {
+          await prisma.animalPhoto.createMany({
+            data: photoUrls.map((url) => ({
+              animalId: animal.id,
+              url,
+              takenAt: new Date(),
+              uploadedById: result.user.id,
+            })),
+          });
+        }
       } else if (entity === "weight" && action === "create") {
         const animalAccess = await requireAnimalAccess(payload.animalId as string);
         if (!animalAccess.ok) {
