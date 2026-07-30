@@ -19,6 +19,7 @@ import {
   CampPhotoGallery,
   type CampPhoto,
 } from "@/components/camp-photo-gallery";
+import { OptionalSection } from "@/components/optional-section";
 
 const CampLocationPicker = dynamic(
   () =>
@@ -57,6 +58,8 @@ export default function CampDetailPage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showLocation, setShowLocation] = useState(false);
+  const [showPhotos, setShowPhotos] = useState(false);
   const [form, setForm] = useState({
     name: "",
     sizeAcres: "",
@@ -187,13 +190,24 @@ export default function CampDetailPage() {
                 }
               />
             </div>
-            <CampLocationPicker
-              latitude={form.latitude}
-              longitude={form.longitude}
-              onChange={({ latitude, longitude }) =>
-                setForm({ ...form, latitude, longitude })
+            <OptionalSection
+              open={showLocation}
+              onToggle={() => setShowLocation((v) => !v)}
+              title={t("campLocation")}
+              summary={
+                form.latitude && form.longitude
+                  ? `${form.latitude}, ${form.longitude}`
+                  : t("optionalTapToAdd")
               }
-            />
+            >
+              <CampLocationPicker
+                latitude={form.latitude}
+                longitude={form.longitude}
+                onChange={({ latitude, longitude }) =>
+                  setForm({ ...form, latitude, longitude })
+                }
+              />
+            </OptionalSection>
             <div className="space-y-2">
               <Label>{t("waterSources")}</Label>
               <Input
@@ -259,39 +273,51 @@ export default function CampDetailPage() {
         </div>
       )}
 
-      {!editing && camp.latitude != null && camp.longitude != null && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("campLocation")}</CardTitle>
-          </CardHeader>
-          <CardContent>
+      {!editing && (
+        <OptionalSection
+          open={showLocation}
+          onToggle={() => setShowLocation((v) => !v)}
+          title={t("campLocation")}
+          summary={
+            camp.latitude != null && camp.longitude != null
+              ? `${camp.latitude}, ${camp.longitude}`
+              : t("noLocationSet")
+          }
+        >
+          {camp.latitude != null && camp.longitude != null ? (
             <CampLocationPicker
               latitude={String(camp.latitude)}
               longitude={String(camp.longitude)}
               onChange={() => {}}
               disabled
             />
-          </CardContent>
-        </Card>
+          ) : (
+            <p className="text-sm text-muted-foreground">{t("noLocationSet")}</p>
+          )}
+        </OptionalSection>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("campPhotos")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <CampPhotoGallery
-            campId={camp.id}
-            initialPhotos={camp.photos || []}
-            logoUrl={camp.logoUrl}
-            canEdit={canManage}
-            onPhotosChange={load}
-            onLogoChange={(url) =>
-              setCamp((c) => (c ? { ...c, logoUrl: url } : c))
-            }
-          />
-        </CardContent>
-      </Card>
+      <OptionalSection
+        open={showPhotos}
+        onToggle={() => setShowPhotos((v) => !v)}
+        title={t("campPhotos")}
+        summary={
+          (camp.photos?.length || 0) > 0
+            ? t("photoCount", { n: camp.photos.length })
+            : t("noCampPhotos")
+        }
+      >
+        <CampPhotoGallery
+          campId={camp.id}
+          initialPhotos={camp.photos || []}
+          logoUrl={camp.logoUrl}
+          canEdit={canManage}
+          onPhotosChange={load}
+          onLogoChange={(url) =>
+            setCamp((c) => (c ? { ...c, logoUrl: url } : c))
+          }
+        />
+      </OptionalSection>
 
       <div>
         <h2 className="text-xl font-semibold mb-4">{t("animalsInCamp")}</h2>

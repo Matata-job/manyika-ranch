@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Plus, X, ZoomIn } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 import { PhotoSourcePicker } from "@/components/photo-source-picker";
+import { useObjectUrls } from "@/hooks/use-object-urls";
 
 export interface AnimalPhoto {
   id: string;
@@ -36,6 +37,7 @@ export function AnimalPhotoGallery({
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
   const [newFiles, setNewFiles] = useState<File[]>([]);
+  const previewUrls = useObjectUrls(newFiles);
 
   useEffect(() => {
     setPhotos(initialPhotos);
@@ -158,12 +160,12 @@ export function AnimalPhotoGallery({
             <div className="flex gap-2 flex-wrap">
               {newFiles.map((f, i) => (
                 <div
-                  key={`${f.name}-${i}`}
+                  key={`${f.name}-${f.size}-${f.lastModified}`}
                   className="relative w-14 h-14 rounded overflow-hidden bg-muted"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={URL.createObjectURL(f)}
+                    src={previewUrls[i]}
                     alt=""
                     className="w-full h-full object-cover"
                   />

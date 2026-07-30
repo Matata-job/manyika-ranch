@@ -188,6 +188,11 @@ const en = {
   acres: "acres",
   campLocation: "Location on map",
   campLocationHelp: "Tap the map or drag the pin to set the camp location.",
+  mapUnavailableOffline:
+    "Map tiles need internet. Enter latitude and longitude below — they still save.",
+  optionalTapToAdd: "Optional — tap to add",
+  noLocationSet: "No location set",
+  photoCount: "{n} photo(s)",
   useMyLocation: "Use my location",
   geolocationUnavailable: "Location is not available on this device",
   geolocationFailed: "Could not get your location",
@@ -751,6 +756,11 @@ const sw: Dict = {
   acres: "ekari",
   campLocation: "Mahali kwenye ramani",
   campLocationHelp: "Gusa ramani au buruta alama kuweka mahali pa kambi.",
+  mapUnavailableOffline:
+    "Ramani inahitaji mtandao. Weka latitudo na longitudo chini — bado zinahifadhiwa.",
+  optionalTapToAdd: "Si lazima — gusa kuongeza",
+  noLocationSet: "Mahali hakujawekwa",
+  photoCount: "Picha {n}",
   useMyLocation: "Tumia mahali nilipo",
   geolocationUnavailable: "Mahali hapapatikani kwenye kifaa hiki",
   geolocationFailed: "Imeshindwa kupata mahali ulipo",

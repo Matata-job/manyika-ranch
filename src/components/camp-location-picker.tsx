@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,9 +27,22 @@ export function CampLocationPicker({
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<import("leaflet").Map | null>(null);
   const markerRef = useRef<import("leaflet").Marker | null>(null);
+  const [online, setOnline] = useState(true);
 
   useEffect(() => {
-    if (!mapRef.current || mapInstance.current) return;
+    setOnline(navigator.onLine);
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => {
+      window.removeEventListener("online", on);
+      window.removeEventListener("offline", off);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!online || !mapRef.current || mapInstance.current) return;
     let cancelled = false;
 
     async function init() {
@@ -39,7 +52,6 @@ export function CampLocationPicker({
 
       if (cancelled || !mapRef.current) return;
 
-      // Fix default marker icons in bundlers
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       delete (L.Icon.Default.prototype as any)._getIconUrl;
       L.Icon.Default.mergeOptions({
@@ -91,7 +103,6 @@ export function CampLocationPicker({
         setFromLatLng(e.latlng);
       });
 
-      // Ensure tiles render after layout
       setTimeout(() => map.invalidateSize(), 100);
     }
 
@@ -105,8 +116,8 @@ export function CampLocationPicker({
         markerRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- init once
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- remount when online again
+  }, [online]);
 
   useEffect(() => {
     const map = mapInstance.current;
@@ -155,11 +166,17 @@ export function CampLocationPicker({
         )}
       </div>
       <p className="text-xs text-muted-foreground">{t("campLocationHelp")}</p>
-      <div
-        ref={mapRef}
-        className="h-64 w-full rounded-lg border z-0"
-        aria-label={t("campLocation")}
-      />
+      {online ? (
+        <div
+          ref={mapRef}
+          className="h-64 w-full rounded-lg border z-0"
+          aria-label={t("campLocation")}
+        />
+      ) : (
+        <div className="flex h-32 items-center justify-center rounded-lg border bg-muted/40 px-4 text-center text-sm text-muted-foreground">
+          {t("mapUnavailableOffline")}
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label htmlFor="latitude">{t("latitude")}</Label>

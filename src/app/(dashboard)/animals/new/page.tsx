@@ -20,6 +20,7 @@ import { ArrowLeft, ChevronDown, ChevronRight, X } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 import { PhotoSourcePicker } from "@/components/photo-source-picker";
 import { cn } from "@/lib/utils";
+import { useObjectUrls } from "@/hooks/use-object-urls";
 
 function Field({
   label,
@@ -56,6 +57,7 @@ export default function NewAnimalPage() {
   const [breeds, setBreeds] = useState<{ id: string; name: string }[]>([]);
   const [animals, setAnimals] = useState<{ id: string; eartag: string; sex: string }[]>([]);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const photoPreviewUrls = useObjectUrls(photoFiles);
   const [form, setForm] = useState({
     eartag: "",
     breed: "",
@@ -557,12 +559,12 @@ export default function NewAnimalPage() {
                     <div className="mt-3 flex flex-wrap gap-2">
                       {photoFiles.map((file, i) => (
                         <div
-                          key={`${file.name}-${i}`}
+                          key={`${file.name}-${file.size}-${file.lastModified}`}
                           className="group relative h-20 w-20 overflow-hidden rounded-lg bg-muted"
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
-                            src={URL.createObjectURL(file)}
+                            src={photoPreviewUrls[i]}
                             alt=""
                             className="h-full w-full object-cover"
                           />

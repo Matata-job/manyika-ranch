@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
+import { OptionalSection } from "@/components/optional-section";
 
 const CampLocationPicker = dynamic(
   () =>
@@ -27,6 +28,7 @@ export default function NewCampPage() {
   const t = useT();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [showLocation, setShowLocation] = useState(false);
   const [form, setForm] = useState({
     name: "",
     sizeAcres: "",
@@ -63,8 +65,13 @@ export default function NewCampPage() {
     }
   }
 
+  const locationSummary =
+    form.latitude && form.longitude
+      ? `${form.latitude}, ${form.longitude}`
+      : t("optionalTapToAdd");
+
   return (
-    <div className="space-y-4 max-w-2xl">
+    <div className="space-y-4 max-w-xl">
       <Link
         href="/camps"
         className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
@@ -85,6 +92,7 @@ export default function NewCampPage() {
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 required
+                autoFocus
               />
             </div>
             <div className="space-y-2">
@@ -99,15 +107,6 @@ export default function NewCampPage() {
                 placeholder="e.g. 120"
               />
             </div>
-
-            <CampLocationPicker
-              latitude={form.latitude}
-              longitude={form.longitude}
-              onChange={({ latitude, longitude }) =>
-                setForm({ ...form, latitude, longitude })
-              }
-            />
-
             <div className="space-y-2">
               <Label htmlFor="waterSources">{t("waterSources")}</Label>
               <Input
@@ -124,11 +123,28 @@ export default function NewCampPage() {
                 id="notes"
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                rows={2}
               />
             </div>
+
+            <OptionalSection
+              open={showLocation}
+              onToggle={() => setShowLocation((v) => !v)}
+              title={t("campLocation")}
+              summary={locationSummary}
+            >
+              <CampLocationPicker
+                latitude={form.latitude}
+                longitude={form.longitude}
+                onChange={({ latitude, longitude }) =>
+                  setForm({ ...form, latitude, longitude })
+                }
+              />
+            </OptionalSection>
+
             <p className="text-xs text-muted-foreground">{t("campPhotosAfterSave")}</p>
             <div className="flex gap-2">
-              <Button type="submit" disabled={loading}>
+              <Button type="submit" disabled={loading || !form.name.trim()}>
                 {loading ? t("saving") : t("save")}
               </Button>
               <Button type="button" variant="outline" onClick={() => router.back()}>

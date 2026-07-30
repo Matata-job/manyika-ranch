@@ -7,10 +7,50 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatDate(date: Date | string | null | undefined): string {
   if (!date) return "—";
+  // Date-only strings (from <input type="date">) must not shift by timezone.
+  if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const [y, m, d] = date.split("-").map(Number);
+    return new Intl.DateTimeFormat("en-TZ", {
+      dateStyle: "medium",
+      timeZone: "Africa/Dar_es_Salaam",
+    }).format(new Date(y, m - 1, d, 12));
+  }
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return "—";
+  // ISO midnight UTC → show calendar day in ranch timezone without flipping day.
+  if (
+    typeof date === "string" &&
+    /^\d{4}-\d{2}-\d{2}T00:00:00(\.000)?Z$/.test(date)
+  ) {
+    const day = date.slice(0, 10);
+    const [y, m, d] = day.split("-").map(Number);
+    return new Intl.DateTimeFormat("en-TZ", {
+      dateStyle: "medium",
+      timeZone: "Africa/Dar_es_Salaam",
+    }).format(new Date(y, m - 1, d, 12));
+  }
   return new Intl.DateTimeFormat("en-TZ", {
     dateStyle: "medium",
     timeZone: "Africa/Dar_es_Salaam",
-  }).format(new Date(date));
+  }).format(parsed);
+}
+
+/** Normalize API / form dates for <input type="date"> (YYYY-MM-DD). */
+export function toDateInputValue(
+  date: Date | string | null | undefined
+): string {
+  if (!date) return "";
+  if (typeof date === "string") {
+    if (/^\d{4}-\d{2}-\d{2}/.test(date)) return date.slice(0, 10);
+    const parsed = new Date(date);
+    if (Number.isNaN(parsed.getTime())) return "";
+    date = parsed;
+  }
+  const d = date as Date;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 export function computeAgeMonths(dob: Date | string | null | undefined): number | null {

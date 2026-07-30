@@ -169,7 +169,12 @@ export async function PATCH(
       campId: body.campId,
       status: body.status,
       acquisitionType: body.acquisitionType,
-      acquisitionDate: body.acquisitionDate ? new Date(body.acquisitionDate) : undefined,
+      acquisitionDate:
+        body.acquisitionDate === null || body.acquisitionDate === ""
+          ? null
+          : body.acquisitionDate
+            ? new Date(body.acquisitionDate)
+            : undefined,
       colorMarkings: body.colorMarkings,
       notes: body.notes,
     },

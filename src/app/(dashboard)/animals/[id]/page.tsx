@@ -73,6 +73,7 @@ interface AnimalDetail {
   colorMarkings: string | null;
   notes: string | null;
   acquisitionType?: string | null;
+  acquisitionDate?: string | null;
   camp: { id: string; name: string };
   owner: { id: string; name: string };
   sire: { id: string; eartag: string } | null;
@@ -214,6 +215,7 @@ export default function AnimalDetailPage() {
     ownerId: "",
     status: "ACTIVE",
     acquisitionType: "BORN_ON_FARM",
+    acquisitionDate: "",
     colorMarkings: "",
     notes: "",
   });
@@ -332,6 +334,7 @@ export default function AnimalDetailPage() {
       ownerId: a.owner.id,
       status: a.status,
       acquisitionType: a.acquisitionType || "BORN_ON_FARM",
+      acquisitionDate: a.acquisitionDate ? a.acquisitionDate.slice(0, 10) : "",
       colorMarkings: a.colorMarkings || "",
       notes: a.notes || "",
     });
@@ -353,6 +356,7 @@ export default function AnimalDetailPage() {
       colorMarkings: editForm.colorMarkings || null,
       notes: editForm.notes || null,
       acquisitionType: editForm.acquisitionType,
+      acquisitionDate: editForm.acquisitionDate || null,
     };
     if (editForm.dob) {
       payload.dob = editForm.dob;
@@ -655,6 +659,19 @@ export default function AnimalDetailPage() {
             <div><span className="text-muted-foreground">{t("breed")}</span><p className="font-medium">{animal.breed}</p></div>
             <div><span className="text-muted-foreground">{t("age")}</span><p className="font-medium">{formatAge(animal.ageMonths, ageMode)}</p></div>
             <div><span className="text-muted-foreground">{t("dob")}</span><p className="font-medium">{formatDate(animal.dob)}</p></div>
+            <div><span className="text-muted-foreground">{t("source")}</span><p className="font-medium">{
+              animal.acquisitionType === "PURCHASED"
+                ? t("purchased")
+                : animal.acquisitionType === "GIFT"
+                  ? t("gift")
+                  : t("bornOnFarm")
+            }</p></div>
+            {(animal.acquisitionType === "PURCHASED" || animal.acquisitionType === "GIFT") && (
+              <div>
+                <span className="text-muted-foreground">{t("acquisitionDate")}</span>
+                <p className="font-medium">{formatDate(animal.acquisitionDate)}</p>
+              </div>
+            )}
             <div><span className="text-muted-foreground">{t("camp")}</span><p className="font-medium">{animal.camp.name}</p></div>
             <div><span className="text-muted-foreground">{t("owner")}</span><p className="font-medium">{animal.owner.name}</p></div>
             <div><span className="text-muted-foreground">{t("sire")}</span><p className="font-medium">{animal.sire?.eartag || "—"}</p></div>
@@ -811,7 +828,14 @@ export default function AnimalDetailPage() {
                 <Label>{t("acquisitionType")}</Label>
                 <Select
                   value={editForm.acquisitionType}
-                  onValueChange={(v) => setEditForm({ ...editForm, acquisitionType: v })}
+                  onValueChange={(v) =>
+                    setEditForm({
+                      ...editForm,
+                      acquisitionType: v,
+                      acquisitionDate:
+                        v === "BORN_ON_FARM" ? "" : editForm.acquisitionDate,
+                    })
+                  }
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -821,6 +845,22 @@ export default function AnimalDetailPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {(editForm.acquisitionType === "PURCHASED" ||
+                editForm.acquisitionType === "GIFT") && (
+                <div className="space-y-2">
+                  <Label>{t("acquisitionDate")}</Label>
+                  <Input
+                    type="date"
+                    value={editForm.acquisitionDate}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        acquisitionDate: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+              )}
               <div className="space-y-2 sm:col-span-2">
                 <Label>{t("colorMarkings")}</Label>
                 <Input
