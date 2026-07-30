@@ -21,35 +21,6 @@ import { useT } from "@/components/providers/locale-provider";
 import { PhotoSourcePicker } from "@/components/photo-source-picker";
 import { cn } from "@/lib/utils";
 
-function Section({
-  step,
-  title,
-  description,
-  children,
-}: {
-  step: number;
-  title: string;
-  description?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="space-y-4">
-      <div className="flex items-start gap-3 border-b pb-3">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-          {step}
-        </span>
-        <div>
-          <h2 className="text-base font-semibold leading-none">{title}</h2>
-          {description && (
-            <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>
-          )}
-        </div>
-      </div>
-      {children}
-    </section>
-  );
-}
-
 function Field({
   label,
   required,
@@ -79,7 +50,6 @@ export default function NewAnimalPage() {
   const t = useT();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [showParents, setShowParents] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [camps, setCamps] = useState<{ id: string; name: string }[]>([]);
   const [owners, setOwners] = useState<{ id: string; name: string; role?: string }[]>([]);
@@ -104,6 +74,10 @@ export default function NewAnimalPage() {
     acquisitionType: "BORN_ON_FARM",
     acquisitionDate: "",
   });
+
+  const isBornOnFarm = form.acquisitionType === "BORN_ON_FARM";
+  const isExternal =
+    form.acquisitionType === "PURCHASED" || form.acquisitionType === "GIFT";
 
   useEffect(() => {
     Promise.all([
@@ -135,11 +109,6 @@ export default function NewAnimalPage() {
       }
     });
   }, []);
-
-  useEffect(() => {
-    // Parents matter most for calves born on farm
-    if (form.acquisitionType === "BORN_ON_FARM") setShowParents(true);
-  }, [form.acquisitionType]);
 
   function removePhoto(index: number) {
     setPhotoFiles((prev) => prev.filter((_, i) => i !== index));
@@ -176,7 +145,7 @@ export default function NewAnimalPage() {
       ownerId: form.ownerId || undefined,
       dob: form.dob || null,
       acquisitionType: form.acquisitionType,
-      acquisitionDate: form.acquisitionDate || null,
+      acquisitionDate: isExternal ? form.acquisitionDate || null : null,
       isCastrated: form.sex === "MALE" ? form.isCastrated : false,
       isPregnant: form.sex === "FEMALE" ? form.isPregnant : false,
       ageYears: form.dob ? undefined : form.ageYears ? Number(form.ageYears) : 0,
@@ -228,7 +197,7 @@ export default function NewAnimalPage() {
   const females = animals.filter((a) => a.sex === "FEMALE");
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 pb-8">
+    <div className="mx-auto max-w-xl space-y-5 pb-8">
       <div>
         <Link
           href="/animals"
@@ -237,266 +206,131 @@ export default function NewAnimalPage() {
           <ArrowLeft className="mr-1 h-4 w-4" />
           {t("navAnimals")}
         </Link>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-          {t("registerAnimal")}
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("registerAnimal")}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {t("registerAnimalSubtitle")}
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <Card>
-          <CardContent className="space-y-8 pt-6">
-            <Section
-              step={1}
-              title={t("sectionIdentity")}
-              description={t("sectionIdentityHelp")}
-            >
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label={t("eartag")} required>
-                  <Input
-                    id="eartag"
-                    value={form.eartag}
-                    onChange={(e) =>
-                      setForm({ ...form, eartag: e.target.value })
-                    }
-                    placeholder="e.g. MY-0042"
-                    required
-                    autoFocus
-                  />
-                </Field>
-                <Field
-                  label={t("breed")}
-                  required
-                  hint={
-                    <Link
-                      href="/settings/breeds"
-                      className="text-primary hover:underline"
-                    >
-                      {t("manageBreeds")}
-                    </Link>
-                  }
-                >
-                  <Select
-                    value={form.breed || undefined}
-                    onValueChange={(v) => setForm({ ...form, breed: v })}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("selectBreed")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {breeds.map((b) => (
-                        <SelectItem key={b.id} value={b.name}>
-                          {b.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label={t("sex")} required>
-                  <Select
-                    value={form.sex}
-                    onValueChange={(v) =>
-                      setForm({
-                        ...form,
-                        sex: v,
-                        isCastrated: v === "MALE" ? form.isCastrated : false,
-                        isPregnant: v === "FEMALE" ? form.isPregnant : false,
-                      })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="MALE">{t("male")}</SelectItem>
-                      <SelectItem value="FEMALE">{t("female")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label={t("camp")} required>
-                  <Select
-                    value={form.campId || undefined}
-                    onValueChange={(v) => setForm({ ...form, campId: v })}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("selectCamp")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {camps.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
+          <CardContent className="grid gap-4 pt-6 sm:grid-cols-2">
+            <Field label={t("eartag")} required className="sm:col-span-2">
+              <Input
+                id="eartag"
+                value={form.eartag}
+                onChange={(e) => setForm({ ...form, eartag: e.target.value })}
+                placeholder="e.g. MY-0042"
+                required
+                autoFocus
+              />
+            </Field>
 
-              {form.sex === "MALE" && (
-                <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    className="rounded border"
-                    checked={form.isCastrated}
-                    onChange={(e) =>
-                      setForm({ ...form, isCastrated: e.target.checked })
-                    }
-                  />
-                  {t("castrated")}
-                </label>
-              )}
-              {form.sex === "FEMALE" && (
-                <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    className="rounded border"
-                    checked={form.isPregnant}
-                    onChange={(e) =>
-                      setForm({ ...form, isPregnant: e.target.checked })
-                    }
-                  />
-                  {t("pregnant")}
-                </label>
-              )}
-            </Section>
-
-            <Section
-              step={2}
-              title={t("sectionArrival")}
-              description={t("sectionArrivalHelp")}
-            >
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label={t("acquisitionType")}>
-                  <Select
-                    value={form.acquisitionType}
-                    onValueChange={(v) =>
-                      setForm({ ...form, acquisitionType: v })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="BORN_ON_FARM">
-                        {t("bornOnFarm")}
-                      </SelectItem>
-                      <SelectItem value="PURCHASED">{t("purchased")}</SelectItem>
-                      <SelectItem value="GIFT">{t("gift")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field
-                  label={t("acquisitionDate")}
-                  hint={
-                    form.acquisitionType === "PURCHASED"
-                      ? t("purchaseDateHint")
-                      : undefined
-                  }
+            <Field
+              label={t("breed")}
+              required
+              hint={
+                <Link
+                  href="/settings/breeds"
+                  className="text-primary hover:underline"
                 >
+                  {t("manageBreeds")}
+                </Link>
+              }
+            >
+              <Select
+                value={form.breed || undefined}
+                onValueChange={(v) => setForm({ ...form, breed: v })}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t("selectBreed")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {breeds.map((b) => (
+                    <SelectItem key={b.id} value={b.name}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <Field label={t("sex")} required>
+              <Select
+                value={form.sex}
+                onValueChange={(v) =>
+                  setForm({
+                    ...form,
+                    sex: v,
+                    isCastrated: v === "MALE" ? form.isCastrated : false,
+                    isPregnant: v === "FEMALE" ? form.isPregnant : false,
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="MALE">{t("male")}</SelectItem>
+                  <SelectItem value="FEMALE">{t("female")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <Field label={t("camp")} required className="sm:col-span-2">
+              <Select
+                value={form.campId || undefined}
+                onValueChange={(v) => setForm({ ...form, campId: v })}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t("selectCamp")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {camps.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <Field label={t("source")} className="sm:col-span-2">
+              <Select
+                value={form.acquisitionType}
+                onValueChange={(v) =>
+                  setForm({
+                    ...form,
+                    acquisitionType: v,
+                    acquisitionDate:
+                      v === "BORN_ON_FARM" ? "" : form.acquisitionDate,
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BORN_ON_FARM">{t("bornOnFarm")}</SelectItem>
+                  <SelectItem value="PURCHASED">{t("purchased")}</SelectItem>
+                  <SelectItem value="GIFT">{t("gift")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+
+            {isBornOnFarm && (
+              <>
+                <Field label={t("dob")} className="sm:col-span-2">
                   <Input
                     type="date"
-                    value={form.acquisitionDate}
+                    value={form.dob}
                     onChange={(e) =>
-                      setForm({ ...form, acquisitionDate: e.target.value })
+                      setForm({ ...form, dob: e.target.value })
                     }
                   />
                 </Field>
-                <Field
-                  label={t("owner")}
-                  hint={t("defaultOwner")}
-                  className="sm:col-span-2"
-                >
-                  <Select
-                    value={form.ownerId || undefined}
-                    onValueChange={(v) => setForm({ ...form, ownerId: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("defaultOwner")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {owners.map((o) => (
-                        <SelectItem key={o.id} value={o.id}>
-                          {o.name}
-                          {o.role === "OWNER" ? ` (${t("roleOWNER")})` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-            </Section>
-
-            <Section
-              step={3}
-              title={t("sectionAge")}
-              description={t("sectionAgeHelp")}
-            >
-              <Field label={t("dob")}>
-                <Input
-                  type="date"
-                  value={form.dob}
-                  onChange={(e) => setForm({ ...form, dob: e.target.value })}
-                />
-              </Field>
-              {!form.dob && (
-                <div className="grid gap-4 rounded-lg border bg-muted/30 p-4 sm:grid-cols-2">
-                  <Field label={t("ageYears")}>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={form.ageYears}
-                      onChange={(e) =>
-                        setForm({ ...form, ageYears: e.target.value })
-                      }
-                      placeholder="0"
-                    />
-                  </Field>
-                  <Field label={t("ageMonthsPart")}>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={11}
-                      value={form.ageMonthsPart}
-                      onChange={(e) =>
-                        setForm({ ...form, ageMonthsPart: e.target.value })
-                      }
-                      placeholder="0"
-                    />
-                  </Field>
-                  <p className="text-xs text-muted-foreground sm:col-span-2">
-                    {t("ageHelperText")}
-                  </p>
-                </div>
-              )}
-            </Section>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-4">
-            <button
-              type="button"
-              className="flex w-full items-center justify-between py-2 text-left"
-              onClick={() => setShowParents(!showParents)}
-            >
-              <div>
-                <p className="font-semibold">{t("sectionParents")}</p>
-                <p className="text-sm text-muted-foreground">
-                  {t("sectionParentsHelp")}
-                </p>
-              </div>
-              {showParents ? (
-                <ChevronDown className="h-5 w-5 text-muted-foreground" />
-              ) : (
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
-              )}
-            </button>
-            {showParents && (
-              <div className="mt-4 grid gap-4 border-t pt-4 sm:grid-cols-2">
                 <Field label={t("sire")} hint={t("sireMaleOnly")}>
                   <Select
                     value={form.sireId || "__none__"}
@@ -543,7 +377,115 @@ export default function NewAnimalPage() {
                     </SelectContent>
                   </Select>
                 </Field>
-              </div>
+              </>
+            )}
+
+            {isExternal && (
+              <>
+                <Field
+                  label={t("acquisitionDate")}
+                  hint={
+                    form.acquisitionType === "PURCHASED"
+                      ? t("purchaseDateHint")
+                      : t("giftDateHint")
+                  }
+                  className="sm:col-span-2"
+                >
+                  <Input
+                    type="date"
+                    value={form.acquisitionDate}
+                    onChange={(e) =>
+                      setForm({ ...form, acquisitionDate: e.target.value })
+                    }
+                  />
+                </Field>
+                <Field label={t("dob")} className="sm:col-span-2">
+                  <Input
+                    type="date"
+                    value={form.dob}
+                    onChange={(e) =>
+                      setForm({ ...form, dob: e.target.value })
+                    }
+                  />
+                </Field>
+                {!form.dob && (
+                  <>
+                    <Field label={t("ageYears")}>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={form.ageYears}
+                        onChange={(e) =>
+                          setForm({ ...form, ageYears: e.target.value })
+                        }
+                        placeholder="0"
+                      />
+                    </Field>
+                    <Field label={t("ageMonthsPart")}>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={11}
+                        value={form.ageMonthsPart}
+                        onChange={(e) =>
+                          setForm({ ...form, ageMonthsPart: e.target.value })
+                        }
+                        placeholder="0"
+                      />
+                    </Field>
+                  </>
+                )}
+              </>
+            )}
+
+            <Field
+              label={t("owner")}
+              hint={t("defaultOwner")}
+              className="sm:col-span-2"
+            >
+              <Select
+                value={form.ownerId || undefined}
+                onValueChange={(v) => setForm({ ...form, ownerId: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t("defaultOwner")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {owners.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>
+                      {o.name}
+                      {o.role === "OWNER" ? ` (${t("roleOWNER")})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            {form.sex === "MALE" && (
+              <label className="flex items-center gap-2 text-sm text-muted-foreground sm:col-span-2">
+                <input
+                  type="checkbox"
+                  className="rounded border"
+                  checked={form.isCastrated}
+                  onChange={(e) =>
+                    setForm({ ...form, isCastrated: e.target.checked })
+                  }
+                />
+                {t("castrated")}
+              </label>
+            )}
+            {form.sex === "FEMALE" && (
+              <label className="flex items-center gap-2 text-sm text-muted-foreground sm:col-span-2">
+                <input
+                  type="checkbox"
+                  className="rounded border"
+                  checked={form.isPregnant}
+                  onChange={(e) =>
+                    setForm({ ...form, isPregnant: e.target.checked })
+                  }
+                />
+                {t("pregnant")}
+              </label>
             )}
           </CardContent>
         </Card>
@@ -552,19 +494,14 @@ export default function NewAnimalPage() {
           <CardContent className="pt-4">
             <button
               type="button"
-              className="flex w-full items-center justify-between py-2 text-left"
+              className="flex w-full items-center justify-between py-1 text-left"
               onClick={() => setShowMore(!showMore)}
             >
-              <div>
-                <p className="font-semibold">{t("sectionPhotosNotes")}</p>
-                <p className="text-sm text-muted-foreground">
-                  {t("sectionPhotosNotesHelp")}
-                </p>
-              </div>
+              <span className="text-sm font-medium">{t("sectionPhotosNotes")}</span>
               {showMore ? (
-                <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
               ) : (
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
               )}
             </button>
             {showMore && (
@@ -623,7 +560,7 @@ export default function NewAnimalPage() {
           </CardContent>
         </Card>
 
-        <div className="flex sticky bottom-0 z-10 -mx-1 items-center gap-3 border-t bg-background/95 px-1 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="flex sticky bottom-0 z-10 items-center gap-3 border-t bg-background/95 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
           <Button
             type="submit"
             disabled={loading || !form.breed || !form.campId || !form.eartag}
@@ -631,11 +568,7 @@ export default function NewAnimalPage() {
           >
             {loading ? t("saving") : t("registerAnimal")}
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.back()}
-          >
+          <Button type="button" variant="outline" onClick={() => router.back()}>
             {t("cancel")}
           </Button>
         </div>
