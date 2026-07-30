@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,8 @@ interface AuditRow {
   action: string;
   entityType: string;
   entityId: string;
-  changes: Record<string, unknown> | null;
+  entityLabel: string;
+  summary: string;
   createdAt: string;
   user: {
     id: string;
@@ -42,6 +44,35 @@ const ACTIONS = [
   "TRANSFER_OWNERSHIP",
   "IMPORT",
 ] as const;
+
+function entityHref(type: string, id: string): string | null {
+  const t = type.toLowerCase();
+  if (t.includes("animal")) return `/animals/${id}`;
+  if (t.includes("camp")) return `/camps/${id}`;
+  if (t.includes("user") || t.includes("owner")) return `/settings/users/${id}`;
+  if (t.includes("buyer")) return `/buyers/${id}`;
+  return null;
+}
+
+function entityTypeLabel(type: string): string {
+  const map: Record<string, string> = {
+    Animal: "Animal",
+    Camp: "Camp",
+    User: "User",
+    Buyer: "Buyer",
+    HealthRecord: "Health record",
+    WeightLog: "Weight",
+    Vaccination: "Vaccination",
+    Treatment: "Treatment",
+    Movement: "Movement",
+    OtherIncome: "Income",
+    Expense: "Expense",
+    OwnerInvoice: "Owner invoice",
+    OwnerPayment: "Owner payment",
+    OwnerInvoiceBatch: "Invoice batch",
+  };
+  return map[type] || type.replace(/([A-Z])/g, " $1").trim();
+}
 
 export default function AuditLogPage() {
   const t = useT();
@@ -164,41 +195,48 @@ export default function AuditLogPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {logs.map((log) => (
-                    <tr key={log.id} className="border-b align-top">
-                      <td className="p-3 whitespace-nowrap">
-                        {formatDate(log.createdAt)}
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(log.createdAt).toLocaleTimeString()}
-                        </p>
-                      </td>
-                      <td className="p-3">
-                        <p className="font-medium">{log.user.name}</p>
-                        <Badge variant="secondary" className="mt-1">
-                          {ROLE_LABELS[log.user.role]}
-                        </Badge>
-                      </td>
-                      <td className="p-3">
-                        <Badge variant="outline">{log.action.replace(/_/g, " ")}</Badge>
-                      </td>
-                      <td className="p-3">
-                        <p className="font-medium">{log.entityType}</p>
-                        <p className="text-xs text-muted-foreground font-mono break-all">
-                          {log.entityId}
-                        </p>
-                      </td>
-                      <td className="p-3 text-muted-foreground max-w-xs">
-                        {log.changes ? (
-                          <pre className="text-xs whitespace-pre-wrap break-words">
-                            {JSON.stringify(log.changes, null, 0).slice(0, 280)}
-                            {JSON.stringify(log.changes).length > 280 ? "…" : ""}
-                          </pre>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {logs.map((log) => {
+                    const href = entityHref(log.entityType, log.entityId);
+                    return (
+                      <tr key={log.id} className="border-b align-top">
+                        <td className="p-3 whitespace-nowrap">
+                          {formatDate(log.createdAt)}
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(log.createdAt).toLocaleTimeString()}
+                          </p>
+                        </td>
+                        <td className="p-3">
+                          <p className="font-medium">{log.user.name}</p>
+                          <Badge variant="secondary" className="mt-1">
+                            {ROLE_LABELS[log.user.role]}
+                          </Badge>
+                        </td>
+                        <td className="p-3">
+                          <Badge variant="outline">
+                            {log.action.replace(/_/g, " ")}
+                          </Badge>
+                        </td>
+                        <td className="p-3">
+                          <p className="text-xs text-muted-foreground">
+                            {entityTypeLabel(log.entityType)}
+                          </p>
+                          {href ? (
+                            <Link
+                              href={href}
+                              className="font-medium text-primary hover:underline"
+                            >
+                              {log.entityLabel}
+                            </Link>
+                          ) : (
+                            <p className="font-medium">{log.entityLabel}</p>
+                          )}
+                        </td>
+                        <td className="p-3 text-muted-foreground max-w-md">
+                          <p className="text-sm leading-relaxed">{log.summary}</p>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
