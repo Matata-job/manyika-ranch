@@ -3,11 +3,12 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, SlidersHorizontal, X } from "lucide-react";
+import { LayoutGrid, List, Plus, Search, SlidersHorizontal, X } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
@@ -40,6 +41,10 @@ type Filters = {
   pregnant: string;
   sort: string;
 };
+
+type ViewMode = "list" | "grid";
+
+const VIEW_STORAGE_KEY = "manyika.animals.view";
 
 const DEFAULTS: Filters = {
   search: "",
@@ -80,6 +85,40 @@ function filtersFromParams(params: URLSearchParams): Filters {
   };
 }
 
+function sexShort(sex: string) {
+  if (sex === "MALE") return "M";
+  if (sex === "FEMALE") return "F";
+  return "?";
+}
+
+function AnimalStatusBadges({
+  animal,
+  t,
+}: {
+  animal: Animal;
+  t: (key: "castrated" | "pregnant") => string;
+}) {
+  return (
+    <>
+      {animal.sex === "MALE" && animal.isCastrated && (
+        <Badge variant="outline" className="font-normal text-[10px] px-1.5 py-0 h-5">
+          {t("castrated")}
+        </Badge>
+      )}
+      {animal.sex === "FEMALE" && animal.isPregnant && (
+        <Badge variant="warning" className="font-normal text-[10px] px-1.5 py-0 h-5">
+          {t("pregnant")}
+        </Badge>
+      )}
+      {animal.status !== "ACTIVE" && (
+        <Badge variant="secondary" className="font-normal text-[10px] px-1.5 py-0 h-5">
+          {animal.status}
+        </Badge>
+      )}
+    </>
+  );
+}
+
 function AnimalsPageContent() {
   const t = useT();
   const { data: session } = useSession();
@@ -98,6 +137,25 @@ function AnimalsPageContent() {
   const [filters, setFilters] = useState<Filters>(() => filtersFromParams(searchParams));
   const [searchInput, setSearchInput] = useState(filters.search);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(VIEW_STORAGE_KEY);
+      if (stored === "list" || stored === "grid") setViewMode(stored);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  function setView(mode: ViewMode) {
+    setViewMode(mode);
+    try {
+      localStorage.setItem(VIEW_STORAGE_KEY, mode);
+    } catch {
+      /* ignore */
+    }
+  }
 
   useEffect(() => {
     const next = filtersFromParams(searchParams);
@@ -183,13 +241,13 @@ function AnimalsPageContent() {
   }
 
   useEffect(() => {
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       if (searchInput === filters.search) return;
       const next = { ...filters, search: searchInput };
       setFilters(next);
       syncUrl(next);
     }, 300);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [searchInput]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -252,17 +310,52 @@ function AnimalsPageContent() {
             {animals.length >= 300 ? " · first 300" : ""}
           </p>
         </div>
-        {canCreate && (
-          <Link href="/animals/new">
-            <Button size="sm">
-              <Plus className="h-4 w-4 mr-1.5" />
-              {t("addAnimal")}
-            </Button>
-          </Link>
-        )}
+        <div className="flex items-center gap-2">
+          <div
+            className="inline-flex h-9 items-center rounded-lg border border-muted-foreground/20 p-0.5 bg-muted/30"
+            role="group"
+            aria-label="View mode"
+          >
+            <button
+              type="button"
+              onClick={() => setView("list")}
+              className={cn(
+                "inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs transition-colors",
+                viewMode === "list"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              aria-pressed={viewMode === "list"}
+            >
+              <List className="h-3.5 w-3.5" />
+              {t("viewList")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("grid")}
+              className={cn(
+                "inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs transition-colors",
+                viewMode === "grid"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              aria-pressed={viewMode === "grid"}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              {t("viewGrid")}
+            </button>
+          </div>
+          {canCreate && (
+            <Link href="/animals/new">
+              <Button size="sm">
+                <Plus className="h-4 w-4 mr-1.5" />
+                {t("addAnimal")}
+              </Button>
+            </Link>
+          )}
+        </div>
       </div>
 
-      {/* Minimal toolbar: search + sort + filters toggle */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
@@ -310,7 +403,6 @@ function AnimalsPageContent() {
           </Button>
         </div>
 
-        {/* Quiet quick presets */}
         <div className="flex gap-1.5 overflow-x-auto scrollbar-none -mx-1 px-1">
           {[
             { id: "all", label: t("all") },
@@ -345,7 +437,6 @@ function AnimalsPageContent() {
           )}
         </div>
 
-        {/* Advanced filters — hidden by default */}
         {filtersOpen && (
           <div className="rounded-lg border border-muted-foreground/15 bg-muted/20 p-4 space-y-3 animate-in fade-in-0">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
@@ -398,7 +489,9 @@ function AnimalsPageContent() {
                 <SelectContent>
                   <SelectItem value="all">All breeds</SelectItem>
                   {breeds.map((b) => (
-                    <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
+                    <SelectItem key={b.id} value={b.name}>
+                      {b.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -410,7 +503,9 @@ function AnimalsPageContent() {
                 <SelectContent>
                   <SelectItem value="all">All camps</SelectItem>
                   {camps.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -449,7 +544,9 @@ function AnimalsPageContent() {
                 <SelectContent>
                   <SelectItem value="all">All owners</SelectItem>
                   {owners.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                    <SelectItem key={o.id} value={o.id}>
+                      {o.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -461,88 +558,105 @@ function AnimalsPageContent() {
       {loading ? (
         <p className="text-sm text-muted-foreground">{t("loading")}</p>
       ) : animals.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-12 text-center">
-          {t("noAnimals")}
-        </p>
+        <p className="text-sm text-muted-foreground py-12 text-center">{t("noAnimals")}</p>
+      ) : viewMode === "list" ? (
+        <div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
+          <div className="hidden sm:grid grid-cols-[3rem_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_5.5rem] gap-3 px-4 py-2.5 text-[11px] uppercase tracking-wide text-muted-foreground border-b border-border/60 bg-muted/30">
+            <span />
+            <span>{t("eartag")}</span>
+            <span>{t("breed")}</span>
+            <span>{t("camp")}</span>
+            <span className="text-right">{t("age")}</span>
+          </div>
+          <ul className="divide-y divide-border/50">
+            {animals.map((animal) => (
+              <li key={animal.id}>
+                <Link
+                  href={`/animals/${animal.id}`}
+                  className="group grid grid-cols-[3rem_1fr] sm:grid-cols-[3rem_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_5.5rem] gap-3 items-center px-4 py-3 hover:bg-muted/35 transition-colors"
+                >
+                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-muted ring-1 ring-border/60">
+                    {animal.photoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={animal.photoUrl}
+                        alt=""
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center text-sm font-semibold text-muted-foreground/80">
+                        {sexShort(animal.sex)}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold tracking-tight truncate group-hover:text-primary transition-colors">
+                        {animal.eartag}
+                      </span>
+                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
+                        {sexShort(animal.sex)}
+                      </span>
+                      <AnimalStatusBadges animal={animal} t={t} />
+                    </div>
+                    <p className="sm:hidden text-sm text-muted-foreground truncate mt-0.5">
+                      {animal.breed} · {animal.camp.name} · {formatAge(animal.ageMonths, ageMode)}
+                    </p>
+                  </div>
+
+                  <p className="hidden sm:block text-sm text-muted-foreground truncate">
+                    {animal.breed}
+                  </p>
+                  <p className="hidden sm:block text-sm text-muted-foreground truncate">
+                    {animal.camp.name}
+                  </p>
+                  <p className="hidden sm:block text-sm text-muted-foreground text-right tabular-nums">
+                    {formatAge(animal.ageMonths, ageMode)}
+                  </p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : (
-        <ul className="divide-y divide-border/60 rounded-lg border border-muted-foreground/10 bg-background overflow-hidden">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {animals.map((animal) => (
-            <li key={animal.id}>
-              <Link
-                href={`/animals/${animal.id}`}
-                className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/40 transition-colors"
-              >
-                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-muted/60 ring-1 ring-border/50">
+            <Link key={animal.id} href={`/animals/${animal.id}`}>
+              <Card className="overflow-hidden h-full border-muted-foreground/10 shadow-none hover:border-muted-foreground/25 transition-colors">
+                <div className="aspect-[4/3] bg-muted/50 flex items-center justify-center">
                   {animal.photoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={animal.photoUrl}
-                      alt=""
-                      className="h-full w-full object-cover"
+                      alt={animal.eartag}
+                      className="w-full h-full object-cover"
                     />
                   ) : (
-                    <span
-                      className="flex h-full w-full items-center justify-center text-xs font-medium text-muted-foreground"
-                      aria-hidden
-                    >
-                      {animal.sex === "MALE"
-                        ? "M"
-                        : animal.sex === "FEMALE"
-                          ? "F"
-                          : "?"}
+                    <span className="text-xs tracking-widest text-muted-foreground/50 uppercase">
+                      {t("noPhoto")}
                     </span>
                   )}
                 </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium tracking-tight truncate">
-                      {animal.eartag}
-                    </span>
-                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground tabular-nums">
-                      {animal.sex === "MALE"
-                        ? "M"
-                        : animal.sex === "FEMALE"
-                          ? "F"
-                          : "?"}
-                    </span>
-                    {animal.sex === "MALE" && animal.isCastrated && (
-                      <Badge
-                        variant="outline"
-                        className="font-normal text-[10px] px-1.5 py-0 h-5"
-                      >
-                        {t("castrated")}
+                <div className="p-3.5 space-y-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-medium tracking-tight">{animal.eartag}</h3>
+                    <div className="flex gap-1 flex-wrap justify-end">
+                      <Badge variant="secondary" className="font-normal text-[10px] px-1.5">
+                        {sexShort(animal.sex)}
                       </Badge>
-                    )}
-                    {animal.sex === "FEMALE" && animal.isPregnant && (
-                      <Badge
-                        variant="warning"
-                        className="font-normal text-[10px] px-1.5 py-0 h-5"
-                      >
-                        {t("pregnant")}
-                      </Badge>
-                    )}
-                    {animal.status !== "ACTIVE" && (
-                      <Badge
-                        variant="secondary"
-                        className="font-normal text-[10px] px-1.5 py-0 h-5"
-                      >
-                        {animal.status}
-                      </Badge>
-                    )}
+                      <AnimalStatusBadges animal={animal} t={t} />
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground truncate">
-                    {animal.breed}
-                    <span className="text-muted-foreground/50"> · </span>
-                    {animal.camp.name}
-                    <span className="text-muted-foreground/50"> · </span>
-                    {formatAge(animal.ageMonths, ageMode)}
+                  <p className="text-sm text-muted-foreground">{animal.breed}</p>
+                  <p className="text-xs text-muted-foreground/80">
+                    {animal.camp.name} · {formatAge(animal.ageMonths, ageMode)}
                   </p>
                 </div>
-              </Link>
-            </li>
+              </Card>
+            </Link>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );

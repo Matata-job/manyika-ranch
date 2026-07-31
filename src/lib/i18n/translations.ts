@@ -182,6 +182,9 @@ const en = {
   calves: "Calves (<12 mo)",
   weaners: "Weaners (12–24 mo)",
   adults: "Adults (24+ mo)",
+  viewList: "List",
+  viewGrid: "Photos",
+  noPhoto: "No photo",
 
   // Camps
   campsTitle: "Camps",
@@ -754,6 +757,9 @@ const sw: Dict = {
   calves: "Ndama (< miezi 12)",
   weaners: "Waliyoachishwa (miezi 12–24)",
   adults: "Wazima (miezi 24+)",
+  viewList: "Orodha",
+  viewGrid: "Picha",
+  noPhoto: "Hakuna picha",
 
   campsTitle: "Kambi",
   campsSubtitle: "Maeneo ya malisho na mahali pa mifugo",
