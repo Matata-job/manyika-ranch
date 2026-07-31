@@ -20,6 +20,13 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Bundle Sept 2025 camp JSON + import helpers for OWNER apply on Vercel
+  outputFileTracingIncludes: {
+    "/api/admin/import-camps": [
+      "./data/imports/**/*",
+      "./scripts/import-camps/**/*",
+    ],
+  },
 };
 
 export default withSerwist(nextConfig);
