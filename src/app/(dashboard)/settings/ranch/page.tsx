@@ -43,6 +43,11 @@ export default function RanchSettingsPage() {
     });
     setSaving(false);
     if (res.ok) {
+      const data = await res.json();
+      if (data.grazingFeePerAnimalTzs != null) {
+        setGrazingFee(String(data.grazingFeePerAnimalTzs));
+      }
+      if (data.ageDisplayMode) setMode(data.ageDisplayMode);
       setMessage(t("saved"));
     } else {
       const err = await res.json().catch(() => ({}));
@@ -75,22 +80,32 @@ export default function RanchSettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>{t("grazingFeeRate")}</Label>
+            <Label htmlFor="grazing-fee">{t("grazingFeeRate")}</Label>
             <Input
+              id="grazing-fee"
               type="number"
               min={0}
               step={1000}
               value={grazingFee}
-              onChange={(e) => setGrazingFee(e.target.value)}
+              onChange={(e) => {
+                setGrazingFee(e.target.value);
+                setMessage("");
+              }}
               placeholder="e.g. 5000"
             />
             <p className="text-sm text-muted-foreground">
               {t("grazingFeeRateHelp")}
             </p>
           </div>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/owners">{t("navOwnersBilling")}</Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={save} disabled={saving}>
+              {saving ? t("saving") : t("save")}
+            </Button>
+            <Button asChild variant="outline" size="default">
+              <Link href="/owners">{t("navOwnersBilling")}</Link>
+            </Button>
+          </div>
+          {message && <p className="text-sm text-muted-foreground">{message}</p>}
         </CardContent>
       </Card>
 
@@ -101,7 +116,13 @@ export default function RanchSettingsPage() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>{t("howAgeShown")}</Label>
-            <Select value={mode} onValueChange={(v) => setMode(v as AgeDisplayMode)}>
+            <Select
+              value={mode}
+              onValueChange={(v) => {
+                setMode(v as AgeDisplayMode);
+                setMessage("");
+              }}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>

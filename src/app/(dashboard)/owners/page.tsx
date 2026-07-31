@@ -70,6 +70,8 @@ export default function OwnersBillingPage() {
 
   const now = new Date();
   const [rateTzs, setRateTzs] = useState(0);
+  const [rateDraft, setRateDraft] = useState("");
+  const [savingRate, setSavingRate] = useState(false);
   const [owners, setOwners] = useState<OwnerRow[]>([]);
   const [totals, setTotals] = useState({
     owners: 0,
@@ -96,7 +98,9 @@ export default function OwnersBillingPage() {
     ]);
     if (summaryRes.ok) {
       const data = await summaryRes.json();
-      setRateTzs(data.rateTzs || 0);
+      const rate = data.rateTzs || 0;
+      setRateTzs(rate);
+      setRateDraft(rate > 0 ? String(rate) : "");
       setOwners(data.owners || []);
       setTotals(data.totals || totals);
     }
@@ -109,6 +113,31 @@ export default function OwnersBillingPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  async function saveRate() {
+    if (!canManage) return;
+    setSavingRate(true);
+    setMessage("");
+    const res = await fetch("/api/ranch/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        grazingFeePerAnimalTzs: rateDraft === "" ? 0 : rateDraft,
+      }),
+    });
+    setSavingRate(false);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      setMessage(err.error || t("failedToSave"));
+      return;
+    }
+    const data = await res.json();
+    const rate = data.grazingFeePerAnimalTzs ?? 0;
+    setRateTzs(rate);
+    setRateDraft(rate > 0 ? String(rate) : "");
+    setMessage(t("saved"));
+    load();
+  }
 
   async function generate() {
     if (rateTzs <= 0) {
@@ -220,10 +249,33 @@ export default function OwnersBillingPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">{t("grazingFeeRate")}</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
-              {rateTzs > 0 ? formatCurrency(rateTzs) : "—"}
-            </p>
+          <CardContent className="space-y-2">
+            {canManage ? (
+              <>
+                <Input
+                  type="number"
+                  min={0}
+                  step={1000}
+                  value={rateDraft}
+                  onChange={(e) => {
+                    setRateDraft(e.target.value);
+                    setMessage("");
+                  }}
+                  placeholder="e.g. 5000"
+                />
+                <Button
+                  size="sm"
+                  onClick={saveRate}
+                  disabled={savingRate}
+                >
+                  {savingRate ? t("saving") : t("save")}
+                </Button>
+              </>
+            ) : (
+              <p className="text-2xl font-bold">
+                {rateTzs > 0 ? formatCurrency(rateTzs) : "—"}
+              </p>
+            )}
           </CardContent>
         </Card>
         <Card>
