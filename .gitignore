@@ -33,6 +33,10 @@ yarn-error.log*
 /public/uploads/*
 !/public/uploads/.gitkeep
 
+# Camp import local deps + generated review artifacts
+.python-libs/
+/data/imports/*-ocr.txt
+
 # Serwist build output
 /public/sw.js
 /public/sw.js.map

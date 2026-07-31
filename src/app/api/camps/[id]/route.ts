@@ -74,6 +74,11 @@ export async function PATCH(
     data.waterSources = body.waterSources?.trim() || null;
   }
   if (body.notes !== undefined) data.notes = body.notes?.trim() || null;
+  if (body.code !== undefined) data.code = body.code?.trim() || null;
+  if (body.tagColor !== undefined) data.tagColor = body.tagColor?.trim() || null;
+  if (body.legacyCode !== undefined) {
+    data.legacyCode = body.legacyCode?.trim() || null;
+  }
 
   const camp = await prisma.camp.update({
     where: { id },

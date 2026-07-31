@@ -61,6 +61,9 @@ export async function POST(req: NextRequest) {
     data: {
       ranchId: result.user.ranchId,
       name: body.name.trim(),
+      code: body.code?.trim() || null,
+      tagColor: body.tagColor?.trim() || null,
+      legacyCode: body.legacyCode?.trim() || null,
       latitude: parseOptionalFloat(body.latitude) ?? null,
       longitude: parseOptionalFloat(body.longitude) ?? null,
       sizeAcres: parseOptionalFloat(body.sizeAcres) ?? null,

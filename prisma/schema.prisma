@@ -212,6 +212,12 @@ model Camp {
   ranchId      String
   ranch        Ranch                @relation(fields: [ranchId], references: [id])
   name         String
+  /** Permanent ranch camp code, e.g. MR-01. Never tied to supervisor names. */
+  code         String?
+  /** Eartag colour used at the camp (NJANO, BLUE, KIJANI, …) */
+  tagColor     String?
+  /** Previous sheet codes e.g. GID01 — historical only */
+  legacyCode   String?
   latitude     Float?
   longitude    Float?
   /** Farm / camp size in acres */
@@ -230,6 +236,8 @@ model Camp {
   expenses     Expense[]
   otherIncomes OtherIncome[]
   photos       CampPhoto[]
+
+  @@unique([ranchId, code])
 }
 
 model CampPhoto {

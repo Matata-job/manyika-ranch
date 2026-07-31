@@ -1,0 +1,543 @@
+{
+  "generatedAt": "2026-07-31T07:06:49.472Z",
+  "totalAnimals": 488,
+  "totalNeedsReview": 26,
+  "camps": [
+    {
+      "code": "MR-01",
+      "name": "Gidion Kwa Mwilwa",
+      "counts": {
+        "total": 41,
+        "male": 22,
+        "female": 18,
+        "unknownSex": 1,
+        "ndama": 10,
+        "sKati": 7,
+        "kubwa": 22,
+        "needsReview": 2
+      },
+      "untaggedNotes": [],
+      "needsReview": [
+        "MR-01-010: missing sex; missing/unknown age class",
+        "MR-01-012: missing/unknown age class"
+      ],
+      "sampleAnimals": [
+        {
+          "eartag": "MR-01-010",
+          "sex": null,
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "missing sex; missing/unknown age class"
+        },
+        {
+          "eartag": "MR-01-012",
+          "sex": "MALE",
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "missing/unknown age class"
+        }
+      ]
+    },
+    {
+      "code": "MR-02",
+      "name": "Mashaka",
+      "counts": {
+        "total": 39,
+        "male": 22,
+        "female": 17,
+        "unknownSex": 0,
+        "ndama": 10,
+        "sKati": 1,
+        "kubwa": 28,
+        "needsReview": 0
+      },
+      "untaggedNotes": [
+        "Jumla : 40",
+        "Mmoja hajawekewa",
+        "Chibago = 5 ( 3 noted ),          Kimwala = 5 ( 3 noted ),       Mno\\\rkote 5 ( 3 noted )",
+        "Chibago = 5 ( 3 noted ),          Kimwala = 5 ( 3 noted ),       Mnokote 5 ( 3 noted )"
+      ],
+      "needsReview": [],
+      "sampleAnimals": []
+    },
+    {
+      "code": "MR-03",
+      "name": "Bosko Chiumbo",
+      "counts": {
+        "total": 53,
+        "male": 21,
+        "female": 30,
+        "unknownSex": 2,
+        "ndama": 29,
+        "sKati": 0,
+        "kubwa": 23,
+        "needsReview": 2
+      },
+      "untaggedNotes": [
+        "Jumla: 58",
+        "5 Hazijawekewa Alama",
+        "Maelezo: 5 Hazijawekewa Alama"
+      ],
+      "needsReview": [
+        "MR-03-055: PDF spatial parse — verify; missing sex",
+        "MR-03-064: PDF spatial parse — verify; missing sex; missing/unknown age class"
+      ],
+      "sampleAnimals": [
+        {
+          "eartag": "MR-03-055",
+          "sex": null,
+          "ageClass": "Kubwa",
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "PDF spatial parse — verify; missing sex"
+        },
+        {
+          "eartag": "MR-03-064",
+          "sex": null,
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "PDF spatial parse — verify; missing sex; missing/unknown age class"
+        }
+      ]
+    },
+    {
+      "code": "MR-04",
+      "name": "Boni",
+      "counts": {
+        "total": 44,
+        "male": 20,
+        "female": 24,
+        "unknownSex": 0,
+        "ndama": 12,
+        "sKati": 0,
+        "kubwa": 30,
+        "needsReview": 2
+      },
+      "untaggedNotes": [
+        "Jumla: 55",
+        "Ndama 6 hazijawekewa"
+      ],
+      "needsReview": [
+        "MR-04-041: PDF spatial parse — verify; missing/unknown age class",
+        "MR-04-042: PDF spatial parse — verify; missing/unknown age class"
+      ],
+      "sampleAnimals": [
+        {
+          "eartag": "MR-04-041",
+          "sex": "FEMALE",
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "PDF spatial parse — verify; missing/unknown age class"
+        },
+        {
+          "eartag": "MR-04-042",
+          "sex": "FEMALE",
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "PDF spatial parse — verify; missing/unknown age class"
+        }
+      ]
+    },
+    {
+      "code": "MR-05",
+      "name": "Gwanda",
+      "counts": {
+        "total": 54,
+        "male": 29,
+        "female": 24,
+        "unknownSex": 1,
+        "ndama": 20,
+        "sKati": 0,
+        "kubwa": 33,
+        "needsReview": 1
+      },
+      "untaggedNotes": [
+        "Jumla : 54"
+      ],
+      "needsReview": [
+        "MR-05-024: PDF spatial parse — verify; missing sex; missing/unknown age class"
+      ],
+      "sampleAnimals": [
+        {
+          "eartag": "MR-05-024",
+          "sex": null,
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "PDF spatial parse — verify; missing sex; missing/unknown age class"
+        }
+      ]
+    },
+    {
+      "code": "MR-06",
+      "name": "Chipanta",
+      "counts": {
+        "total": 52,
+        "male": 26,
+        "female": 25,
+        "unknownSex": 1,
+        "ndama": 27,
+        "sKati": 0,
+        "kubwa": 24,
+        "needsReview": 1
+      },
+      "untaggedNotes": [
+        "Jumla : 54",
+        "Jumla : 52"
+      ],
+      "needsReview": [
+        "MR-06-016: PDF spatial parse — verify; missing sex; missing/unknown age class"
+      ],
+      "sampleAnimals": [
+        {
+          "eartag": "MR-06-016",
+          "sex": null,
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "PDF spatial parse — verify; missing sex; missing/unknown age class"
+        }
+      ]
+    },
+    {
+      "code": "MR-07",
+      "name": "Mwanampiti",
+      "counts": {
+        "total": 18,
+        "male": 12,
+        "female": 6,
+        "unknownSex": 0,
+        "ndama": 4,
+        "sKati": 0,
+        "kubwa": 13,
+        "needsReview": 1
+      },
+      "untaggedNotes": [
+        "Jumla :  16",
+        "zimewekwa alama kimakosa.",
+        "053 na 055 ni za mwanaMpiti zimewekwa alama kimakosa."
+      ],
+      "needsReview": [
+        "MR-07-066: PDF spatial parse — verify; missing/unknown age class"
+      ],
+      "sampleAnimals": [
+        {
+          "eartag": "MR-07-066",
+          "sex": "MALE",
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "PDF spatial parse — verify; missing/unknown age class"
+        }
+      ]
+    },
+    {
+      "code": "MR-08",
+      "name": "Chugulu",
+      "counts": {
+        "total": 33,
+        "male": 8,
+        "female": 25,
+        "unknownSex": 0,
+        "ndama": 13,
+        "sKati": 0,
+        "kubwa": 18,
+        "needsReview": 2
+      },
+      "untaggedNotes": [
+        "Jumla : 33",
+        "Nkonko, Usalama"
+      ],
+      "needsReview": [
+        "MR-08-058: missing/unknown age class",
+        "MR-08-065: missing/unknown age class"
+      ],
+      "sampleAnimals": [
+        {
+          "eartag": "MR-08-058",
+          "sex": "FEMALE",
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "missing/unknown age class"
+        },
+        {
+          "eartag": "MR-08-065",
+          "sex": "FEMALE",
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "missing/unknown age class"
+        }
+      ]
+    },
+    {
+      "code": "MR-09",
+      "name": "Siida",
+      "counts": {
+        "total": 45,
+        "male": 15,
+        "female": 29,
+        "unknownSex": 1,
+        "ndama": 18,
+        "sKati": 0,
+        "kubwa": 23,
+        "needsReview": 4
+      },
+      "untaggedNotes": [
+        "Jumla : 46",
+        "Nkonko, Usalama"
+      ],
+      "needsReview": [
+        "MR-09-015: PDF spatial parse — verify; missing/unknown age class",
+        "MR-09-022: PDF spatial parse — verify; missing/unknown age class",
+        "MR-09-025: PDF spatial parse — verify; missing/unknown age class",
+        "MR-09-033: PDF spatial parse — verify; missing sex; missing/unknown age class"
+      ],
+      "sampleAnimals": [
+        {
+          "eartag": "MR-09-015",
+          "sex": "FEMALE",
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "PDF spatial parse — verify; missing/unknown age class"
+        },
+        {
+          "eartag": "MR-09-022",
+          "sex": "FEMALE",
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "PDF spatial parse — verify; missing/unknown age class"
+        },
+        {
+          "eartag": "MR-09-025",
+          "sex": "FEMALE",
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "PDF spatial parse — verify; missing/unknown age class"
+        },
+        {
+          "eartag": "MR-09-033",
+          "sex": null,
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "PDF spatial parse — verify; missing sex; missing/unknown age class"
+        }
+      ]
+    },
+    {
+      "code": "MR-10",
+      "name": "Isdory",
+      "counts": {
+        "total": 25,
+        "male": 13,
+        "female": 11,
+        "unknownSex": 1,
+        "ndama": 6,
+        "sKati": 0,
+        "kubwa": 19,
+        "needsReview": 1
+      },
+      "untaggedNotes": [
+        "Jumla : 27",
+        "Bado 2 hazijawekewa"
+      ],
+      "needsReview": [
+        "MR-10-054: PDF spatial parse — verify; missing sex"
+      ],
+      "sampleAnimals": [
+        {
+          "eartag": "MR-10-054",
+          "sex": null,
+          "ageClass": "Ndama",
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "PDF spatial parse — verify; missing sex"
+        }
+      ]
+    },
+    {
+      "code": "MR-11",
+      "name": "Miraji",
+      "counts": {
+        "total": 0,
+        "male": 0,
+        "female": 0,
+        "unknownSex": 0,
+        "ndama": 0,
+        "sKati": 0,
+        "kubwa": 0,
+        "needsReview": 0
+      },
+      "untaggedNotes": [
+        "Jumla : 25",
+        "24 Zina Hereni, 1 haina"
+      ],
+      "needsReview": [
+        "PDF extract produced no animal rows (pymupdf-spatial). Handwritten sheet or empty template — see untaggedNotes."
+      ],
+      "sampleAnimals": []
+    },
+    {
+      "code": "MR-12",
+      "name": "Nyau",
+      "counts": {
+        "total": 21,
+        "male": 9,
+        "female": 12,
+        "unknownSex": 0,
+        "ndama": 9,
+        "sKati": 0,
+        "kubwa": 12,
+        "needsReview": 0
+      },
+      "untaggedNotes": [
+        "Jumla : 21"
+      ],
+      "needsReview": [],
+      "sampleAnimals": []
+    },
+    {
+      "code": "MR-13",
+      "name": "Mahona",
+      "counts": {
+        "total": 19,
+        "male": 2,
+        "female": 8,
+        "unknownSex": 9,
+        "ndama": 0,
+        "sKati": 0,
+        "kubwa": 10,
+        "needsReview": 9
+      },
+      "untaggedNotes": [
+        "JUMLA : 19"
+      ],
+      "needsReview": [
+        "MR-13-005: PDF spatial parse — verify; missing sex; missing/unknown age class",
+        "MR-13-011: PDF spatial parse — verify; missing sex; missing/unknown age class",
+        "MR-13-012: PDF spatial parse — verify; missing sex; missing/unknown age class",
+        "MR-13-013: PDF spatial parse — verify; missing sex; missing/unknown age class",
+        "MR-13-014: PDF spatial parse — verify; missing sex; missing/unknown age class",
+        "MR-13-015: PDF spatial parse — verify; missing sex; missing/unknown age class",
+        "MR-13-017: PDF spatial parse — verify; missing sex; missing/unknown age class",
+        "MR-13-018: PDF spatial parse — verify; missing sex; missing/unknown age class",
+        "MR-13-020: PDF spatial parse — verify; missing sex; missing/unknown age class"
+      ],
+      "sampleAnimals": [
+        {
+          "eartag": "MR-13-005",
+          "sex": null,
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "PDF spatial parse — verify; missing sex; missing/unknown age class"
+        },
+        {
+          "eartag": "MR-13-011",
+          "sex": null,
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "PDF spatial parse — verify; missing sex; missing/unknown age class"
+        },
+        {
+          "eartag": "MR-13-012",
+          "sex": null,
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "PDF spatial parse — verify; missing sex; missing/unknown age class"
+        },
+        {
+          "eartag": "MR-13-013",
+          "sex": null,
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "PDF spatial parse — verify; missing sex; missing/unknown age class"
+        },
+        {
+          "eartag": "MR-13-014",
+          "sex": null,
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "PDF spatial parse — verify; missing sex; missing/unknown age class"
+        },
+        {
+          "eartag": "MR-13-015",
+          "sex": null,
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "PDF spatial parse — verify; missing sex; missing/unknown age class"
+        },
+        {
+          "eartag": "MR-13-017",
+          "sex": null,
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "PDF spatial parse — verify; missing sex; missing/unknown age class"
+        },
+        {
+          "eartag": "MR-13-018",
+          "sex": null,
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "PDF spatial parse — verify; missing sex; missing/unknown age class"
+        },
+        {
+          "eartag": "MR-13-020",
+          "sex": null,
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "PDF spatial parse — verify; missing sex; missing/unknown age class"
+        }
+      ]
+    },
+    {
+      "code": "MR-14",
+      "name": "Christopher",
+      "counts": {
+        "total": 44,
+        "male": 17,
+        "female": 27,
+        "unknownSex": 0,
+        "ndama": 17,
+        "sKati": 0,
+        "kubwa": 26,
+        "needsReview": 1
+      },
+      "untaggedNotes": [
+        "Jumla : 45",
+        "Nkonko, Usalama"
+      ],
+      "needsReview": [
+        "MR-14-081: PDF spatial parse — verify; missing/unknown age class"
+      ],
+      "sampleAnimals": [
+        {
+          "eartag": "MR-14-081",
+          "sex": "FEMALE",
+          "ageClass": null,
+          "breed": "KIENYEJI - Zebu",
+          "ownerKey": "OWNER",
+          "reason": "PDF spatial parse — verify; missing/unknown age class"
+        }
+      ]
+    }
+  ]
+}

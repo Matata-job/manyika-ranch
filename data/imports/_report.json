@@ -1,0 +1,272 @@
+{
+  "generatedAt": "2026-07-31T07:06:40.569Z",
+  "camps": [
+    {
+      "code": "MR-01",
+      "name": "Gidion Kwa Mwilwa",
+      "counts": {
+        "total": 41,
+        "male": 22,
+        "female": 18,
+        "unknownSex": 1,
+        "ndama": 10,
+        "sKati": 7,
+        "kubwa": 22,
+        "needsReview": 2
+      },
+      "untaggedNotes": [],
+      "needsReviewCount": 2
+    },
+    {
+      "code": "MR-02",
+      "name": "Mashaka",
+      "counts": {
+        "total": 39,
+        "male": 22,
+        "female": 17,
+        "unknownSex": 0,
+        "ndama": 10,
+        "sKati": 1,
+        "kubwa": 28,
+        "needsReview": 0
+      },
+      "untaggedNotes": [
+        "Jumla : 40",
+        "Mmoja hajawekewa",
+        "Chibago = 5 ( 3 noted ),          Kimwala = 5 ( 3 noted ),       Mno\\\rkote 5 ( 3 noted )",
+        "Chibago = 5 ( 3 noted ),          Kimwala = 5 ( 3 noted ),       Mnokote 5 ( 3 noted )"
+      ],
+      "needsReviewCount": 0
+    },
+    {
+      "code": "MR-03",
+      "name": "Bosko Chiumbo",
+      "counts": {
+        "total": 53,
+        "male": 21,
+        "female": 30,
+        "unknownSex": 2,
+        "ndama": 29,
+        "sKati": 0,
+        "kubwa": 23,
+        "needsReview": 2
+      },
+      "untaggedNotes": [
+        "Jumla: 58",
+        "5 Hazijawekewa Alama",
+        "Maelezo: 5 Hazijawekewa Alama"
+      ],
+      "needsReviewCount": 2
+    },
+    {
+      "code": "MR-04",
+      "name": "Boni",
+      "counts": {
+        "total": 44,
+        "male": 20,
+        "female": 24,
+        "unknownSex": 0,
+        "ndama": 12,
+        "sKati": 0,
+        "kubwa": 30,
+        "needsReview": 2
+      },
+      "untaggedNotes": [
+        "Jumla: 55",
+        "Ndama 6 hazijawekewa"
+      ],
+      "needsReviewCount": 2
+    },
+    {
+      "code": "MR-05",
+      "name": "Gwanda",
+      "counts": {
+        "total": 54,
+        "male": 29,
+        "female": 24,
+        "unknownSex": 1,
+        "ndama": 20,
+        "sKati": 0,
+        "kubwa": 33,
+        "needsReview": 1
+      },
+      "untaggedNotes": [
+        "Jumla : 54"
+      ],
+      "needsReviewCount": 1
+    },
+    {
+      "code": "MR-06",
+      "name": "Chipanta",
+      "counts": {
+        "total": 52,
+        "male": 26,
+        "female": 25,
+        "unknownSex": 1,
+        "ndama": 27,
+        "sKati": 0,
+        "kubwa": 24,
+        "needsReview": 1
+      },
+      "untaggedNotes": [
+        "Jumla : 54",
+        "Jumla : 52"
+      ],
+      "needsReviewCount": 1
+    },
+    {
+      "code": "MR-07",
+      "name": "Mwanampiti",
+      "counts": {
+        "total": 18,
+        "male": 12,
+        "female": 6,
+        "unknownSex": 0,
+        "ndama": 4,
+        "sKati": 0,
+        "kubwa": 13,
+        "needsReview": 1
+      },
+      "untaggedNotes": [
+        "Jumla :  16",
+        "zimewekwa alama kimakosa.",
+        "053 na 055 ni za mwanaMpiti zimewekwa alama kimakosa."
+      ],
+      "needsReviewCount": 1
+    },
+    {
+      "code": "MR-08",
+      "name": "Chugulu",
+      "counts": {
+        "total": 33,
+        "male": 8,
+        "female": 25,
+        "unknownSex": 0,
+        "ndama": 13,
+        "sKati": 0,
+        "kubwa": 18,
+        "needsReview": 2
+      },
+      "untaggedNotes": [
+        "Jumla : 33",
+        "Nkonko, Usalama"
+      ],
+      "needsReviewCount": 2
+    },
+    {
+      "code": "MR-09",
+      "name": "Siida",
+      "counts": {
+        "total": 45,
+        "male": 15,
+        "female": 29,
+        "unknownSex": 1,
+        "ndama": 18,
+        "sKati": 0,
+        "kubwa": 23,
+        "needsReview": 4
+      },
+      "untaggedNotes": [
+        "Jumla : 46",
+        "Nkonko, Usalama"
+      ],
+      "needsReviewCount": 4
+    },
+    {
+      "code": "MR-10",
+      "name": "Isdory",
+      "counts": {
+        "total": 25,
+        "male": 13,
+        "female": 11,
+        "unknownSex": 1,
+        "ndama": 6,
+        "sKati": 0,
+        "kubwa": 19,
+        "needsReview": 1
+      },
+      "untaggedNotes": [
+        "Jumla : 27",
+        "Bado 2 hazijawekewa"
+      ],
+      "needsReviewCount": 1
+    },
+    {
+      "code": "MR-11",
+      "name": "Miraji",
+      "counts": {
+        "total": 0,
+        "male": 0,
+        "female": 0,
+        "unknownSex": 0,
+        "ndama": 0,
+        "sKati": 0,
+        "kubwa": 0,
+        "needsReview": 0
+      },
+      "untaggedNotes": [
+        "Jumla : 25",
+        "24 Zina Hereni, 1 haina"
+      ],
+      "needsReviewCount": 1
+    },
+    {
+      "code": "MR-12",
+      "name": "Nyau",
+      "counts": {
+        "total": 21,
+        "male": 9,
+        "female": 12,
+        "unknownSex": 0,
+        "ndama": 9,
+        "sKati": 0,
+        "kubwa": 12,
+        "needsReview": 0
+      },
+      "untaggedNotes": [
+        "Jumla : 21"
+      ],
+      "needsReviewCount": 0
+    },
+    {
+      "code": "MR-13",
+      "name": "Mahona",
+      "counts": {
+        "total": 19,
+        "male": 2,
+        "female": 8,
+        "unknownSex": 9,
+        "ndama": 0,
+        "sKati": 0,
+        "kubwa": 10,
+        "needsReview": 9
+      },
+      "untaggedNotes": [
+        "JUMLA : 19"
+      ],
+      "needsReviewCount": 9
+    },
+    {
+      "code": "MR-14",
+      "name": "Christopher",
+      "counts": {
+        "total": 44,
+        "male": 17,
+        "female": 27,
+        "unknownSex": 0,
+        "ndama": 17,
+        "sKati": 0,
+        "kubwa": 26,
+        "needsReview": 1
+      },
+      "untaggedNotes": [
+        "Jumla : 45",
+        "Nkonko, Usalama"
+      ],
+      "needsReviewCount": 1
+    }
+  ],
+  "totalAnimals": 488,
+  "totalReview": 26,
+  "campCount": 14
+}

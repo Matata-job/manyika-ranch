@@ -1,0 +1,33 @@
+{
+  "code": "MR-11",
+  "name": "Miraji",
+  "legacyCode": "MRJ11",
+  "supervisorName": "Miraji",
+  "supervisorEmail": "supervisor.mr11@manyikaranch.co.tz",
+  "summaryNotes": [
+    "Jumla : 25",
+    "Maelezo:",
+    "24 Zina Hereni, 1 haina"
+  ],
+  "untaggedNotes": [
+    "Jumla : 25",
+    "24 Zina Hereni, 1 haina"
+  ],
+  "animals": [],
+  "counts": {
+    "total": 0,
+    "male": 0,
+    "female": 0,
+    "unknownSex": 0,
+    "ndama": 0,
+    "sKati": 0,
+    "kubwa": 0,
+    "needsReview": 0
+  },
+  "needsReview": [
+    "PDF extract produced no animal rows (pymupdf-spatial). Handwritten sheet or empty template — see untaggedNotes."
+  ],
+  "sourceFiles": [
+    "/Users/john/Desktop/cattle Project/Manyika Ranch/CAMP RECORD SEPT 2025/1 ZOTE ZIPO HAPA/CAMP 11 - Miraji  (MRJ11).pdf"
+  ]
+}

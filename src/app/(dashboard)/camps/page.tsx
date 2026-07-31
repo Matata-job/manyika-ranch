@@ -24,7 +24,7 @@ export default async function CampsPage() {
       _count: { select: { animals: { where: { status: "ACTIVE" } } } },
       assignments: { include: { user: { select: { name: true } } } },
     },
-    orderBy: { name: "asc" },
+    orderBy: [{ code: "asc" }, { name: "asc" }],
   });
 
   return (
@@ -55,7 +55,14 @@ export default async function CampsPage() {
             <Link key={camp.id} href={`/camps/${camp.id}`}>
               <Card className="hover:shadow-md transition-shadow h-full">
                 <CardHeader>
-                  <CardTitle>{camp.name}</CardTitle>
+                  <CardTitle className="flex flex-wrap items-baseline gap-2">
+                    <span>{camp.name}</span>
+                    {camp.code && (
+                      <span className="text-sm font-normal text-muted-foreground">
+                        {camp.code}
+                      </span>
+                    )}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <p className="text-2xl font-bold">{camp._count.animals} {t("animalsTitle").toLowerCase()}</p>

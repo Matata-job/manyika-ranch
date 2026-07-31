@@ -30,6 +30,9 @@ const CampLocationPicker = dynamic(
 interface CampDetail {
   id: string;
   name: string;
+  code?: string | null;
+  tagColor?: string | null;
+  legacyCode?: string | null;
   latitude: number | null;
   longitude: number | null;
   sizeAcres: number | null;
@@ -151,9 +154,11 @@ export default function CampDetailPage() {
           <div>
             <h1 className="text-3xl font-bold">{camp.name}</h1>
             <p className="text-muted-foreground">
+              {camp.code && <span className="mr-2 font-medium">{camp.code}</span>}
               {camp.animals.length} {t("activeAnimals").toLowerCase()}
               {camp.sizeAcres != null &&
                 ` · ${camp.sizeAcres} ${t("acres")}`}
+              {camp.tagColor && ` · ${camp.tagColor}`}
             </p>
           </div>
         </div>
