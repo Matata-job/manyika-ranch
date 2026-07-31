@@ -13,7 +13,7 @@ export async function GET() {
   const ranchId = result.user.ranchId;
   const ranch = await prisma.ranch.findUnique({
     where: { id: ranchId },
-    select: { settings: true },
+    select: { name: true, settings: true },
   });
   const rateTzs = getRanchGrazingFeePerAnimal(ranch?.settings);
 
@@ -89,6 +89,7 @@ export async function GET() {
   };
 
   return NextResponse.json({
+    ranchName: ranch?.name || "Ranch",
     rateTzs,
     owners: rows,
     totals,
