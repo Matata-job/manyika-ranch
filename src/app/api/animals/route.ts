@@ -10,6 +10,61 @@ import { computeAgeMonths } from "@/lib/utils";
 import { logAnimalEvent } from "@/lib/services/event-service";
 import type { Role, Sex, AnimalStatus, Prisma } from "@prisma/client";
 
+const DEFAULT_LIMIT = 100;
+const MAX_LIMIT = 5000;
+
+function monthsAgo(months: number): Date {
+  const d = new Date();
+  d.setMonth(d.getMonth() - months);
+  return d;
+}
+
+/** Age band filter using DOB when present, else stored ageMonths. */
+function ageGroupWhere(ageGroup: string | null): Prisma.AnimalWhereInput | undefined {
+  if (!ageGroup || ageGroup === "all") return undefined;
+  if (ageGroup === "calf") {
+    return {
+      OR: [
+        { dob: { gt: monthsAgo(12) } },
+        { AND: [{ dob: null }, { ageMonths: { lt: 12 } }] },
+      ],
+    };
+  }
+  if (ageGroup === "yearling") {
+    return {
+      OR: [
+        {
+          AND: [{ dob: { lte: monthsAgo(12) } }, { dob: { gt: monthsAgo(24) } }],
+        },
+        {
+          AND: [{ dob: null }, { ageMonths: { gte: 12, lt: 24 } }],
+        },
+      ],
+    };
+  }
+  if (ageGroup === "adult") {
+    return {
+      OR: [
+        {
+          AND: [{ dob: { lte: monthsAgo(24) } }, { dob: { gt: monthsAgo(60) } }],
+        },
+        {
+          AND: [{ dob: null }, { ageMonths: { gte: 24, lt: 60 } }],
+        },
+      ],
+    };
+  }
+  if (ageGroup === "mature") {
+    return {
+      OR: [
+        { dob: { lte: monthsAgo(60) } },
+        { AND: [{ dob: null }, { ageMonths: { gte: 60 } }] },
+      ],
+    };
+  }
+  return undefined;
+}
+
 export async function GET(req: NextRequest) {
   const result = await requirePermission("viewAnimal");
   if (!result.ok) return result.error;
@@ -25,11 +80,25 @@ export async function GET(req: NextRequest) {
   const pregnant = searchParams.get("pregnant");
   const ageGroup = searchParams.get("ageGroup");
   const sort = searchParams.get("sort") || "eartag_asc";
+  const limit = Math.min(
+    Math.max(
+      parseInt(searchParams.get("limit") || String(DEFAULT_LIMIT), 10) ||
+        DEFAULT_LIMIT,
+      1
+    ),
+    MAX_LIMIT
+  );
+  const offset = Math.max(
+    parseInt(searchParams.get("offset") || "0", 10) || 0,
+    0
+  );
 
   const scope = await buildAnimalScope(result.user.id, result.user.role as Role, {
     campId: campId && campId !== "all" ? campId : null,
   });
   if ("error" in scope) return scope.error;
+
+  const ageWhere = ageGroupWhere(ageGroup);
 
   const where: Prisma.AnimalWhereInput = {
     ...scope,
@@ -51,68 +120,66 @@ export async function GET(req: NextRequest) {
       : pregnant === "false"
         ? { sex: "FEMALE" as Sex, isPregnant: false }
         : {}),
-    ...(search
-      ? {
-          OR: [
-            { eartag: { contains: search, mode: "insensitive" } },
-            { breed: { contains: search, mode: "insensitive" } },
-          ],
-        }
-      : {}),
+    AND: [
+      ...(search
+        ? [
+            {
+              OR: [
+                { eartag: { contains: search, mode: "insensitive" as const } },
+                { breed: { contains: search, mode: "insensitive" as const } },
+              ],
+            },
+          ]
+        : []),
+      ...(ageWhere ? [ageWhere] : []),
+    ],
   };
 
-  const orderBy: Prisma.AnimalOrderByWithRelationInput =
+  const orderBy: Prisma.AnimalOrderByWithRelationInput[] =
     sort === "eartag_desc"
-      ? { eartag: "desc" }
+      ? [{ eartag: "desc" }]
       : sort === "breed_asc"
-        ? { breed: "asc" }
+        ? [{ breed: "asc" }, { eartag: "asc" }]
         : sort === "sex_asc"
-          ? { sex: "asc" }
+          ? [{ sex: "asc" }, { eartag: "asc" }]
           : sort === "sex_desc"
-            ? { sex: "desc" }
+            ? [{ sex: "desc" }, { eartag: "asc" }]
             : sort === "newest"
-              ? { createdAt: "desc" }
-              : { eartag: "asc" };
+              ? [{ createdAt: "desc" }]
+              : sort === "age_asc"
+                ? [{ ageMonths: "asc" }, { eartag: "asc" }]
+                : sort === "age_desc"
+                  ? [{ ageMonths: "desc" }, { eartag: "asc" }]
+                  : sort === "camp_asc"
+                    ? [{ camp: { name: "asc" } }, { eartag: "asc" }]
+                    : [{ eartag: "asc" }];
 
-  const animals = await prisma.animal.findMany({
-    where,
-    include: {
-      camp: { select: { id: true, name: true } },
-      owner: { select: { id: true, name: true } },
-      sire: { select: { id: true, eartag: true } },
-      dam: { select: { id: true, eartag: true } },
-    },
-    orderBy,
-    take: 300,
+  const [total, animals] = await Promise.all([
+    prisma.animal.count({ where }),
+    prisma.animal.findMany({
+      where,
+      include: {
+        camp: { select: { id: true, name: true } },
+        owner: { select: { id: true, name: true } },
+        sire: { select: { id: true, eartag: true } },
+        dam: { select: { id: true, eartag: true } },
+      },
+      orderBy,
+      take: limit,
+      skip: offset,
+    }),
+  ]);
+
+  const mapped = animals.map(withComputedAge);
+  const hasMore = offset + mapped.length < total;
+
+  return NextResponse.json({
+    animals: mapped,
+    total,
+    limit,
+    offset,
+    hasMore,
   });
-
-  let mapped = animals.map(withComputedAge);
-
-  if (ageGroup === "calf") {
-    mapped = mapped.filter((a) => (a.ageMonths ?? 999) < 12);
-  } else if (ageGroup === "yearling") {
-    mapped = mapped.filter((a) => {
-      const m = a.ageMonths ?? -1;
-      return m >= 12 && m < 24;
-    });
-  } else if (ageGroup === "adult") {
-    mapped = mapped.filter((a) => {
-      const m = a.ageMonths ?? -1;
-      return m >= 24 && m < 60;
-    });
-  } else if (ageGroup === "mature") {
-    mapped = mapped.filter((a) => (a.ageMonths ?? -1) >= 60);
-  }
-
-  if (sort === "age_asc") {
-    mapped.sort((a, b) => (a.ageMonths ?? 0) - (b.ageMonths ?? 0));
-  } else if (sort === "age_desc") {
-    mapped.sort((a, b) => (b.ageMonths ?? 0) - (a.ageMonths ?? 0));
-  } else if (sort === "camp_asc") {
-    mapped.sort((a, b) => a.camp.name.localeCompare(b.camp.name));
-  }
-
-  return NextResponse.json(mapped);
 }
 
 export async function POST(req: NextRequest) {
@@ -141,12 +208,12 @@ export async function POST(req: NextRequest) {
       : [];
   const primaryPhoto = photoUrls[0] || body.photoUrl || null;
 
-  let ownerId = typeof body.ownerId === "string" && body.ownerId.trim()
-    ? body.ownerId.trim()
-    : null;
+  let ownerId =
+    typeof body.ownerId === "string" && body.ownerId.trim()
+      ? body.ownerId.trim()
+      : null;
 
   if (!ownerId) {
-    // Default cattle ownership to the ranch Owner — not the staff member registering
     const ranchOwner = await prisma.user.findFirst({
       where: {
         ranchId: result.user.ranchId,
@@ -221,7 +288,11 @@ export async function POST(req: NextRequest) {
         : typeof body.ageMonths === "number"
           ? body.ageMonths
           : body.ageYears != null || body.ageMonthsPart != null
-            ? Math.max(0, (Number(body.ageYears) || 0) * 12 + (Number(body.ageMonthsPart) || 0))
+            ? Math.max(
+                0,
+                (Number(body.ageYears) || 0) * 12 +
+                  (Number(body.ageMonthsPart) || 0)
+              )
             : null,
       ownerId,
       sireId,
@@ -229,7 +300,9 @@ export async function POST(req: NextRequest) {
       campId: body.campId,
       status: body.status || "ACTIVE",
       acquisitionType: body.acquisitionType || "BORN_ON_FARM",
-      acquisitionDate: body.acquisitionDate ? new Date(body.acquisitionDate) : null,
+      acquisitionDate: body.acquisitionDate
+        ? new Date(body.acquisitionDate)
+        : null,
       colorMarkings: body.colorMarkings,
       notes: body.notes,
     },
@@ -250,7 +323,9 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  await createAuditLog(result.user.id, "CREATE", "Animal", animal.id, { eartag: body.eartag });
+  await createAuditLog(result.user.id, "CREATE", "Animal", animal.id, {
+    eartag: body.eartag,
+  });
   await logAnimalEvent({
     animalId: animal.id,
     type: "REGISTERED",
@@ -272,7 +347,9 @@ export async function POST(req: NextRequest) {
   }
 
   if (damId) {
-    const { clearDamPregnancy } = await import("@/lib/services/breeding-service");
+    const { clearDamPregnancy } = await import(
+      "@/lib/services/breeding-service"
+    );
     await clearDamPregnancy(damId, {
       recordedById: result.user.id,
       reason: "Calf registered and linked to dam",

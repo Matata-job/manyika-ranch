@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
+import { parseAnimalsList } from "@/lib/animals-api";
 import { Plus } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 
@@ -50,7 +51,9 @@ export default function BreedingPage() {
 
   useEffect(() => {
     loadEvents();
-    fetch("/api/animals?status=ACTIVE").then((r) => r.json()).then(setAnimals);
+    fetch("/api/animals?status=ACTIVE&limit=5000")
+      .then((r) => r.json())
+      .then((data) => setAnimals(parseAnimalsList(data)));
   }, []);
 
   async function submitBreeding(e: React.FormEvent) {

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 import type { TranslationKey } from "@/lib/i18n/translations";
+import { parseAnimalsList } from "@/lib/animals-api";
 
 function treatmentTypeKey(type: string): TranslationKey {
   switch (type) {
@@ -101,12 +102,13 @@ export default function BulkTreatmentPage() {
     setLoadingAnimals(true);
     const params = new URLSearchParams({
       camp: nextCampId,
+      limit: "5000",
     });
     if (nextSex !== "all") params.set("sex", nextSex);
     const res = await fetch(`/api/animals?${params}`);
-    const data = res.ok ? await res.json() : [];
-    const list: AnimalRow[] = (Array.isArray(data) ? data : []).filter(
-      (a: AnimalRow) => a.status === "ACTIVE" || a.status === "QUARANTINE"
+    const data = res.ok ? await res.json() : null;
+    const list: AnimalRow[] = parseAnimalsList<AnimalRow>(data).filter(
+      (a) => a.status === "ACTIVE" || a.status === "QUARANTINE"
     );
     setAnimals(list);
     setSelected(new Set(list.map((a) => a.id)));

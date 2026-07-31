@@ -185,6 +185,9 @@ const en = {
   viewList: "List",
   viewGrid: "Photos",
   noPhoto: "No photo",
+  showingOfAnimals: "Showing {shown} of {total}",
+  loadMoreAnimals: "Load more",
+  filtered: "filtered",
 
   // Camps
   campsTitle: "Camps",
@@ -780,6 +783,9 @@ const sw: Dict = {
   viewList: "Orodha",
   viewGrid: "Picha",
   noPhoto: "Hakuna picha",
+  showingOfAnimals: "Inaonyesha {shown} kati ya {total}",
+  loadMoreAnimals: "Pakia zaidi",
+  filtered: "imechujwa",
 
   campsTitle: "Kambi",
   campsSubtitle: "Maeneo ya malisho na mahali pa mifugo",

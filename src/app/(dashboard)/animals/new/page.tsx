@@ -18,6 +18,7 @@ import {
 import { enqueueSync } from "@/lib/sync/offline-db";
 import { ArrowLeft, ChevronDown, ChevronRight, X } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
+import { parseAnimalsList } from "@/lib/animals-api";
 import { PhotoSourcePicker } from "@/components/photo-source-picker";
 import { cn } from "@/lib/utils";
 import { useObjectUrls } from "@/hooks/use-object-urls";
@@ -95,8 +96,8 @@ export default function NewAnimalPage() {
       setOwners(ownerList);
       setBreeds(Array.isArray(b) ? b : []);
       setAnimals(
-        (Array.isArray(a) ? a : []).map(
-          (row: { id: string; eartag: string; sex: string }) => ({
+        parseAnimalsList<{ id: string; eartag: string; sex: string }>(a).map(
+          (row) => ({
             id: row.id,
             eartag: row.eartag,
             sex: row.sex,
@@ -134,7 +135,7 @@ export default function NewAnimalPage() {
       fetch("/api/camps").then((r) => r.json()),
       fetch("/api/owners").then((r) => (r.ok ? r.json() : [])),
       fetch("/api/breeds").then((r) => (r.ok ? r.json() : [])),
-      fetch("/api/animals?status=ACTIVE").then((r) => r.json()),
+      fetch("/api/animals?status=ACTIVE&limit=5000").then((r) => r.json()),
     ])
       .then(([c, o, b, a]) => {
         applyLookups(c, o, b, a);
