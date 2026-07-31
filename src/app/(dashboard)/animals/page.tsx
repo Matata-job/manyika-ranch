@@ -3,7 +3,6 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -466,52 +465,84 @@ function AnimalsPageContent() {
           {t("noAnimals")}
         </p>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <ul className="divide-y divide-border/60 rounded-lg border border-muted-foreground/10 bg-background overflow-hidden">
           {animals.map((animal) => (
-            <Link key={animal.id} href={`/animals/${animal.id}`}>
-              <Card className="overflow-hidden h-full border-muted-foreground/10 shadow-none hover:border-muted-foreground/25 transition-colors">
-                <div className="aspect-[4/3] bg-muted/50 flex items-center justify-center">
+            <li key={animal.id}>
+              <Link
+                href={`/animals/${animal.id}`}
+                className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/40 transition-colors"
+              >
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-muted/60 ring-1 ring-border/50">
                   {animal.photoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={animal.photoUrl} alt={animal.eartag} className="w-full h-full object-cover" />
+                    <img
+                      src={animal.photoUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
                   ) : (
-                    <span className="text-xs tracking-widest text-muted-foreground/50 uppercase">
-                      No photo
+                    <span
+                      className="flex h-full w-full items-center justify-center text-xs font-medium text-muted-foreground"
+                      aria-hidden
+                    >
+                      {animal.sex === "MALE"
+                        ? "M"
+                        : animal.sex === "FEMALE"
+                          ? "F"
+                          : "?"}
                     </span>
                   )}
                 </div>
-                <div className="p-3.5 space-y-1.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-medium tracking-tight">{animal.eartag}</h3>
-                    <div className="flex gap-1 flex-wrap justify-end">
-                      <Badge variant="secondary" className="font-normal text-[10px] px-1.5">
-                        {animal.sex === "MALE"
-                          ? "M"
-                          : animal.sex === "FEMALE"
-                            ? "F"
-                            : "?"}
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium tracking-tight truncate">
+                      {animal.eartag}
+                    </span>
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground tabular-nums">
+                      {animal.sex === "MALE"
+                        ? "M"
+                        : animal.sex === "FEMALE"
+                          ? "F"
+                          : "?"}
+                    </span>
+                    {animal.sex === "MALE" && animal.isCastrated && (
+                      <Badge
+                        variant="outline"
+                        className="font-normal text-[10px] px-1.5 py-0 h-5"
+                      >
+                        {t("castrated")}
                       </Badge>
-                      {animal.sex === "MALE" && animal.isCastrated && (
-                        <Badge variant="outline" className="font-normal text-[10px] px-1.5">
-                          {t("castrated")}
-                        </Badge>
-                      )}
-                      {animal.sex === "FEMALE" && animal.isPregnant && (
-                        <Badge variant="warning" className="font-normal text-[10px] px-1.5">
-                          {t("pregnant")}
-                        </Badge>
-                      )}
-                    </div>
+                    )}
+                    {animal.sex === "FEMALE" && animal.isPregnant && (
+                      <Badge
+                        variant="warning"
+                        className="font-normal text-[10px] px-1.5 py-0 h-5"
+                      >
+                        {t("pregnant")}
+                      </Badge>
+                    )}
+                    {animal.status !== "ACTIVE" && (
+                      <Badge
+                        variant="secondary"
+                        className="font-normal text-[10px] px-1.5 py-0 h-5"
+                      >
+                        {animal.status}
+                      </Badge>
+                    )}
                   </div>
-                  <p className="text-sm text-muted-foreground">{animal.breed}</p>
-                  <p className="text-xs text-muted-foreground/80">
-                    {animal.camp.name} · {formatAge(animal.ageMonths, ageMode)}
+                  <p className="text-sm text-muted-foreground truncate">
+                    {animal.breed}
+                    <span className="text-muted-foreground/50"> · </span>
+                    {animal.camp.name}
+                    <span className="text-muted-foreground/50"> · </span>
+                    {formatAge(animal.ageMonths, ageMode)}
                   </p>
                 </div>
-              </Card>
-            </Link>
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );
