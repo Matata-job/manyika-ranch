@@ -191,6 +191,12 @@ export async function PATCH(
             ? new Date(body.acquisitionDate)
             : undefined,
       colorMarkings: body.colorMarkings,
+      tagColor:
+        body.tagColor !== undefined
+          ? body.tagColor?.trim()
+            ? String(body.tagColor).trim().toUpperCase()
+            : null
+          : undefined,
       notes: body.notes,
     },
   });

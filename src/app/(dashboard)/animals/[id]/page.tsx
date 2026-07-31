@@ -15,13 +15,15 @@ import { formatAge, type AgeDisplayMode } from "@/lib/utils";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { PedigreeTree, OffspringTree } from "@/components/pedigree-tree";
 import { AnimalPhotoGallery, type AnimalPhoto } from "@/components/animal-photo-gallery";
-import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, StickyNote, Trash2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 import { Label } from "@/components/ui/label";
-import { useT } from "@/components/providers/locale-provider";
+import { useLocale, useT } from "@/components/providers/locale-provider";
 import type { TranslationKey } from "@/lib/i18n/translations";
+import { EartagBadge, TagColorSwatch } from "@/components/eartag-badge";
+import { TAG_COLORS, resolveTagColor, tagColorLabel } from "@/lib/tag-color";
 
 interface AnimalEvent {
   id: string;
@@ -71,10 +73,11 @@ interface AnimalDetail {
   status: string;
   photoUrl: string | null;
   colorMarkings: string | null;
+  tagColor: string | null;
   notes: string | null;
   acquisitionType?: string | null;
   acquisitionDate?: string | null;
-  camp: { id: string; name: string };
+  camp: { id: string; name: string; tagColor?: string | null; code?: string | null };
   owner: { id: string; name: string };
   sire: { id: string; eartag: string } | null;
   dam: { id: string; eartag: string } | null;
@@ -178,6 +181,7 @@ function healthTypeKey(type: string): TranslationKey {
 export default function AnimalDetailPage() {
   const { id } = useParams<{ id: string }>();
   const t = useT();
+  const { locale } = useLocale();
   const { data: session } = useSession();
   const role = session?.user?.role as Role | undefined;
   const canEdit = role ? hasPermission(role, "editAnimal") : false;
@@ -186,6 +190,9 @@ export default function AnimalDetailPage() {
   const canSell = role ? hasPermission(role, "manageSales") : false;
   const [animal, setAnimal] = useState<AnimalDetail | null>(null);
   const [ageMode, setAgeMode] = useState<AgeDisplayMode>("AUTO");
+  const [yearColors, setYearColors] = useState<Record<string, string>>({});
+  const [quickNote, setQuickNote] = useState("");
+  const [savingQuickNote, setSavingQuickNote] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
   const [pedigree, setPedigree] = useState<{
     offspring?: {
@@ -217,6 +224,7 @@ export default function AnimalDetailPage() {
     acquisitionType: "BORN_ON_FARM",
     acquisitionDate: "",
     colorMarkings: "",
+    tagColor: "",
     notes: "",
   });
   const [weightKg, setWeightKg] = useState("");
@@ -300,6 +308,7 @@ export default function AnimalDetailPage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.ageDisplayMode) setAgeMode(data.ageDisplayMode);
+        if (data?.eartagYearColors) setYearColors(data.eartagYearColors);
       });
     fetch("/api/buyers")
       .then((r) => (r.ok ? r.json() : []))
@@ -336,6 +345,7 @@ export default function AnimalDetailPage() {
       acquisitionType: a.acquisitionType || "BORN_ON_FARM",
       acquisitionDate: a.acquisitionDate ? a.acquisitionDate.slice(0, 10) : "",
       colorMarkings: a.colorMarkings || "",
+      tagColor: a.tagColor || "",
       notes: a.notes || "",
     });
     setEditingDetails(true);
@@ -354,6 +364,7 @@ export default function AnimalDetailPage() {
       campId: editForm.campId,
       ownerId: editForm.ownerId,
       colorMarkings: editForm.colorMarkings || null,
+      tagColor: editForm.tagColor || null,
       notes: editForm.notes || null,
       acquisitionType: editForm.acquisitionType,
       acquisitionDate: editForm.acquisitionDate || null,
@@ -547,6 +558,25 @@ export default function AnimalDetailPage() {
     loadAnimal();
   }
 
+  async function addQuickNote() {
+    const text = quickNote.trim();
+    if (!text) return;
+    setSavingQuickNote(true);
+    const title = text.length > 80 ? `${text.slice(0, 77)}…` : text;
+    await fetch(`/api/animals/${id}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "NOTE",
+        title,
+        description: text.length > 80 ? text : undefined,
+      }),
+    });
+    setQuickNote("");
+    setSavingQuickNote(false);
+    loadAnimal();
+  }
+
   async function recordDeath() {
     if (!confirm(t("confirmMarkDeceased"))) return;
     setSavingDeath(true);
@@ -643,7 +673,17 @@ export default function AnimalDetailPage() {
         />
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2 flex-wrap">
-            <h1 className="text-3xl font-bold">{animal.eartag}</h1>
+            <EartagBadge
+              eartag={animal.eartag}
+              campTagColor={animal.camp.tagColor}
+              animalTagColor={animal.tagColor}
+              dob={animal.dob}
+              ageMonths={animal.ageMonths}
+              yearColors={yearColors}
+              locale={locale}
+              size="lg"
+              showLabel
+            />
             <Badge>
               {animal.sex === "MALE"
                 ? t("male")
@@ -683,6 +723,23 @@ export default function AnimalDetailPage() {
             <div><span className="text-muted-foreground">{t("sire")}</span><p className="font-medium">{animal.sire?.eartag || "—"}</p></div>
             <div><span className="text-muted-foreground">{t("dam")}</span><p className="font-medium">{animal.dam?.eartag || "—"}</p></div>
             <div><span className="text-muted-foreground">{t("colorMarkings")}</span><p className="font-medium">{animal.colorMarkings || "—"}</p></div>
+            <div>
+              <span className="text-muted-foreground">{t("tagColor")}</span>
+              <p className="font-medium mt-0.5">
+                <TagColorSwatch
+                  color={
+                    resolveTagColor({
+                      animalTagColor: animal.tagColor,
+                      campTagColor: animal.camp.tagColor,
+                      dob: animal.dob,
+                      ageMonths: animal.ageMonths,
+                      yearColors,
+                    }).color
+                  }
+                  locale={locale}
+                />
+              </p>
+            </div>
             {animal.sex === "MALE" && canEdit && !isClosed && (
               <div>
                 <span className="text-muted-foreground">{t("castrated")}</span>
@@ -721,6 +778,32 @@ export default function AnimalDetailPage() {
           </div>
         </div>
       </div>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <StickyNote className="h-4 w-4" />
+            {t("standingNotes")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-xs text-muted-foreground">{t("standingNotesHelp")}</p>
+          {animal.notes?.trim() ? (
+            <p className="text-sm whitespace-pre-wrap">{animal.notes}</p>
+          ) : (
+            <p className="text-sm text-muted-foreground">{t("noStandingNotes")}</p>
+          )}
+          {canEdit && !editingDetails && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => startEditDetails(animal)}
+            >
+              <Pencil className="h-3.5 w-3.5 mr-1" /> {t("editDetails")}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
 
       {editingDetails && (
         <Card>
@@ -883,10 +966,34 @@ export default function AnimalDetailPage() {
                 />
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label>{t("notes")}</Label>
+                <Label>{t("tagColorAnimalOverride")}</Label>
+                <Select
+                  value={editForm.tagColor || "none"}
+                  onValueChange={(v) =>
+                    setEditForm({ ...editForm, tagColor: v === "none" ? "" : v })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{t("tagColorUseDefault")}</SelectItem>
+                    {TAG_COLORS.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {tagColorLabel(c, locale)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">{t("tagColorHelp")}</p>
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>{t("standingNotes")}</Label>
                 <Textarea
                   value={editForm.notes}
                   onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                  rows={4}
+                  placeholder={t("standingNotesHelp")}
                 />
               </div>
               {isClosed && (
@@ -916,6 +1023,24 @@ export default function AnimalDetailPage() {
           <Card>
             <CardHeader><CardTitle>{t("eventTimeline")}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
+              {canEdit && !isClosed && (
+                <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+                  <Label>{t("quickNote")}</Label>
+                  <Textarea
+                    placeholder={t("quickNotePlaceholder")}
+                    value={quickNote}
+                    onChange={(e) => setQuickNote(e.target.value)}
+                    rows={2}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={addQuickNote}
+                    disabled={savingQuickNote || !quickNote.trim()}
+                  >
+                    {savingQuickNote ? t("saving") : t("addQuickNote")}
+                  </Button>
+                </div>
+              )}
               {(animal.events || []).length === 0 ? (
                 <p className="text-sm text-muted-foreground">{t("noEvents")}</p>
               ) : (

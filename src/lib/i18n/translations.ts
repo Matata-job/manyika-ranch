@@ -188,6 +188,26 @@ const en = {
   showingOfAnimals: "Showing {shown} of {total}",
   loadMoreAnimals: "Load more",
   filtered: "filtered",
+  tagColor: "Eartag colour",
+  tagColorHelp:
+    "Plastic tag colour. Default comes from the camp; you can override per animal or by birth year in ranch settings.",
+  tagColorCamp: "Camp eartag colour",
+  tagColorAnimalOverride: "Animal colour override",
+  tagColorUseDefault: "Use camp / year default",
+  tagColorNone: "None",
+  tagColorYearRules: "Eartag colour by birth year",
+  tagColorYearHelp:
+    "Optional. Animals born in these years use this colour unless the animal has its own override. Camp colour is the fallback.",
+  tagColorYear: "Year",
+  addYearColor: "Add year",
+  standingNotes: "Standing notes",
+  standingNotesHelp:
+    "Always-on facts for this animal (temperament, handling, special care). Dated updates go in the event timeline.",
+  noStandingNotes: "No standing notes yet. Edit details to add some.",
+  quickNote: "Quick note",
+  quickNotePlaceholder: "Write a dated note for the timeline…",
+  addQuickNote: "Add note",
+  hasNotes: "Has notes",
 
   // Camps
   campsTitle: "Camps",
@@ -786,6 +806,26 @@ const sw: Dict = {
   showingOfAnimals: "Inaonyesha {shown} kati ya {total}",
   loadMoreAnimals: "Pakia zaidi",
   filtered: "imechujwa",
+  tagColor: "Rangi ya eartag",
+  tagColorHelp:
+    "Rangi ya tagi ya plastiki. Chaguo-msingi hutoka kambini; unaweza kubadilisha kwa mnyama au kwa mwaka wa kuzaliwa katika mipangilio.",
+  tagColorCamp: "Rangi ya eartag ya kambi",
+  tagColorAnimalOverride: "Badilisho la rangi ya mnyama",
+  tagColorUseDefault: "Tumia chaguo-msingi la kambi / mwaka",
+  tagColorNone: "Hakuna",
+  tagColorYearRules: "Rangi ya eartag kwa mwaka wa kuzaliwa",
+  tagColorYearHelp:
+    "Si lazima. Wanyama waliozaliwa miaka hii hutumia rangi hii isipokuwa mnyama ana badilisho lake. Rangi ya kambi ni mbadala.",
+  tagColorYear: "Mwaka",
+  addYearColor: "Ongeza mwaka",
+  standingNotes: "Maelezo ya kudumu",
+  standingNotesHelp:
+    "Ukweli wa kudumu wa mnyama (tabia, utunzaji maalum). Sasisho zenye tarehe huenda kwenye ratiba ya matukio.",
+  noStandingNotes: "Hakuna maelezo ya kudumu bado. Hariri maelezo kuongeza.",
+  quickNote: "Kidokezo cha haraka",
+  quickNotePlaceholder: "Andika kidokezo chenye tarehe kwa ratiba…",
+  addQuickNote: "Ongeza kidokezo",
+  hasNotes: "Ina maelezo",
 
   campsTitle: "Kambi",
   campsSubtitle: "Maeneo ya malisho na mahali pa mifugo",

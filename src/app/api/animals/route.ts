@@ -159,18 +159,25 @@ export async function GET(req: NextRequest) {
     prisma.animal.findMany({
       where,
       include: {
-        camp: { select: { id: true, name: true } },
-        owner: { select: { id: true, name: true } },
-        sire: { select: { id: true, eartag: true } },
-        dam: { select: { id: true, eartag: true } },
-      },
-      orderBy,
-      take: limit,
-      skip: offset,
-    }),
-  ]);
+      camp: { select: { id: true, name: true, tagColor: true, code: true } },
+      owner: { select: { id: true, name: true } },
+      sire: { select: { id: true, eartag: true } },
+      dam: { select: { id: true, eartag: true } },
+    },
+    orderBy,
+    take: limit,
+    skip: offset,
+  }),
+]);
 
-  const mapped = animals.map(withComputedAge);
+  const mapped = animals.map((a) => {
+    const withAge = withComputedAge(a);
+    return {
+      ...withAge,
+      notesPreview: a.notes ? a.notes.slice(0, 120) : null,
+      hasNotes: Boolean(a.notes && a.notes.trim()),
+    };
+  });
   const hasMore = offset + mapped.length < total;
 
   return NextResponse.json({
@@ -304,6 +311,9 @@ export async function POST(req: NextRequest) {
         ? new Date(body.acquisitionDate)
         : null,
       colorMarkings: body.colorMarkings,
+      tagColor: body.tagColor?.trim()
+        ? String(body.tagColor).trim().toUpperCase()
+        : null,
       notes: body.notes,
     },
     include: {

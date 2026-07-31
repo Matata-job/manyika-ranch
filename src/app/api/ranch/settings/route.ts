@@ -7,6 +7,10 @@ import {
   getRanchGrazingFeePerAnimal,
   type AgeDisplayMode,
 } from "@/lib/utils";
+import {
+  getRanchEartagYearColors,
+  normalizeTagColor,
+} from "@/lib/tag-color";
 import type { Prisma, Role } from "@prisma/client";
 
 export async function GET() {
@@ -27,6 +31,7 @@ export async function GET() {
     name: ranch.name,
     ageDisplayMode: getRanchAgeDisplayMode(ranch.settings),
     grazingFeePerAnimalTzs: getRanchGrazingFeePerAnimal(ranch.settings),
+    eartagYearColors: getRanchEartagYearColors(ranch.settings),
     settings: ranch.settings,
   });
 }
@@ -76,6 +81,39 @@ export async function PATCH(req: NextRequest) {
     next.grazingFeePerAnimalTzs = fee;
   }
 
+  if (body.eartagYearColors !== undefined) {
+    if (!canManageCamps) {
+      return NextResponse.json(
+        { error: "Only ranch managers can change eartag year colours" },
+        { status: 403 }
+      );
+    }
+    if (
+      body.eartagYearColors === null ||
+      (typeof body.eartagYearColors === "object" &&
+        !Array.isArray(body.eartagYearColors))
+    ) {
+      const cleaned: Record<string, string> = {};
+      if (body.eartagYearColors) {
+        for (const [year, color] of Object.entries(
+          body.eartagYearColors as Record<string, unknown>
+        )) {
+          if (!/^\d{4}$/.test(year)) continue;
+          const n = normalizeTagColor(
+            typeof color === "string" ? color : null
+          );
+          if (n) cleaned[year] = n;
+        }
+      }
+      next.eartagYearColors = cleaned;
+    } else {
+      return NextResponse.json(
+        { error: "eartagYearColors must be an object of year → colour" },
+        { status: 400 }
+      );
+    }
+  }
+
   const updated = await prisma.ranch.update({
     where: { id: result.user.ranchId },
     data: { settings: next as Prisma.InputJsonValue },
@@ -87,6 +125,7 @@ export async function PATCH(req: NextRequest) {
     name: updated.name,
     ageDisplayMode: getRanchAgeDisplayMode(updated.settings),
     grazingFeePerAnimalTzs: getRanchGrazingFeePerAnimal(updated.settings),
+    eartagYearColors: getRanchEartagYearColors(updated.settings),
     settings: updated.settings,
   });
 }

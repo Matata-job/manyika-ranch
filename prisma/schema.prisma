@@ -291,6 +291,8 @@ model Animal {
   acquisitionType  AcquisitionType @default(BORN_ON_FARM)
   acquisitionDate  DateTime?
   colorMarkings    String?
+  /** Plastic eartag colour override; else year / camp colour */
+  tagColor         String?
   notes            String?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt

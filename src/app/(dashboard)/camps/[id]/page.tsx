@@ -11,10 +11,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
-import { useT } from "@/components/providers/locale-provider";
+import { useLocale, useT } from "@/components/providers/locale-provider";
+import { TAG_COLORS, tagColorLabel } from "@/lib/tag-color";
+import { TagColorSwatch } from "@/components/eartag-badge";
 import {
   CampPhotoGallery,
   type CampPhoto,
@@ -53,6 +62,7 @@ interface CampDetail {
 export default function CampDetailPage() {
   const { id } = useParams<{ id: string }>();
   const t = useT();
+  const { locale } = useLocale();
   const { data: session } = useSession();
   const role = session?.user?.role as Role | undefined;
   const canManage = role ? hasPermission(role, "manageCamps") : false;
@@ -70,6 +80,7 @@ export default function CampDetailPage() {
     longitude: "",
     waterSources: "",
     notes: "",
+    tagColor: "",
   });
 
   const load = useCallback(async () => {
@@ -84,6 +95,7 @@ export default function CampDetailPage() {
         longitude: data.longitude != null ? String(data.longitude) : "",
         waterSources: data.waterSources || "",
         notes: data.notes || "",
+        tagColor: data.tagColor || "",
       });
     }
     setLoading(false);
@@ -105,6 +117,7 @@ export default function CampDetailPage() {
         longitude: form.longitude || null,
         waterSources: form.waterSources || null,
         notes: form.notes || null,
+        tagColor: form.tagColor || null,
       }),
     });
     setSaving(false);
@@ -158,8 +171,12 @@ export default function CampDetailPage() {
               {camp.animals.length} {t("activeAnimals").toLowerCase()}
               {camp.sizeAcres != null &&
                 ` · ${camp.sizeAcres} ${t("acres")}`}
-              {camp.tagColor && ` · ${camp.tagColor}`}
             </p>
+            {camp.tagColor && (
+              <div className="mt-1">
+                <TagColorSwatch color={camp.tagColor} locale={locale} />
+              </div>
+            )}
           </div>
         </div>
         {canManage && !editing && (
@@ -221,6 +238,28 @@ export default function CampDetailPage() {
                   setForm({ ...form, waterSources: e.target.value })
                 }
               />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("tagColorCamp")}</Label>
+              <Select
+                value={form.tagColor || "none"}
+                onValueChange={(v) =>
+                  setForm({ ...form, tagColor: v === "none" ? "" : v })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{t("tagColorNone")}</SelectItem>
+                  {TAG_COLORS.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {tagColorLabel(c, locale)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">{t("tagColorHelp")}</p>
             </div>
             <div className="space-y-2">
               <Label>{t("notes")}</Label>

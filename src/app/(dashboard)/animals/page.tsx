@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { LayoutGrid, List, Plus, Search, SlidersHorizontal, X } from "lucide-react";
+import { LayoutGrid, List, Plus, Search, SlidersHorizontal, StickyNote, X } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 import { cn, formatAge, type AgeDisplayMode } from "@/lib/utils";
 import { parseAnimalsPage } from "@/lib/animals-api";
-import { useT } from "@/components/providers/locale-provider";
+import { EartagBadge } from "@/components/eartag-badge";
+import { useLocale, useT } from "@/components/providers/locale-provider";
 
 interface Animal {
   id: string;
@@ -24,9 +25,13 @@ interface Animal {
   isCastrated?: boolean;
   isPregnant?: boolean;
   ageMonths: number | null;
+  dob?: string | null;
   status: string;
   photoUrl: string | null;
-  camp: { id: string; name: string };
+  notes?: string | null;
+  hasNotes?: boolean;
+  tagColor?: string | null;
+  camp: { id: string; name: string; tagColor?: string | null };
   owner: { id: string; name: string };
 }
 
@@ -122,6 +127,7 @@ function AnimalStatusBadges({
 
 function AnimalsPageContent() {
   const t = useT();
+  const { locale } = useLocale();
   const { data: session } = useSession();
   const role = session?.user?.role as Role;
   const canCreate = role && hasPermission(role, "createAnimal");
@@ -138,6 +144,7 @@ function AnimalsPageContent() {
   const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [ageMode, setAgeMode] = useState<AgeDisplayMode>("AUTO");
+  const [yearColors, setYearColors] = useState<Record<string, string>>({});
   const [filters, setFilters] = useState<Filters>(() => filtersFromParams(searchParams));
   const [searchInput, setSearchInput] = useState(filters.search);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -180,6 +187,7 @@ function AnimalsPageContent() {
       setBreeds(Array.isArray(b) ? b : []);
       setOwners(Array.isArray(o) ? o : []);
       if (settings?.ageDisplayMode) setAgeMode(settings.ageDisplayMode);
+      if (settings?.eartagYearColors) setYearColors(settings.eartagYearColors);
     });
   }, []);
 
@@ -625,9 +633,22 @@ function AnimalsPageContent() {
 
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold tracking-tight truncate group-hover:text-primary transition-colors">
-                        {animal.eartag}
-                      </span>
+                      <EartagBadge
+                        eartag={animal.eartag}
+                        campTagColor={animal.camp.tagColor}
+                        animalTagColor={animal.tagColor}
+                        dob={animal.dob}
+                        ageMonths={animal.ageMonths}
+                        yearColors={yearColors}
+                        locale={locale}
+                        className="group-hover:text-primary transition-colors"
+                      />
+                      {animal.hasNotes && (
+                        <StickyNote
+                          className="h-3.5 w-3.5 text-muted-foreground shrink-0"
+                          aria-label={t("hasNotes")}
+                        />
+                      )}
                       <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
                         {sexShort(animal.sex)}
                       </span>
@@ -673,8 +694,22 @@ function AnimalsPageContent() {
                 </div>
                 <div className="p-3.5 space-y-1.5">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-medium tracking-tight">{animal.eartag}</h3>
+                    <EartagBadge
+                      eartag={animal.eartag}
+                      campTagColor={animal.camp.tagColor}
+                      animalTagColor={animal.tagColor}
+                      dob={animal.dob}
+                      ageMonths={animal.ageMonths}
+                      yearColors={yearColors}
+                      locale={locale}
+                    />
                     <div className="flex gap-1 flex-wrap justify-end">
+                      {animal.hasNotes && (
+                        <StickyNote
+                          className="h-3.5 w-3.5 text-muted-foreground"
+                          aria-label={t("hasNotes")}
+                        />
+                      )}
                       <Badge variant="secondary" className="font-normal text-[10px] px-1.5">
                         {sexShort(animal.sex)}
                       </Badge>

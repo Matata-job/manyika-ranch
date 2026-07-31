@@ -8,9 +8,10 @@ import { hasPermission } from "@/lib/auth/rbac";
 import { getScopedCampWhere } from "@/lib/auth/scope";
 import type { Role } from "@prisma/client";
 import { serverT } from "@/lib/i18n/server";
+import { TagColorSwatch } from "@/components/eartag-badge";
 
 export default async function CampsPage() {
-  const { t } = await serverT();
+  const { t, locale } = await serverT();
   const session = await auth();
   const user = session!.user;
   const role = user.role as Role;
@@ -66,6 +67,9 @@ export default async function CampsPage() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <p className="text-2xl font-bold">{camp._count.animals} {t("animalsTitle").toLowerCase()}</p>
+                  {camp.tagColor && (
+                    <TagColorSwatch color={camp.tagColor} locale={locale} />
+                  )}
                   {camp.sizeAcres != null && (
                     <p className="text-sm text-muted-foreground">
                       {camp.sizeAcres} {t("acres")}
