@@ -59,7 +59,9 @@ export default function NewAnimalPage() {
   const [camps, setCamps] = useState<CampOption[]>([]);
   const [owners, setOwners] = useState<{ id: string; name: string; role?: string }[]>([]);
   const [breeds, setBreeds] = useState<{ id: string; name: string }[]>([]);
-  const [animals, setAnimals] = useState<{ id: string; eartag: string; sex: string }[]>([]);
+  const [animals, setAnimals] = useState<
+    { id: string; eartag: string; sex: string; campId: string; campName: string }[]
+  >([]);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const photoPreviewUrls = useObjectUrls(photoFiles);
   const [eartagManual, setEartagManual] = useState(false);
@@ -106,12 +108,14 @@ export default function NewAnimalPage() {
     if (!suggested) {
       const { recallCampEartag } = await import("@/lib/eartag");
       const remembered = recallCampEartag(campId);
+      const allTags = animals.map((a) => a.eartag);
+      const campTags = animals
+        .filter((a) => a.campId === campId)
+        .map((a) => a.eartag);
       suggested = suggestNextEartag({
         campCode: camp?.code,
-        existingEartags: [
-          ...animals.map((a) => a.eartag),
-          ...(remembered ? [remembered] : []),
-        ],
+        sequenceEartags: [...campTags, ...(remembered ? [remembered] : [])],
+        existingEartags: [...allTags, ...(remembered ? [remembered] : [])],
       });
       last = last || remembered;
     }
@@ -141,13 +145,18 @@ export default function NewAnimalPage() {
       setOwners(ownerList);
       setBreeds(Array.isArray(b) ? b : []);
       setAnimals(
-        parseAnimalsList<{ id: string; eartag: string; sex: string }>(a).map(
-          (row) => ({
-            id: row.id,
-            eartag: row.eartag,
-            sex: row.sex,
-          })
-        )
+        parseAnimalsList<{
+          id: string;
+          eartag: string;
+          sex: string;
+          camp?: { id: string; name: string };
+        }>(a).map((row) => ({
+          id: row.id,
+          eartag: row.eartag,
+          sex: row.sex,
+          campId: row.camp?.id || "",
+          campName: row.camp?.name || "",
+        }))
       );
       const ranchOwner = ownerList.find(
         (u: { role?: string }) => u.role === "OWNER"
@@ -224,6 +233,13 @@ export default function NewAnimalPage() {
       alert(t("eartagBreedRequired"));
       return;
     }
+    const taken = animals.some(
+      (a) => a.eartag.trim().toUpperCase() === form.eartag.trim().toUpperCase()
+    );
+    if (taken) {
+      alert(t("eartagTaken"));
+      return;
+    }
     setLoading(true);
 
     const payload = {
@@ -296,6 +312,22 @@ export default function NewAnimalPage() {
 
   const males = animals.filter((a) => a.sex === "MALE");
   const females = animals.filter((a) => a.sex === "FEMALE");
+
+  function parentsForSelect(
+    list: { id: string; eartag: string; campId: string; campName: string }[]
+  ) {
+    const campId = form.campId;
+    const inCamp = list
+      .filter((a) => campId && a.campId === campId)
+      .sort((a, b) => a.eartag.localeCompare(b.eartag));
+    const other = list
+      .filter((a) => !campId || a.campId !== campId)
+      .sort((a, b) => a.eartag.localeCompare(b.eartag));
+    return { inCamp, other };
+  }
+
+  const sires = parentsForSelect(males);
+  const dams = parentsForSelect(females);
 
   return (
     <div className="mx-auto max-w-xl space-y-5 pb-8">
@@ -475,11 +507,31 @@ export default function NewAnimalPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">{t("none")}</SelectItem>
-                      {males.map((a) => (
-                        <SelectItem key={a.id} value={a.id}>
-                          {a.eartag}
-                        </SelectItem>
-                      ))}
+                      {sires.inCamp.length > 0 && (
+                        <>
+                          <SelectItem value="__hdr_sire_camp__" disabled>
+                            — {t("parentsInCamp")} —
+                          </SelectItem>
+                          {sires.inCamp.map((a) => (
+                            <SelectItem key={a.id} value={a.id}>
+                              {a.eartag}
+                            </SelectItem>
+                          ))}
+                        </>
+                      )}
+                      {sires.other.length > 0 && (
+                        <>
+                          <SelectItem value="__hdr_sire_other__" disabled>
+                            — {t("parentsOtherCamps")} —
+                          </SelectItem>
+                          {sires.other.map((a) => (
+                            <SelectItem key={a.id} value={a.id}>
+                              {a.eartag}
+                              {a.campName ? ` · ${a.campName}` : ""}
+                            </SelectItem>
+                          ))}
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </Field>
@@ -498,11 +550,31 @@ export default function NewAnimalPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">{t("none")}</SelectItem>
-                      {females.map((a) => (
-                        <SelectItem key={a.id} value={a.id}>
-                          {a.eartag}
-                        </SelectItem>
-                      ))}
+                      {dams.inCamp.length > 0 && (
+                        <>
+                          <SelectItem value="__hdr_dam_camp__" disabled>
+                            — {t("parentsInCamp")} —
+                          </SelectItem>
+                          {dams.inCamp.map((a) => (
+                            <SelectItem key={a.id} value={a.id}>
+                              {a.eartag}
+                            </SelectItem>
+                          ))}
+                        </>
+                      )}
+                      {dams.other.length > 0 && (
+                        <>
+                          <SelectItem value="__hdr_dam_other__" disabled>
+                            — {t("parentsOtherCamps")} —
+                          </SelectItem>
+                          {dams.other.map((a) => (
+                            <SelectItem key={a.id} value={a.id}>
+                              {a.eartag}
+                              {a.campName ? ` · ${a.campName}` : ""}
+                            </SelectItem>
+                          ))}
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </Field>

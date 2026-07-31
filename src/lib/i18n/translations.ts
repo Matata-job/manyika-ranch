@@ -214,6 +214,9 @@ const en = {
   quickNotePlaceholder: "Write a dated note for the timeline…",
   addQuickNote: "Add note",
   hasNotes: "Has notes",
+  parentsInCamp: "This camp",
+  parentsOtherCamps: "Other camps",
+  eartagTaken: "That eartag already exists — pick another",
 
   // Camps
   campsTitle: "Camps",
@@ -838,6 +841,9 @@ const sw: Dict = {
   quickNotePlaceholder: "Andika kidokezo chenye tarehe kwa ratiba…",
   addQuickNote: "Ongeza kidokezo",
   hasNotes: "Ina maelezo",
+  parentsInCamp: "Kambi hii",
+  parentsOtherCamps: "Kambi zingine",
+  eartagTaken: "Eartag hiyo tayari ipo — chagua nyingine",
 
   campsTitle: "Kambi",
   campsSubtitle: "Maeneo ya malisho na mahali pa mifugo",

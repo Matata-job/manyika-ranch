@@ -3,7 +3,10 @@ import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/api-guard";
 import { suggestNextEartag } from "@/lib/eartag";
 
-/** Suggest the next eartag number for a camp (follows MR-nn-NNN or last format). */
+/**
+ * Suggest the next free eartag for a camp.
+ * Sequence follows this camp’s numbers; skips any tag already used ranch-wide.
+ */
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -20,21 +23,22 @@ export async function GET(
     return NextResponse.json({ error: "Camp not found" }, { status: 404 });
   }
 
-  const animals = await prisma.animal.findMany({
-    where: { campId: id },
-    select: { eartag: true },
+  const ranchAnimals = await prisma.animal.findMany({
+    where: { camp: { ranchId: result.user.ranchId } },
+    select: { eartag: true, campId: true },
   });
 
-  const existing = animals.map((a) => a.eartag);
-  // Include locally remembered last tag if somehow ahead of DB (offline creates)
-  // Server cannot read localStorage; client merges separately.
+  const allEartags = ranchAnimals.map((a) => a.eartag);
+  const campEartags = ranchAnimals
+    .filter((a) => a.campId === id)
+    .map((a) => a.eartag);
 
   const suggested = suggestNextEartag({
     campCode: camp.code,
-    existingEartags: existing,
+    sequenceEartags: campEartags,
+    existingEartags: allEartags,
   });
 
-  // Find highest matching tag for display
   let lastEartag: string | null = null;
   if (camp.code) {
     const re = new RegExp(
@@ -42,7 +46,7 @@ export async function GET(
       "i"
     );
     let max = -1;
-    for (const tag of existing) {
+    for (const tag of campEartags) {
       const m = tag.match(re);
       if (!m) continue;
       const n = parseInt(m[1], 10);
@@ -51,6 +55,8 @@ export async function GET(
         lastEartag = tag;
       }
     }
+  } else if (campEartags.length > 0) {
+    lastEartag = [...campEartags].sort().at(-1) || null;
   }
 
   return NextResponse.json({
@@ -58,6 +64,6 @@ export async function GET(
     campCode: camp.code,
     lastEartag,
     suggested,
-    count: existing.length,
+    count: campEartags.length,
   });
 }
