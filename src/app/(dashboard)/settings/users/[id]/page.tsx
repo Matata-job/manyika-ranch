@@ -14,6 +14,7 @@ import { ROLE_LABELS } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 import { ArrowLeft, Save } from "lucide-react";
 import { PhotoSourcePicker } from "@/components/photo-source-picker";
+import { uploadPhotoFile } from "@/lib/client/upload-photo";
 
 interface UserProfile {
   id: string;
@@ -82,13 +83,11 @@ export default function UserProfilePage() {
 
   async function uploadPhoto(): Promise<string | null> {
     if (!photoFile) return null;
-    const fd = new FormData();
-    fd.append("file", photoFile);
-    fd.append("folder", "users");
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
-    if (!res.ok) return null;
-    const { url } = await res.json();
-    return url;
+    try {
+      return await uploadPhotoFile(photoFile, "users");
+    } catch {
+      return null;
+    }
   }
 
   async function handleSave() {

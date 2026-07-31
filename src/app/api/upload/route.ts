@@ -12,14 +12,41 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
   }
 
-  const maxSize = 5 * 1024 * 1024;
+  const maxSize = 12 * 1024 * 1024; // after client compress most are <3MB; allow larger originals as fallback
   if (file.size > maxSize) {
-    return NextResponse.json({ error: "File too large (max 5MB)" }, { status: 400 });
+    return NextResponse.json(
+      {
+        error:
+          "File too large (max 12MB). Try a smaller photo or use the camera.",
+      },
+      { status: 400 }
+    );
   }
 
-  const allowed = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
-  if (file.type && !allowed.includes(file.type) && !file.type.startsWith("image/")) {
-    return NextResponse.json({ error: `Invalid file type: ${file.type}` }, { status: 400 });
+  const type = (file.type || "").toLowerCase();
+  const allowed = [
+    "image/jpeg",
+    "image/jpg",
+    "image/pjpeg",
+    "image/png",
+    "image/webp",
+    "image/heic",
+    "image/heif",
+    "image/gif",
+    "application/octet-stream", // some mobile galleries omit a real MIME
+    "",
+  ];
+  const looksLikeImage =
+    !type ||
+    allowed.includes(type) ||
+    type.startsWith("image/") ||
+    /\.(jpe?g|png|webp|heic|heif|gif)$/i.test(file.name || "");
+
+  if (!looksLikeImage) {
+    return NextResponse.json(
+      { error: `Invalid file type: ${file.type || "unknown"}` },
+      { status: 400 }
+    );
   }
 
   const folder = (formData.get("folder") as string) || "animals";

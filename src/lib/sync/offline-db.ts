@@ -1,4 +1,6 @@
 import Dexie, { type EntityTable } from "dexie";
+import { prepareImageForUpload } from "@/lib/client/prepare-image";
+import { uploadPhotoFile } from "@/lib/client/upload-photo";
 
 export interface SyncQueueItem {
   id: number;
@@ -86,16 +88,16 @@ export async function enqueueSync(
   if (photos.length > 0) {
     const rows: Omit<PendingPhoto, "id">[] = [];
     for (let i = 0; i < photos.length; i++) {
-      const file = photos[i];
-      const data = await file.arrayBuffer();
+      const prepared = await prepareImageForUpload(photos[i]);
+      const data = await prepared.arrayBuffer();
       if (!data.byteLength) {
         throw new Error("Photo data was empty — try choosing the photo again");
       }
       rows.push({
         queueId,
         data,
-        fileName: file.name || `photo-${Date.now()}-${i}.jpg`,
-        mimeType: file.type || "image/jpeg",
+        fileName: prepared.name || `photo-${Date.now()}-${i}.jpg`,
+        mimeType: prepared.type || "image/jpeg",
       });
     }
     await db.pendingPhotos.bulkAdd(rows);
@@ -128,18 +130,7 @@ async function uploadQueuedPhotos(queueId: number): Promise<string[]> {
         const file = new File([legacy.blob], photo.fileName, {
           type: photo.mimeType || "image/jpeg",
         });
-        const fd = new FormData();
-        fd.append("file", file);
-        fd.append("folder", "animals");
-        const res = await fetch("/api/upload", { method: "POST", body: fd });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(
-            (err as { error?: string }).error || "Photo upload failed during sync"
-          );
-        }
-        const { url } = await res.json();
-        urls.push(url as string);
+        urls.push(await uploadPhotoFile(file, "animals", "Photo upload failed during sync"));
         continue;
       }
       throw new Error("Stored photo data is missing — re-save the animal with photos");
@@ -148,18 +139,7 @@ async function uploadQueuedPhotos(queueId: number): Promise<string[]> {
     const file = new File([bytes], photo.fileName, {
       type: photo.mimeType || "image/jpeg",
     });
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("folder", "animals");
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(
-        (err as { error?: string }).error || "Photo upload failed during sync"
-      );
-    }
-    const { url } = await res.json();
-    urls.push(url as string);
+    urls.push(await uploadPhotoFile(file, "animals", "Photo upload failed during sync"));
   }
 
   return urls;

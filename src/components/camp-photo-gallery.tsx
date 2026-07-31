@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight, Plus, X, ZoomIn } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 import { PhotoSourcePicker } from "@/components/photo-source-picker";
 import { useObjectUrls } from "@/hooks/use-object-urls";
+import { uploadPhotoFile } from "@/lib/client/upload-photo";
 
 export interface CampPhoto {
   id: string;
@@ -47,16 +48,7 @@ export function CampPhotoGallery({
   }, [initialPhotos]);
 
   async function uploadFile(file: File, folder: string): Promise<string> {
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("folder", folder);
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || t("photoUploadFailed"));
-    }
-    const { url } = await res.json();
-    return url;
+    return uploadPhotoFile(file, folder, t("photoUploadFailed"));
   }
 
   async function addPhotos() {

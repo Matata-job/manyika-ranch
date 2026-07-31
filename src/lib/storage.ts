@@ -97,12 +97,20 @@ export async function uploadPhoto(
   file: File,
   folder = "animals"
 ): Promise<{ url: string; storage: "supabase" | "local" }> {
-  const ext = (file.name.split(".").pop() || "jpg")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-  const filename = `${randomUUID()}.${ext || "jpg"}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
   const contentType = file.type || "image/jpeg";
+  const extRaw = (file.name.split(".").pop() || "").toLowerCase();
+  const extFromName = extRaw.replace(/[^a-z0-9]/g, "");
+  const extFromType =
+    contentType.includes("png")
+      ? "png"
+      : contentType.includes("webp")
+        ? "webp"
+        : contentType.includes("heic") || contentType.includes("heif")
+          ? "heic"
+          : "jpg";
+  const ext = extFromName || extFromType;
+  const filename = `${randomUUID()}.${ext}`;
+  const buffer = Buffer.from(await file.arrayBuffer());
   const objectPath = `${folder}/${filename}`;
 
   if (getSupabaseConfig()) {

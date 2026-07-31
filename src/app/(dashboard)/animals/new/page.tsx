@@ -23,6 +23,7 @@ import { PhotoSourcePicker } from "@/components/photo-source-picker";
 import { cn } from "@/lib/utils";
 import { useObjectUrls } from "@/hooks/use-object-urls";
 import { rememberCampEartag, suggestNextEartag } from "@/lib/eartag";
+import { uploadPhotoFile } from "@/lib/client/upload-photo";
 
 function Field({
   label,
@@ -214,15 +215,7 @@ export default function NewAnimalPage() {
   async function uploadPhotos(): Promise<string[]> {
     const urls: string[] = [];
     for (const file of photoFiles) {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || t("photoUploadFailed"));
-      }
-      const { url } = await res.json();
-      urls.push(url);
+      urls.push(await uploadPhotoFile(file, "animals", t("photoUploadFailed")));
     }
     return urls;
   }

@@ -15,6 +15,10 @@ interface PhotoSourcePickerProps {
   size?: "sm" | "default";
 }
 
+/** Visually hidden but still openable on mobile (display:none breaks some WebViews). */
+const fileInputClass =
+  "absolute h-px w-px overflow-hidden opacity-0 pointer-events-none";
+
 /**
  * Two clear options: pick from device library, or open the camera.
  * Separate inputs are required — combining capture + gallery on one input
@@ -38,13 +42,15 @@ export function PhotoSourcePicker({
   }
 
   return (
-    <div className={cn("flex flex-wrap gap-2", className)}>
+    <div className={cn("relative flex flex-wrap gap-2", className)}>
       <input
         ref={libraryRef}
         type="file"
-        accept="image/*"
+        accept="image/*,image/heic,image/heif,.heic,.heif"
         multiple={multiple}
-        className="hidden"
+        className={fileInputClass}
+        tabIndex={-1}
+        aria-hidden
         onChange={handleChange}
       />
       <input
@@ -52,7 +58,9 @@ export function PhotoSourcePicker({
         type="file"
         accept="image/*"
         capture="environment"
-        className="hidden"
+        className={fileInputClass}
+        tabIndex={-1}
+        aria-hidden
         onChange={handleChange}
       />
       <Button
