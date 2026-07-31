@@ -25,6 +25,8 @@ import type { TranslationKey } from "@/lib/i18n/translations";
 import { EartagBadge, TagColorSwatch } from "@/components/eartag-badge";
 import { TAG_COLORS, resolveTagColor, tagColorLabel } from "@/lib/tag-color";
 import { parseAnimalsList } from "@/lib/animals-api";
+import { PhotoSourcePicker } from "@/components/photo-source-picker";
+import { useObjectUrls } from "@/hooks/use-object-urls";
 
 interface AnimalEvent {
   id: string;
@@ -44,6 +46,7 @@ interface DeathRecord {
   disposalNotes: string | null;
   location: string | null;
   weightKg: number | null;
+  photoUrl: string | null;
   insuranceClaim: boolean;
   claimAmountTzs: number | null;
   claimReference: string | null;
@@ -190,6 +193,7 @@ export default function AnimalDetailPage() {
     ? hasPermission(role, "updateAnimalRecords")
     : false;
   const canRecordDeath = role ? hasPermission(role, "manageMortality") : false;
+  const canEditDeath = role ? hasPermission(role, "editMortality") : false;
   const canMove = role ? hasPermission(role, "manageMovements") : false;
   const canManageHealth = role ? hasPermission(role, "manageHealth") : false;
   const canManageEvents = role ? hasPermission(role, "manageEvents") : false;
@@ -283,6 +287,9 @@ export default function AnimalDetailPage() {
     isCulling: false,
     notes: "",
   });
+  const [deathPhotoFile, setDeathPhotoFile] = useState<File | null>(null);
+  const deathPhotoPreview = useObjectUrls(deathPhotoFile ? [deathPhotoFile] : []);
+  const [editingDeath, setEditingDeath] = useState(false);
   const [savingDeath, setSavingDeath] = useState(false);
   const [savingSale, setSavingSale] = useState(false);
   const [saleForm, setSaleForm] = useState({
@@ -614,27 +621,106 @@ export default function AnimalDetailPage() {
     loadAnimal();
   }
 
+  async function uploadDeathPhoto(file: File): Promise<string> {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("folder", "animals");
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || t("photoUploadFailed"));
+    }
+    const { url } = await res.json();
+    return url as string;
+  }
+
+  function startEditDeath(record: DeathRecord) {
+    setDeathForm({
+      date: record.date ? record.date.slice(0, 10) : "",
+      cause: record.cause || "UNKNOWN",
+      causeDetail: record.causeDetail || "",
+      disposalMethod: record.disposalMethod || "BURIED",
+      disposalNotes: record.disposalNotes || "",
+      location: record.location || "",
+      weightKg: record.weightKg != null ? String(record.weightKg) : "",
+      insuranceClaim: record.insuranceClaim,
+      claimAmountTzs:
+        record.claimAmountTzs != null ? String(record.claimAmountTzs) : "",
+      claimReference: record.claimReference || "",
+      isCulling: record.isCulling,
+      notes: record.notes || "",
+    });
+    setDeathPhotoFile(null);
+    setEditingDeath(true);
+  }
+
   async function recordDeath() {
     if (!confirm(t("confirmMarkDeceased"))) return;
     setSavingDeath(true);
-    const res = await fetch(`/api/animals/${id}/death`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...deathForm,
-        date: deathForm.date || undefined,
-        weightKg: deathForm.weightKg || null,
-        claimAmountTzs: deathForm.claimAmountTzs || null,
-        isCulling: deathForm.isCulling || deathForm.cause === "CULLING",
-      }),
-    });
-    setSavingDeath(false);
-    if (!res.ok) {
-      const err = await res.json();
-      alert(err.error || t("failedToSave"));
-      return;
+    try {
+      const photoUrl = deathPhotoFile
+        ? await uploadDeathPhoto(deathPhotoFile)
+        : null;
+      const res = await fetch(`/api/animals/${id}/death`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...deathForm,
+          date: deathForm.date || undefined,
+          weightKg: deathForm.weightKg || null,
+          claimAmountTzs: deathForm.claimAmountTzs || null,
+          isCulling: deathForm.isCulling || deathForm.cause === "CULLING",
+          photoUrl,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || t("failedToSave"));
+        return;
+      }
+      setDeathPhotoFile(null);
+      setEditingDeath(false);
+      loadAnimal();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : t("photoUploadFailed"));
+    } finally {
+      setSavingDeath(false);
     }
-    loadAnimal();
+  }
+
+  async function saveDeathEdit() {
+    if (!animal?.deathRecord) return;
+    setSavingDeath(true);
+    try {
+      let photoUrl: string | undefined;
+      if (deathPhotoFile) {
+        photoUrl = await uploadDeathPhoto(deathPhotoFile);
+      }
+      const res = await fetch(`/api/animals/${id}/death`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...deathForm,
+          date: deathForm.date || undefined,
+          weightKg: deathForm.weightKg || null,
+          claimAmountTzs: deathForm.claimAmountTzs || null,
+          isCulling: deathForm.isCulling || deathForm.cause === "CULLING",
+          ...(photoUrl ? { photoUrl } : {}),
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || t("failedToSave"));
+        return;
+      }
+      setDeathPhotoFile(null);
+      setEditingDeath(false);
+      loadAnimal();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : t("photoUploadFailed"));
+    } finally {
+      setSavingDeath(false);
+    }
   }
 
   async function recordSale() {
@@ -705,7 +791,9 @@ export default function AnimalDetailPage() {
           animalId={id}
           initialPhotos={animal.photos || []}
           coverUrl={animal.photoUrl}
-          canEdit={canUpdateRecords && !isClosed}
+          canEdit={
+            (!isClosed && canUpdateRecords) || (isDeceased && canEdit)
+          }
           onPhotosChange={loadAnimal}
         />
         <div className="flex-1">
@@ -1730,12 +1818,39 @@ export default function AnimalDetailPage() {
 
         <TabsContent value="death">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between gap-2">
               <CardTitle>{animal.deathRecord ? t("deathRecord") : t("recordDeathCulling")}</CardTitle>
+              {animal.deathRecord && canEditDeath && !editingDeath && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => startEditDeath(animal.deathRecord!)}
+                >
+                  <Pencil className="h-3.5 w-3.5 mr-1" /> {t("editDeathRecord")}
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
-              {animal.deathRecord ? (
+              {animal.deathRecord && !editingDeath ? (
                 <div className="grid gap-3 sm:grid-cols-2 text-sm">
+                  {animal.deathRecord.photoUrl && (
+                    <div className="sm:col-span-2">
+                      <span className="text-muted-foreground">{t("deathEvidencePhoto")}</span>
+                      <a
+                        href={animal.deathRecord.photoUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 block max-w-sm overflow-hidden rounded-lg border bg-muted"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={animal.deathRecord.photoUrl}
+                          alt={t("deathEvidencePhoto")}
+                          className="h-48 w-full object-cover"
+                        />
+                      </a>
+                    </div>
+                  )}
                   <div><span className="text-muted-foreground">{t("date")}</span><p className="font-medium">{formatDate(animal.deathRecord.date)}</p></div>
                   <div><span className="text-muted-foreground">{t("cause")}</span><p className="font-medium">{t(deathCauseKey(animal.deathRecord.cause))}</p></div>
                   <div><span className="text-muted-foreground">{t("disposal")}</span><p className="font-medium">{t(disposalMethodKey(animal.deathRecord.disposalMethod))}</p></div>
@@ -1762,8 +1877,27 @@ export default function AnimalDetailPage() {
                   )}
                   {animal.deathRecord.notes && <p className="sm:col-span-2 text-muted-foreground">{animal.deathRecord.notes}</p>}
                 </div>
-              ) : canRecordDeath ? (
+              ) : (canRecordDeath && !animal.deathRecord) || (canEditDeath && editingDeath) ? (
                 <div className="grid gap-3 sm:grid-cols-2 max-w-2xl">
+                  <div className="sm:col-span-2 space-y-2 rounded-md border p-3">
+                    <Label>{animal.deathRecord ? t("replaceDeathPhoto") : t("deathEartagPhoto")}</Label>
+                    <p className="text-xs text-muted-foreground">{t("deathEartagPhotoHint")}</p>
+                    <PhotoSourcePicker
+                      multiple={false}
+                      disabled={savingDeath}
+                      onFiles={(files) => setDeathPhotoFile(files[0] || null)}
+                    />
+                    {(deathPhotoPreview[0] || animal.deathRecord?.photoUrl) && (
+                      <div className="mt-2 overflow-hidden rounded-md border bg-muted max-w-xs">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={deathPhotoPreview[0] || animal.deathRecord!.photoUrl!}
+                          alt={t("deathEvidencePhoto")}
+                          className="h-40 w-full object-cover"
+                        />
+                      </div>
+                    )}
+                  </div>
                   <Input type="date" value={deathForm.date} onChange={(e) => setDeathForm({ ...deathForm, date: e.target.value })} />
                   <Select value={deathForm.cause} onValueChange={(v) => setDeathForm({ ...deathForm, cause: v, isCulling: v === "CULLING" })}>
                     <SelectTrigger><SelectValue placeholder={t("cause")} /></SelectTrigger>
@@ -1800,12 +1934,37 @@ export default function AnimalDetailPage() {
                     </>
                   )}
                   <Textarea placeholder={t("notes")} value={deathForm.notes} onChange={(e) => setDeathForm({ ...deathForm, notes: e.target.value })} className="sm:col-span-2" />
-                  <Button variant="destructive" onClick={recordDeath} disabled={savingDeath} className="sm:col-span-2">
-                    {savingDeath ? t("saving") : t("recordDeathCulling")}
-                  </Button>
+                  {editingDeath ? (
+                    <div className="sm:col-span-2 flex flex-wrap gap-2">
+                      <Button onClick={saveDeathEdit} disabled={savingDeath}>
+                        {savingDeath ? t("saving") : t("save")}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        disabled={savingDeath}
+                        onClick={() => {
+                          setEditingDeath(false);
+                          setDeathPhotoFile(null);
+                        }}
+                      >
+                        {t("cancel")}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="destructive"
+                      onClick={recordDeath}
+                      disabled={savingDeath}
+                      className="sm:col-span-2"
+                    >
+                      {savingDeath ? t("saving") : t("recordDeathCulling")}
+                    </Button>
+                  )}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">{t("ownerOnlyAction")}</p>
+                <p className="text-sm text-muted-foreground">
+                  {animal.deathRecord ? t("ownerOnlyAction") : t("deathPublishPermission")}
+                </p>
               )}
             </CardContent>
           </Card>

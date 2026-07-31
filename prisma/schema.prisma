@@ -630,6 +630,8 @@ model DeathRecord {
   disposalNotes   String?
   location        String?
   weightKg        Float?
+  /** Evidence photo showing the animal with its eartag (recommended) */
+  photoUrl        String?
   insuranceClaim  Boolean        @default(false)
   claimAmountTzs  Float?
   claimReference  String?
@@ -638,6 +640,7 @@ model DeathRecord {
   recordedBy      User           @relation(fields: [recordedById], references: [id])
   notes           String?
   createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   @@index([date])
   @@index([cause])

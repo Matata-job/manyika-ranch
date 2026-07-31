@@ -27,7 +27,20 @@ export async function POST(
   const access = await requireAnimalAccess(id);
   if (!access.ok) return access.error;
 
-  const result = await requirePermission("updateAnimalRecords");
+  const animal = await prisma.animal.findUnique({
+    where: { id },
+    select: { status: true },
+  });
+  if (!animal) {
+    return NextResponse.json({ error: "Animal not found" }, { status: 404 });
+  }
+
+  // After death/sale, only the ranch owner may add photos.
+  const permission =
+    animal.status === "DECEASED" || animal.status === "SOLD"
+      ? "editAnimal"
+      : "updateAnimalRecords";
+  const result = await requirePermission(permission);
   if (!result.ok) return result.error;
 
   const body = await req.json();

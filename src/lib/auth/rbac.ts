@@ -63,8 +63,10 @@ export const PERMISSIONS = {
     Role.CAMP_SUPERVISOR,
     Role.RECORDS_CLERK,
   ],
-  /** Record death / culling — ranch OWNER only. */
-  manageMortality: [Role.OWNER],
+  /** Publish death / culling — owner or camp supervisor (eartag photo recommended). */
+  manageMortality: [Role.OWNER, Role.CAMP_SUPERVISOR],
+  /** Change a death record after it is published — ranch OWNER only. */
+  editMortality: [Role.OWNER],
   manageSales: [
     Role.OWNER,
     Role.FARM_MANAGER,

@@ -461,6 +461,15 @@ const en = {
   vaccineName: "Vaccine name",
   deathRecord: "Death Record",
   recordDeathCulling: "Record Death / Culling",
+  editDeathRecord: "Edit death record",
+  deathEartagPhoto: "Photo with eartag (recommended)",
+  deathEartagPhotoHint:
+    "Take or attach a clear photo of the animal showing its eartag. Optional, but strongly recommended.",
+  deathPhotoRequired: "A photo of the animal with its eartag is recommended.",
+  deathPublishPermission:
+    "Only the ranch owner or camp supervisor can record a death.",
+  deathEvidencePhoto: "Evidence photo",
+  replaceDeathPhoto: "Replace evidence photo",
   cause: "Cause",
   causeDetail: "Cause detail",
   disposal: "Disposal",
@@ -1075,6 +1084,15 @@ const sw: Dict = {
   vaccineName: "Jina la chanjo",
   deathRecord: "Rekodi ya Kifo",
   recordDeathCulling: "Rekodi Kifo / Uteuzi",
+  editDeathRecord: "Hariri rekodi ya kifo",
+  deathEartagPhoto: "Picha yenye eartag (inapendekezwa)",
+  deathEartagPhotoHint:
+    "Piga au ambatanisha picha wazi ya mnyama inayoonesha eartag yake. Si lazima, lakini inapendekezwa sana.",
+  deathPhotoRequired: "Picha ya mnyama yenye eartag inapendekezwa.",
+  deathPublishPermission:
+    "Ni mmiliki wa shamba au msimamizi wa kambi tu anayeweza kurekodi kifo.",
+  deathEvidencePhoto: "Picha ya uthibitisho",
+  replaceDeathPhoto: "Badilisha picha ya uthibitisho",
   cause: "Chanzo",
   causeDetail: "Maelezo ya chanzo",
   disposal: "Utupaji",
