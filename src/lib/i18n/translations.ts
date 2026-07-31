@@ -467,7 +467,7 @@ const en = {
     "Take or attach a clear photo of the animal showing its eartag. Optional, but strongly recommended.",
   deathPhotoRequired: "A photo of the animal with its eartag is recommended.",
   deathPublishPermission:
-    "Only the ranch owner or camp supervisor can record a death.",
+    "Only the ranch owner or farm manager can record a death.",
   deathEvidencePhoto: "Evidence photo",
   replaceDeathPhoto: "Replace evidence photo",
   cause: "Cause",
@@ -1090,7 +1090,7 @@ const sw: Dict = {
     "Piga au ambatanisha picha wazi ya mnyama inayoonesha eartag yake. Si lazima, lakini inapendekezwa sana.",
   deathPhotoRequired: "Picha ya mnyama yenye eartag inapendekezwa.",
   deathPublishPermission:
-    "Ni mmiliki wa shamba au msimamizi wa kambi tu anayeweza kurekodi kifo.",
+    "Ni mmiliki wa shamba au meneja wa shamba tu anayeweza kurekodi kifo.",
   deathEvidencePhoto: "Picha ya uthibitisho",
   replaceDeathPhoto: "Badilisha picha ya uthibitisho",
   cause: "Chanzo",
