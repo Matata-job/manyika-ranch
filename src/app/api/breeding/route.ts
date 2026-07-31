@@ -5,6 +5,7 @@ import {
   buildAnimalScope,
   requireAnimalAccess,
 } from "@/lib/auth/api-guard";
+import { logAnimalEvent } from "@/lib/services/event-service";
 import type { Role } from "@prisma/client";
 
 export async function GET() {
@@ -22,9 +23,9 @@ export async function GET() {
     orderBy: { matingDate: "desc" },
     take: 100,
     include: {
-      dam: { select: { id: true, eartag: true } },
+      dam: { select: { id: true, eartag: true, isPregnant: true } },
       sire: { select: { id: true, eartag: true } },
-      calving: true,
+      calving: { include: { calf: { select: { id: true, eartag: true } } } },
       recordedBy: { select: { name: true } },
     },
   });
@@ -46,17 +47,53 @@ export async function POST(req: NextRequest) {
     if (!sireAccess.ok) return sireAccess.error;
   }
 
+  const pregnancyConfirmed = Boolean(body.pregnancyConfirmed);
   const event = await prisma.breedingEvent.create({
     data: {
       damId: body.damId,
-      sireId: body.sireId,
+      sireId: body.sireId || null,
       matingDate: new Date(body.matingDate),
       method: body.method || "NATURAL",
-      pregnancyConfirmed: body.pregnancyConfirmed || false,
+      pregnancyConfirmed,
       recordedById: result.user.id,
       notes: body.notes,
     },
+    include: {
+      dam: { select: { id: true, eartag: true } },
+      sire: { select: { id: true, eartag: true } },
+    },
   });
+
+  await logAnimalEvent({
+    animalId: body.damId,
+    type: "BREEDING",
+    title: event.sire
+      ? `Mated with ${event.sire.eartag}`
+      : "Mating recorded",
+    description: `${event.method} · ${new Date(body.matingDate).toISOString().slice(0, 10)}`,
+    occurredAt: new Date(body.matingDate),
+    recordedById: result.user.id,
+    metadata: {
+      breedingEventId: event.id,
+      sireId: body.sireId || null,
+      method: event.method,
+    },
+  });
+
+  if (pregnancyConfirmed) {
+    await prisma.animal.update({
+      where: { id: body.damId },
+      data: { isPregnant: true },
+    });
+    await logAnimalEvent({
+      animalId: body.damId,
+      type: "STATUS_CHANGE",
+      title: "Marked pregnant",
+      description: "Pregnancy confirmed from breeding record",
+      recordedById: result.user.id,
+      metadata: { isPregnant: true, breedingEventId: event.id },
+    });
+  }
 
   return NextResponse.json(event, { status: 201 });
 }

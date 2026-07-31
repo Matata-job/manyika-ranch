@@ -111,7 +111,7 @@ export async function PATCH(
 
   const previous = await prisma.animal.findUnique({
     where: { id },
-    select: { status: true },
+    select: { status: true, isCastrated: true, isPregnant: true, damId: true, eartag: true },
   });
 
   if (
@@ -128,6 +128,19 @@ export async function PATCH(
     );
   }
 
+  const nextCastrated =
+    body.isCastrated !== undefined
+      ? body.sex === "FEMALE"
+        ? false
+        : Boolean(body.isCastrated)
+      : undefined;
+  const nextPregnant =
+    body.isPregnant !== undefined
+      ? body.sex === "MALE"
+        ? false
+        : Boolean(body.isPregnant)
+      : undefined;
+
   const animal = await prisma.animal.update({
     where: { id },
     data: {
@@ -136,18 +149,8 @@ export async function PATCH(
       photoUrl: body.photoUrl,
       breed: body.breed,
       sex: body.sex,
-      isCastrated:
-        body.isCastrated !== undefined
-          ? body.sex === "FEMALE"
-            ? false
-            : Boolean(body.isCastrated)
-          : undefined,
-      isPregnant:
-        body.isPregnant !== undefined
-          ? body.sex === "MALE"
-            ? false
-            : Boolean(body.isPregnant)
-          : undefined,
+      isCastrated: nextCastrated,
+      isPregnant: nextPregnant,
       dob,
       ageMonths:
         dob instanceof Date
@@ -189,6 +192,48 @@ export async function PATCH(
       title: `Status: ${previous.status} → ${body.status}`,
       recordedById: result.user.id,
       metadata: { from: previous.status, to: body.status },
+    });
+  }
+
+  if (
+    previous &&
+    nextCastrated === true &&
+    previous.isCastrated !== true
+  ) {
+    await logAnimalEvent({
+      animalId: id,
+      type: "CASTRATION",
+      title: "Castrated",
+      description: "Marked as castrated (hasiwa)",
+      recordedById: result.user.id,
+      metadata: { isCastrated: true },
+    });
+  }
+
+  if (previous && nextPregnant !== undefined && nextPregnant !== previous.isPregnant) {
+    await logAnimalEvent({
+      animalId: id,
+      type: "STATUS_CHANGE",
+      title: nextPregnant ? "Marked pregnant" : "Pregnancy cleared",
+      description: nextPregnant
+        ? "Expected calf — clear after calving or when confirmed open"
+        : "No longer pregnant (open / after calving / breeding season)",
+      recordedById: result.user.id,
+      metadata: { isPregnant: nextPregnant },
+    });
+  }
+
+  // Linking a calf to its dam implies the dam has calved — clear pregnancy flag
+  if (
+    body.damId &&
+    typeof body.damId === "string" &&
+    body.damId !== previous?.damId
+  ) {
+    const { clearDamPregnancy } = await import("@/lib/services/breeding-service");
+    await clearDamPregnancy(body.damId, {
+      recordedById: result.user.id,
+      reason: "Calf linked in pedigree",
+      calfEartag: animal.eartag,
     });
   }
 

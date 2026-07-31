@@ -156,6 +156,30 @@ export async function POST(req: NextRequest) {
             photoCount: photoUrls.length,
           },
         });
+
+        if (animal.isCastrated) {
+          await logAnimalEvent({
+            animalId: animal.id,
+            type: "CASTRATION",
+            title: "Castrated",
+            description: "Registered as castrated (hasiwa) · synced from offline",
+            occurredAt,
+            recordedById: result.user.id,
+            metadata: { isCastrated: true, syncedFromOffline: true },
+          });
+        }
+
+        if (damId) {
+          const { clearDamPregnancy } = await import(
+            "@/lib/services/breeding-service"
+          );
+          await clearDamPregnancy(damId, {
+            recordedById: result.user.id,
+            reason: "Calf registered and linked to dam (offline sync)",
+            calfEartag: animal.eartag,
+            occurredAt,
+          });
+        }
       } else if (entity === "weight" && action === "create") {
         const animalAccess = await requireAnimalAccess(payload.animalId as string);
         if (!animalAccess.ok) {

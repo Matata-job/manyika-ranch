@@ -689,6 +689,9 @@ export default function AnimalDetailPage() {
                   />
                   {animal.isCastrated ? t("yes") : t("no")}
                 </label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Checking this adds a castration event to the timeline.
+                </p>
               </div>
             )}
             {animal.sex === "FEMALE" && canEdit && !isClosed && (
@@ -703,6 +706,10 @@ export default function AnimalDetailPage() {
                   />
                   {animal.isPregnant ? t("yes") : t("no")}
                 </label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Clear after calving, or when confirmed open after breeding season.
+                  Linking a calf or recording calving clears this automatically.
+                </p>
               </div>
             )}
           </div>

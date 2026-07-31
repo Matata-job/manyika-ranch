@@ -29,6 +29,7 @@ const EVENT_TYPES = [
   "VACCINATION",
   "BREEDING",
   "CALVING",
+  "CASTRATION",
   "NOTE",
   "STATUS_CHANGE",
   "SALE",

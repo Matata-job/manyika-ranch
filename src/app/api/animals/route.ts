@@ -257,5 +257,26 @@ export async function POST(req: NextRequest) {
     recordedById: result.user.id,
     metadata: { campId: animal.campId, breed: animal.breed },
   });
+
+  if (animal.isCastrated) {
+    await logAnimalEvent({
+      animalId: animal.id,
+      type: "CASTRATION",
+      title: "Castrated",
+      description: "Registered as castrated (hasiwa)",
+      recordedById: result.user.id,
+      metadata: { isCastrated: true },
+    });
+  }
+
+  if (damId) {
+    const { clearDamPregnancy } = await import("@/lib/services/breeding-service");
+    await clearDamPregnancy(damId, {
+      recordedById: result.user.id,
+      reason: "Calf registered and linked to dam",
+      calfEartag: animal.eartag,
+    });
+  }
+
   return NextResponse.json(withComputedAge(animal), { status: 201 });
 }

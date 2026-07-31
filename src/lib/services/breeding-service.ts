@@ -1,19 +1,60 @@
 import { prisma } from "@/lib/db";
 import { computeAgeMonths } from "@/lib/utils";
+import { logAnimalEvent } from "@/lib/services/event-service";
+
+/** Clear herd pregnancy flag after calving / calf link (camps run with bulls year-round). */
+export async function clearDamPregnancy(
+  damId: string,
+  opts: {
+    recordedById?: string | null;
+    reason: string;
+    calfEartag?: string | null;
+    occurredAt?: Date;
+  }
+) {
+  const dam = await prisma.animal.findUnique({
+    where: { id: damId },
+    select: { id: true, sex: true, isPregnant: true, eartag: true },
+  });
+  if (!dam || dam.sex !== "FEMALE" || !dam.isPregnant) return null;
+
+  await prisma.animal.update({
+    where: { id: damId },
+    data: { isPregnant: false },
+  });
+
+  await logAnimalEvent({
+    animalId: damId,
+    type: "STATUS_CHANGE",
+    title: "Pregnancy cleared",
+    description: opts.calfEartag
+      ? `${opts.reason} · calf ${opts.calfEartag}`
+      : opts.reason,
+    occurredAt: opts.occurredAt,
+    recordedById: opts.recordedById,
+    metadata: {
+      isPregnant: false,
+      reason: opts.reason,
+      calfEartag: opts.calfEartag || null,
+    },
+  });
+
+  return dam;
+}
 
 export async function recordCalving(
   breedingEventId: string | null,
   body: Record<string, unknown>,
-  _userId: string
+  userId: string
 ) {
   const damId = body.damId as string;
   const dob = new Date(body.date as string);
 
+  const dam = await prisma.animal.findUnique({ where: { id: damId } });
+  if (!dam) throw new Error("Dam not found");
+
   let calf = null;
   if (body.createCalf && body.calfEartag) {
-    const dam = await prisma.animal.findUnique({ where: { id: damId } });
-    if (!dam) throw new Error("Dam not found");
-
     calf = await prisma.animal.create({
       data: {
         eartag: body.calfEartag as string,
@@ -30,6 +71,16 @@ export async function recordCalving(
         status: "ACTIVE",
       },
     });
+
+    await logAnimalEvent({
+      animalId: calf.id,
+      type: "REGISTERED",
+      title: `Registered ${calf.eartag}`,
+      description: `Born on farm · dam ${dam.eartag}`,
+      occurredAt: dob,
+      recordedById: userId,
+      metadata: { damId, sireId: body.sireId || null },
+    });
   }
 
   const calving = await prisma.calvingRecord.create({
@@ -44,6 +95,34 @@ export async function recordCalving(
     },
     include: { calf: { select: { id: true, eartag: true } } },
   });
+
+  await logAnimalEvent({
+    animalId: damId,
+    type: "CALVING",
+    title: calf ? `Calved · ${calf.eartag}` : "Calving recorded",
+    description: body.notes ? String(body.notes) : undefined,
+    occurredAt: dob,
+    recordedById: userId,
+    metadata: {
+      calvingId: calving.id,
+      calfId: calf?.id || null,
+      breedingEventId,
+    },
+  });
+
+  await clearDamPregnancy(damId, {
+    recordedById: userId,
+    reason: "Calving recorded",
+    calfEartag: calf?.eartag,
+    occurredAt: dob,
+  });
+
+  if (breedingEventId) {
+    await prisma.breedingEvent.update({
+      where: { id: breedingEventId },
+      data: { pregnancyConfirmed: true },
+    });
+  }
 
   return calving;
 }
