@@ -27,11 +27,16 @@ export const PERMISSIONS = {
     Role.FARM_MANAGER,
     Role.RECORDS_CLERK,
   ],
-  editAnimal: [
+  /** Core identity: eartag, pedigree, owner, camp, notes, status — ranch OWNER only. */
+  editAnimal: [Role.OWNER],
+  /** Operational logs (weights, photos) for day-to-day staff. */
+  updateAnimalRecords: [
     Role.OWNER,
     Role.FARM_MANAGER,
+    Role.RECORDS_CLERK,
+    Role.CAMP_SUPERVISOR,
   ],
-  deleteAnimal: [Role.OWNER, Role.FARM_MANAGER],
+  deleteAnimal: [Role.OWNER],
   viewAnimal: [
     Role.OWNER,
     Role.FARM_MANAGER,
@@ -58,13 +63,8 @@ export const PERMISSIONS = {
     Role.CAMP_SUPERVISOR,
     Role.RECORDS_CLERK,
   ],
-  manageMortality: [
-    Role.OWNER,
-    Role.FARM_MANAGER,
-    Role.CAMP_SUPERVISOR,
-    Role.VETERINARIAN,
-    Role.RECORDS_CLERK,
-  ],
+  /** Record death / culling — ranch OWNER only. */
+  manageMortality: [Role.OWNER],
   manageSales: [
     Role.OWNER,
     Role.FARM_MANAGER,

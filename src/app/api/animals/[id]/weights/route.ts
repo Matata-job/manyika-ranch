@@ -31,7 +31,7 @@ export async function POST(
   const access = await requireAnimalAccess(id);
   if (!access.ok) return access.error;
 
-  const result = await requirePermission("editAnimal");
+  const result = await requirePermission("updateAnimalRecords");
   if (!result.ok) return result.error;
 
   const body = await req.json();

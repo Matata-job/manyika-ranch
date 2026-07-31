@@ -217,6 +217,7 @@ const en = {
   parentsInCamp: "This camp",
   parentsOtherCamps: "Other camps",
   eartagTaken: "That eartag already exists — pick another",
+  ownerOnlyAction: "Only the ranch owner can do this.",
 
   // Camps
   campsTitle: "Camps",
@@ -844,6 +845,7 @@ const sw: Dict = {
   parentsInCamp: "Kambi hii",
   parentsOtherCamps: "Kambi zingine",
   eartagTaken: "Eartag hiyo tayari ipo — chagua nyingine",
+  ownerOnlyAction: "Ni mmiliki wa shamba tu anayeweza kufanya hivi.",
 
   campsTitle: "Kambi",
   campsSubtitle: "Maeneo ya malisho na mahali pa mifugo",

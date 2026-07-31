@@ -11,7 +11,7 @@ export async function DELETE(
   const access = await requireAnimalAccess(id);
   if (!access.ok) return access.error;
 
-  const result = await requirePermission("editAnimal");
+  const result = await requirePermission("updateAnimalRecords");
   if (!result.ok) return result.error;
 
   const log = await prisma.weightLog.findFirst({

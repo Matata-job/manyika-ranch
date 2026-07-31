@@ -109,6 +109,44 @@ export async function PATCH(
     }
   }
 
+  if (body.sireId !== undefined && body.sireId !== null && body.sireId !== "") {
+    const sire = await prisma.animal.findFirst({
+      where: { id: body.sireId, sex: "MALE" },
+      select: { id: true },
+    });
+    if (!sire) {
+      return NextResponse.json(
+        { error: "Sire must be a male animal" },
+        { status: 400 }
+      );
+    }
+    if (body.sireId === id) {
+      return NextResponse.json(
+        { error: "Animal cannot be its own sire" },
+        { status: 400 }
+      );
+    }
+  }
+
+  if (body.damId !== undefined && body.damId !== null && body.damId !== "") {
+    const dam = await prisma.animal.findFirst({
+      where: { id: body.damId, sex: "FEMALE" },
+      select: { id: true },
+    });
+    if (!dam) {
+      return NextResponse.json(
+        { error: "Dam must be a female animal" },
+        { status: 400 }
+      );
+    }
+    if (body.damId === id) {
+      return NextResponse.json(
+        { error: "Animal cannot be its own dam" },
+        { status: 400 }
+      );
+    }
+  }
+
   const previous = await prisma.animal.findUnique({
     where: { id },
     select: { status: true, isCastrated: true, isPregnant: true, damId: true, eartag: true },
@@ -179,8 +217,18 @@ export async function PATCH(
                 ? Math.max(0, (Number(body.ageYears) || 0) * 12 + (Number(body.ageMonthsPart) || 0))
                 : undefined,
       ownerId: body.ownerId,
-      sireId: body.sireId,
-      damId: body.damId,
+      sireId:
+        body.sireId === undefined
+          ? undefined
+          : body.sireId === null || body.sireId === ""
+            ? null
+            : body.sireId,
+      damId:
+        body.damId === undefined
+          ? undefined
+          : body.damId === null || body.damId === ""
+            ? null
+            : body.damId,
       campId: body.campId,
       status: body.status,
       acquisitionType: body.acquisitionType,

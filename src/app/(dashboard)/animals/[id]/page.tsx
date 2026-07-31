@@ -24,6 +24,7 @@ import { useLocale, useT } from "@/components/providers/locale-provider";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { EartagBadge, TagColorSwatch } from "@/components/eartag-badge";
 import { TAG_COLORS, resolveTagColor, tagColorLabel } from "@/lib/tag-color";
+import { parseAnimalsList } from "@/lib/animals-api";
 
 interface AnimalEvent {
   id: string;
@@ -185,8 +186,13 @@ export default function AnimalDetailPage() {
   const { data: session } = useSession();
   const role = session?.user?.role as Role | undefined;
   const canEdit = role ? hasPermission(role, "editAnimal") : false;
+  const canUpdateRecords = role
+    ? hasPermission(role, "updateAnimalRecords")
+    : false;
+  const canRecordDeath = role ? hasPermission(role, "manageMortality") : false;
   const canMove = role ? hasPermission(role, "manageMovements") : false;
   const canManageHealth = role ? hasPermission(role, "manageHealth") : false;
+  const canManageEvents = role ? hasPermission(role, "manageEvents") : false;
   const canSell = role ? hasPermission(role, "manageSales") : false;
   const [animal, setAnimal] = useState<AnimalDetail | null>(null);
   const [ageMode, setAgeMode] = useState<AgeDisplayMode>("AUTO");
@@ -210,6 +216,9 @@ export default function AnimalDetailPage() {
   const [camps, setCamps] = useState<{ id: string; name: string }[]>([]);
   const [breeds, setBreeds] = useState<{ id: string; name: string }[]>([]);
   const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
+  const [parentAnimals, setParentAnimals] = useState<
+    { id: string; eartag: string; sex: string; campId: string; campName: string }[]
+  >([]);
   const [editingDetails, setEditingDetails] = useState(false);
   const [savingDetails, setSavingDetails] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -227,6 +236,8 @@ export default function AnimalDetailPage() {
     colorMarkings: "",
     tagColor: "",
     notes: "",
+    sireId: "",
+    damId: "",
   });
   const [weightKg, setWeightKg] = useState("");
   const [moveCampId, setMoveCampId] = useState("");
@@ -321,6 +332,26 @@ export default function AnimalDetailPage() {
     fetch("/api/health/treatment-schedules")
       .then((r) => (r.ok ? r.json() : []))
       .then((d) => setTreatmentOptions(Array.isArray(d) ? d : []));
+    fetch("/api/animals?status=ACTIVE&limit=5000")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        setParentAnimals(
+          parseAnimalsList<{
+            id: string;
+            eartag: string;
+            sex: string;
+            camp?: { id: string; name: string };
+          }>(data)
+            .filter((a) => a.id !== id)
+            .map((a) => ({
+              id: a.id,
+              eartag: a.eartag,
+              sex: a.sex,
+              campId: a.camp?.id || "",
+              campName: a.camp?.name || "",
+            }))
+        );
+      });
   }, [id]);
 
   async function searchBuyers(q: string) {
@@ -349,6 +380,8 @@ export default function AnimalDetailPage() {
       colorMarkings: a.colorMarkings || "",
       tagColor: a.tagColor || "",
       notes: a.notes || "",
+      sireId: a.sire?.id || "",
+      damId: a.dam?.id || "",
     });
     setEditingDetails(true);
   }
@@ -368,6 +401,8 @@ export default function AnimalDetailPage() {
       colorMarkings: editForm.colorMarkings || null,
       tagColor: editForm.tagColor || null,
       notes: editForm.notes || null,
+      sireId: editForm.sireId || null,
+      damId: editForm.damId || null,
       acquisitionType: editForm.acquisitionType,
       acquisitionDate: editForm.acquisitionDate || null,
     };
@@ -670,7 +705,7 @@ export default function AnimalDetailPage() {
           animalId={id}
           initialPhotos={animal.photos || []}
           coverUrl={animal.photoUrl}
-          canEdit={canEdit && !isClosed}
+          canEdit={canUpdateRecords && !isClosed}
           onPhotosChange={loadAnimal}
         />
         <div className="flex-1">
@@ -926,6 +961,118 @@ export default function AnimalDetailPage() {
                 </Select>
               </div>
               <div className="space-y-2">
+                <Label>{t("sire")}</Label>
+                <Select
+                  value={editForm.sireId || "__none__"}
+                  onValueChange={(v) =>
+                    setEditForm({
+                      ...editForm,
+                      sireId: v === "__none__" ? "" : v,
+                    })
+                  }
+                >
+                  <SelectTrigger><SelectValue placeholder={t("none")} /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">{t("none")}</SelectItem>
+                    {(() => {
+                      const males = parentAnimals.filter((a) => a.sex === "MALE");
+                      const inCamp = males
+                        .filter((a) => a.campId === editForm.campId)
+                        .sort((a, b) => a.eartag.localeCompare(b.eartag));
+                      const other = males
+                        .filter((a) => a.campId !== editForm.campId)
+                        .sort((a, b) => a.eartag.localeCompare(b.eartag));
+                      return (
+                        <>
+                          {inCamp.length > 0 && (
+                            <>
+                              <SelectItem value="__hdr_sire_camp__" disabled>
+                                — {t("parentsInCamp")} —
+                              </SelectItem>
+                              {inCamp.map((a) => (
+                                <SelectItem key={a.id} value={a.id}>
+                                  {a.eartag}
+                                </SelectItem>
+                              ))}
+                            </>
+                          )}
+                          {other.length > 0 && (
+                            <>
+                              <SelectItem value="__hdr_sire_other__" disabled>
+                                — {t("parentsOtherCamps")} —
+                              </SelectItem>
+                              {other.map((a) => (
+                                <SelectItem key={a.id} value={a.id}>
+                                  {a.eartag}
+                                  {a.campName ? ` · ${a.campName}` : ""}
+                                </SelectItem>
+                              ))}
+                            </>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">{t("sireMaleOnly")}</p>
+              </div>
+              <div className="space-y-2">
+                <Label>{t("dam")}</Label>
+                <Select
+                  value={editForm.damId || "__none__"}
+                  onValueChange={(v) =>
+                    setEditForm({
+                      ...editForm,
+                      damId: v === "__none__" ? "" : v,
+                    })
+                  }
+                >
+                  <SelectTrigger><SelectValue placeholder={t("none")} /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">{t("none")}</SelectItem>
+                    {(() => {
+                      const females = parentAnimals.filter((a) => a.sex === "FEMALE");
+                      const inCamp = females
+                        .filter((a) => a.campId === editForm.campId)
+                        .sort((a, b) => a.eartag.localeCompare(b.eartag));
+                      const other = females
+                        .filter((a) => a.campId !== editForm.campId)
+                        .sort((a, b) => a.eartag.localeCompare(b.eartag));
+                      return (
+                        <>
+                          {inCamp.length > 0 && (
+                            <>
+                              <SelectItem value="__hdr_dam_camp__" disabled>
+                                — {t("parentsInCamp")} —
+                              </SelectItem>
+                              {inCamp.map((a) => (
+                                <SelectItem key={a.id} value={a.id}>
+                                  {a.eartag}
+                                </SelectItem>
+                              ))}
+                            </>
+                          )}
+                          {other.length > 0 && (
+                            <>
+                              <SelectItem value="__hdr_dam_other__" disabled>
+                                — {t("parentsOtherCamps")} —
+                              </SelectItem>
+                              {other.map((a) => (
+                                <SelectItem key={a.id} value={a.id}>
+                                  {a.eartag}
+                                  {a.campName ? ` · ${a.campName}` : ""}
+                                </SelectItem>
+                              ))}
+                            </>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">{t("damFemaleOnly")}</p>
+              </div>
+              <div className="space-y-2">
                 <Label>{t("acquisitionType")}</Label>
                 <Select
                   value={editForm.acquisitionType}
@@ -1027,7 +1174,7 @@ export default function AnimalDetailPage() {
           <Card>
             <CardHeader><CardTitle>{t("eventTimeline")}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              {canEdit && !isClosed && (
+              {canManageEvents && !isClosed && (
                 <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
                   <Label>{t("quickNote")}</Label>
                   <Textarea
@@ -1065,7 +1212,7 @@ export default function AnimalDetailPage() {
                 </div>
               )}
 
-              {!isClosed && (
+              {!isClosed && canManageEvents && (
                 <div className="grid gap-2 pt-4 border-t max-w-lg">
                   <Select value={eventForm.type} onValueChange={(v) => setEventForm({ ...eventForm, type: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -1112,7 +1259,7 @@ export default function AnimalDetailPage() {
                           {formatDate(w.date)} · {w.recordedBy.name}
                         </span>
                       </div>
-                      {canEdit && (
+                      {canUpdateRecords && (
                         <Button
                           size="sm"
                           variant="ghost"
@@ -1127,7 +1274,7 @@ export default function AnimalDetailPage() {
                   ))}
                 </div>
               )}
-              {!isClosed && canEdit && (
+              {!isClosed && canUpdateRecords && (
                 <div className="flex gap-2 mt-4">
                   <Input type="number" placeholder={t("weightKg")} value={weightKg} onChange={(e) => setWeightKg(e.target.value)} className="max-w-xs" />
                   <Button onClick={addWeight}>{t("recordWeight")}</Button>
@@ -1615,7 +1762,7 @@ export default function AnimalDetailPage() {
                   )}
                   {animal.deathRecord.notes && <p className="sm:col-span-2 text-muted-foreground">{animal.deathRecord.notes}</p>}
                 </div>
-              ) : (
+              ) : canRecordDeath ? (
                 <div className="grid gap-3 sm:grid-cols-2 max-w-2xl">
                   <Input type="date" value={deathForm.date} onChange={(e) => setDeathForm({ ...deathForm, date: e.target.value })} />
                   <Select value={deathForm.cause} onValueChange={(v) => setDeathForm({ ...deathForm, cause: v, isCulling: v === "CULLING" })}>
@@ -1657,6 +1804,8 @@ export default function AnimalDetailPage() {
                     {savingDeath ? t("saving") : t("recordDeathCulling")}
                   </Button>
                 </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">{t("ownerOnlyAction")}</p>
               )}
             </CardContent>
           </Card>
