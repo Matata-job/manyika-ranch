@@ -128,18 +128,30 @@ export async function PATCH(
     );
   }
 
-  const nextCastrated =
-    body.isCastrated !== undefined
-      ? body.sex === "FEMALE"
-        ? false
-        : Boolean(body.isCastrated)
-      : undefined;
-  const nextPregnant =
-    body.isPregnant !== undefined
-      ? body.sex === "MALE"
-        ? false
-        : Boolean(body.isPregnant)
-      : undefined;
+  const nextSex = body.sex as string | undefined;
+  let nextCastrated: boolean | undefined;
+  let nextPregnant: boolean | undefined;
+
+  if (nextSex === "MALE") {
+    nextCastrated =
+      body.isCastrated !== undefined ? Boolean(body.isCastrated) : undefined;
+    nextPregnant = false;
+  } else if (nextSex === "FEMALE") {
+    nextPregnant =
+      body.isPregnant !== undefined ? Boolean(body.isPregnant) : undefined;
+    nextCastrated = false;
+  } else if (nextSex === "UNKNOWN") {
+    nextCastrated = false;
+    nextPregnant = false;
+  } else {
+    // Sex unchanged — allow flag-only toggles from animal detail
+    if (body.isCastrated !== undefined) {
+      nextCastrated = Boolean(body.isCastrated);
+    }
+    if (body.isPregnant !== undefined) {
+      nextPregnant = Boolean(body.isPregnant);
+    }
+  }
 
   const animal = await prisma.animal.update({
     where: { id },

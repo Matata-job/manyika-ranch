@@ -240,7 +240,7 @@ export default function CampDetailPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <Card>
             <CardHeader>
               <CardTitle className="text-sm">{t("male")}</CardTitle>
@@ -255,6 +255,14 @@ export default function CampDetailPage() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">{bySex.FEMALE || 0}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">{t("unknownSex")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">{bySex.UNKNOWN || 0}</p>
             </CardContent>
           </Card>
           <Card>
@@ -353,7 +361,11 @@ export default function CampDetailPage() {
                     <td className="p-3">{animal.breed}</td>
                     <td className="p-3">
                       <Badge variant="secondary">
-                        {animal.sex === "MALE" ? t("male") : t("female")}
+                        {animal.sex === "MALE"
+                          ? t("male")
+                          : animal.sex === "FEMALE"
+                            ? t("female")
+                            : t("unknownSex")}
                       </Badge>
                     </td>
                     <td className="p-3">

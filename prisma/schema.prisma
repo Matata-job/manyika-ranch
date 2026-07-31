@@ -21,6 +21,7 @@ enum Role {
 enum Sex {
   MALE
   FEMALE
+  UNKNOWN
 }
 
 enum AnimalStatus {

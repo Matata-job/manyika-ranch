@@ -37,7 +37,7 @@ export type CampImportJson = {
 export type MappedAnimal = {
   eartag: string;
   hereni: string;
-  sex: "MALE" | "FEMALE" | null;
+  sex: "MALE" | "FEMALE" | "UNKNOWN" | null;
   ageMonths: number | null;
   ageClass: string | null;
   breed: string;
@@ -81,11 +81,14 @@ export function mapAgeClass(raw?: string): { ageMonths: number | null; ageClass:
   return { ageMonths: null, ageClass: raw.trim() || null };
 }
 
-export function mapSex(raw?: string): "MALE" | "FEMALE" | null {
+export function mapSex(raw?: string): "MALE" | "FEMALE" | "UNKNOWN" | null {
   if (!raw) return null;
   const s = raw.trim().toUpperCase();
   if (s === "M" || s === "MALE" || s.startsWith("DUME")) return "MALE";
   if (s === "F" || s === "FEMALE" || s.startsWith("JIKE")) return "FEMALE";
+  if (s === "?" || s === "UNKNOWN" || s === "U" || s.startsWith("HAJULIKANI")) {
+    return "UNKNOWN";
+  }
   return null;
 }
 

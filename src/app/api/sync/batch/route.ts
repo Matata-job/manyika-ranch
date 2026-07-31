@@ -72,7 +72,11 @@ export async function POST(req: NextRequest) {
         }
 
         const dob = payload.dob ? new Date(payload.dob as string) : null;
-        const sex = payload.sex as "MALE" | "FEMALE";
+        const sex = payload.sex as "MALE" | "FEMALE" | "UNKNOWN";
+        if (sex !== "MALE" && sex !== "FEMALE" && sex !== "UNKNOWN") {
+          results.push({ success: false, error: "Invalid sex" });
+          continue;
+        }
         const photoUrls: string[] = Array.isArray(payload.photoUrls)
           ? (payload.photoUrls as string[])
           : [];

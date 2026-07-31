@@ -250,6 +250,7 @@ export default function BreedingPage() {
                   <SelectContent>
                     <SelectItem value="MALE">Male</SelectItem>
                     <SelectItem value="FEMALE">Female</SelectItem>
+                    <SelectItem value="UNKNOWN">Unknown</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -327,6 +327,7 @@ export default function NewAnimalPage() {
                 <SelectContent>
                   <SelectItem value="MALE">{t("male")}</SelectItem>
                   <SelectItem value="FEMALE">{t("female")}</SelectItem>
+                  <SelectItem value="UNKNOWN">{t("unknownSex")}</SelectItem>
                 </SelectContent>
               </Select>
             </Field>

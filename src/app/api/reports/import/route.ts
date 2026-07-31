@@ -7,7 +7,7 @@ import { createAuditLog } from "@/lib/services/animal-service";
 interface ImportRow {
   eartag: string;
   breed: string;
-  sex: "MALE" | "FEMALE";
+  sex: "MALE" | "FEMALE" | "UNKNOWN" | string;
   campName: string;
   dob?: string;
   ownerEmail?: string;
@@ -52,12 +52,22 @@ export async function POST(req: NextRequest) {
       const ownerId =
         (row.ownerEmail && userByEmail.get(row.ownerEmail.toLowerCase())) || result.user.id;
       const dob = row.dob ? new Date(row.dob) : null;
+      const sexRaw = String(row.sex || "").toUpperCase();
+      const sex =
+        sexRaw === "MALE" || sexRaw === "M"
+          ? "MALE"
+          : sexRaw === "FEMALE" || sexRaw === "F"
+            ? "FEMALE"
+            : sexRaw === "UNKNOWN" || sexRaw === "U" || sexRaw === "?"
+              ? "UNKNOWN"
+              : null;
+      if (!sex) throw new Error(`Invalid sex: ${row.sex}`);
 
       await prisma.animal.create({
         data: {
           eartag: row.eartag,
           breed: row.breed,
-          sex: row.sex,
+          sex,
           campId,
           ownerId,
           sireId,

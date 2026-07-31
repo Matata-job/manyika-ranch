@@ -141,6 +141,9 @@ export default function ReportsPage() {
                     <div className="flex gap-4 mt-1 text-sm text-muted-foreground">
                       <span>M: {camp.bySex.MALE || 0}</span>
                       <span>F: {camp.bySex.FEMALE || 0}</span>
+                      {(camp.bySex.UNKNOWN || 0) > 0 && (
+                        <span>?: {camp.bySex.UNKNOWN}</span>
+                      )}
                       {camp.sizeAcres != null && (
                         <span>
                           {camp.sizeAcres} {t("acres")}

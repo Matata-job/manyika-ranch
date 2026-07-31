@@ -644,7 +644,13 @@ export default function AnimalDetailPage() {
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2 flex-wrap">
             <h1 className="text-3xl font-bold">{animal.eartag}</h1>
-            <Badge>{animal.sex === "MALE" ? t("male") : t("female")}</Badge>
+            <Badge>
+              {animal.sex === "MALE"
+                ? t("male")
+                : animal.sex === "FEMALE"
+                  ? t("female")
+                  : t("unknownSex")}
+            </Badge>
             {animal.sex === "MALE" && animal.isCastrated && <Badge variant="outline">{t("castrated")}</Badge>}
             {animal.sex === "FEMALE" && animal.isPregnant && <Badge variant="warning">{t("pregnant")}</Badge>}
             <Badge variant={isDeceased ? "destructive" : isSold ? "warning" : "secondary"}>{animal.status}</Badge>
@@ -759,6 +765,7 @@ export default function AnimalDetailPage() {
                   <SelectContent>
                     <SelectItem value="MALE">{t("male")}</SelectItem>
                     <SelectItem value="FEMALE">{t("female")}</SelectItem>
+                    <SelectItem value="UNKNOWN">{t("unknownSex")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

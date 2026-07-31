@@ -358,13 +358,14 @@ function AnimalsPageContent() {
                   <SelectItem value="all">All sexes</SelectItem>
                   <SelectItem value="MALE">{t("male")}</SelectItem>
                   <SelectItem value="FEMALE">{t("female")}</SelectItem>
+                  <SelectItem value="UNKNOWN">{t("unknownSex")}</SelectItem>
                 </SelectContent>
               </Select>
 
               <Select
                 value={filters.castrated}
                 onValueChange={(v) => updateFilter("castrated", v)}
-                disabled={filters.sex === "FEMALE"}
+                disabled={filters.sex === "FEMALE" || filters.sex === "UNKNOWN"}
               >
                 <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
                   <SelectValue placeholder="Male status" />
@@ -379,7 +380,7 @@ function AnimalsPageContent() {
               <Select
                 value={filters.pregnant}
                 onValueChange={(v) => updateFilter("pregnant", v)}
-                disabled={filters.sex === "MALE"}
+                disabled={filters.sex === "MALE" || filters.sex === "UNKNOWN"}
               >
                 <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
                   <SelectValue placeholder="Female status" />
@@ -484,7 +485,11 @@ function AnimalsPageContent() {
                     <h3 className="font-medium tracking-tight">{animal.eartag}</h3>
                     <div className="flex gap-1 flex-wrap justify-end">
                       <Badge variant="secondary" className="font-normal text-[10px] px-1.5">
-                        {animal.sex === "MALE" ? "M" : "F"}
+                        {animal.sex === "MALE"
+                          ? "M"
+                          : animal.sex === "FEMALE"
+                            ? "F"
+                            : "?"}
                       </Badge>
                       {animal.sex === "MALE" && animal.isCastrated && (
                         <Badge variant="outline" className="font-normal text-[10px] px-1.5">

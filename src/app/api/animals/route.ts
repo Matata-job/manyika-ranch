@@ -37,7 +37,9 @@ export async function GET(req: NextRequest) {
       ? { ownerId }
       : {}),
     ...(status && status !== "ALL" ? { status: status as AnimalStatus } : {}),
-    ...(sex === "MALE" || sex === "FEMALE" ? { sex: sex as Sex } : {}),
+    ...(sex === "MALE" || sex === "FEMALE" || sex === "UNKNOWN"
+      ? { sex: sex as Sex }
+      : {}),
     ...(breed && breed !== "all" ? { breed } : {}),
     ...(castrated === "true"
       ? { sex: "MALE" as Sex, isCastrated: true }
