@@ -13,7 +13,7 @@ export const TAG_COLORS = [
 
 export type TagColorCode = (typeof TAG_COLORS)[number];
 
-export type TagColorSource = "animal" | "year" | "camp" | null;
+export type TagColorSource = "animal" | "year" | "camp" | "default" | null;
 
 const STYLES: Record<
   string,
@@ -130,13 +130,23 @@ export function getRanchEartagYearColors(settings: unknown): Record<string, stri
   return out;
 }
 
+export function getRanchDefaultTagColor(settings: unknown): string | null {
+  return normalizeTagColor(
+    (settings as { defaultTagColor?: unknown } | null)?.defaultTagColor as
+      | string
+      | null
+      | undefined
+  );
+}
+
 /**
  * Resolve plastic tag colour:
- * 1) animal override → 2) birth-year ranch setting → 3) camp default
+ * 1) animal override → 2) birth-year → 3) camp → 4) ranch default
  */
 export function resolveTagColor(input: {
   animalTagColor?: string | null;
   campTagColor?: string | null;
+  defaultTagColor?: string | null;
   dob?: string | Date | null;
   ageMonths?: number | null;
   yearColors?: Record<string, string>;
@@ -152,6 +162,9 @@ export function resolveTagColor(input: {
 
   const camp = normalizeTagColor(input.campTagColor);
   if (camp) return { color: camp, source: "camp", birthYear };
+
+  const ranchDefault = normalizeTagColor(input.defaultTagColor);
+  if (ranchDefault) return { color: ranchDefault, source: "default", birthYear };
 
   return { color: null, source: null, birthYear };
 }

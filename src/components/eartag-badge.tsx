@@ -10,6 +10,7 @@ type Props = {
   eartag: string;
   campTagColor?: string | null;
   animalTagColor?: string | null;
+  defaultTagColor?: string | null;
   dob?: string | Date | null;
   ageMonths?: number | null;
   yearColors?: Record<string, string>;
@@ -34,6 +35,9 @@ function sourceHint(
   if (source === "camp") {
     return locale === "sw" ? "Rangi ya kambi" : "Camp colour";
   }
+  if (source === "default") {
+    return locale === "sw" ? "Chaguo-msingi la shamba" : "Ranch default";
+  }
   return "";
 }
 
@@ -41,6 +45,7 @@ export function EartagBadge({
   eartag,
   campTagColor,
   animalTagColor,
+  defaultTagColor,
   dob,
   ageMonths,
   yearColors,
@@ -52,6 +57,7 @@ export function EartagBadge({
   const { color, source, birthYear } = resolveTagColor({
     animalTagColor,
     campTagColor,
+    defaultTagColor,
     dob,
     ageMonths,
     yearColors,

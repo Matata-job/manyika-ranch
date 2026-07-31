@@ -191,6 +191,7 @@ export default function AnimalDetailPage() {
   const [animal, setAnimal] = useState<AnimalDetail | null>(null);
   const [ageMode, setAgeMode] = useState<AgeDisplayMode>("AUTO");
   const [yearColors, setYearColors] = useState<Record<string, string>>({});
+  const [defaultTagColor, setDefaultTagColor] = useState<string | null>(null);
   const [quickNote, setQuickNote] = useState("");
   const [savingQuickNote, setSavingQuickNote] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
@@ -309,6 +310,7 @@ export default function AnimalDetailPage() {
       .then((data) => {
         if (data?.ageDisplayMode) setAgeMode(data.ageDisplayMode);
         if (data?.eartagYearColors) setYearColors(data.eartagYearColors);
+        setDefaultTagColor(data?.defaultTagColor || null);
       });
     fetch("/api/buyers")
       .then((r) => (r.ok ? r.json() : []))
@@ -677,6 +679,7 @@ export default function AnimalDetailPage() {
               eartag={animal.eartag}
               campTagColor={animal.camp.tagColor}
               animalTagColor={animal.tagColor}
+              defaultTagColor={defaultTagColor}
               dob={animal.dob}
               ageMonths={animal.ageMonths}
               yearColors={yearColors}
@@ -731,6 +734,7 @@ export default function AnimalDetailPage() {
                     resolveTagColor({
                       animalTagColor: animal.tagColor,
                       campTagColor: animal.camp.tagColor,
+                      defaultTagColor,
                       dob: animal.dob,
                       ageMonths: animal.ageMonths,
                       yearColors,

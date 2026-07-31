@@ -251,7 +251,7 @@ export default function CampDetailPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">{t("tagColorNone")}</SelectItem>
+                  <SelectItem value="none">{t("tagColorUseDefault")}</SelectItem>
                   {TAG_COLORS.map((c) => (
                     <SelectItem key={c} value={c}>
                       {tagColorLabel(c, locale)}

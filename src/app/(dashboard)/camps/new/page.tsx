@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -9,9 +9,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ArrowLeft } from "lucide-react";
-import { useT } from "@/components/providers/locale-provider";
+import { useLocale, useT } from "@/components/providers/locale-provider";
 import { OptionalSection } from "@/components/optional-section";
+import { TAG_COLORS, tagColorLabel } from "@/lib/tag-color";
+import { TagColorSwatch } from "@/components/eartag-badge";
 
 const CampLocationPicker = dynamic(
   () =>
@@ -26,6 +35,7 @@ const CampLocationPicker = dynamic(
 
 export default function NewCampPage() {
   const t = useT();
+  const { locale } = useLocale();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showLocation, setShowLocation] = useState(false);
@@ -36,7 +46,20 @@ export default function NewCampPage() {
     longitude: "",
     waterSources: "",
     notes: "",
+    tagColor: "",
   });
+
+  useEffect(() => {
+    fetch("/api/ranch/settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.defaultTagColor) {
+          setForm((prev) =>
+            prev.tagColor ? prev : { ...prev, tagColor: data.defaultTagColor }
+          );
+        }
+      });
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -52,6 +75,7 @@ export default function NewCampPage() {
         longitude: form.longitude || null,
         waterSources: form.waterSources || null,
         notes: form.notes || null,
+        tagColor: form.tagColor || null,
       }),
     });
 
@@ -94,6 +118,31 @@ export default function NewCampPage() {
                 required
                 autoFocus
               />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("tagColorCamp")}</Label>
+              <Select
+                value={form.tagColor || "none"}
+                onValueChange={(v) =>
+                  setForm({ ...form, tagColor: v === "none" ? "" : v })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{t("tagColorUseDefault")}</SelectItem>
+                  {TAG_COLORS.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {tagColorLabel(c, locale)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">{t("tagColorHelp")}</p>
+              {form.tagColor && (
+                <TagColorSwatch color={form.tagColor} locale={locale} />
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="sizeAcres">{t("sizeAcres")}</Label>

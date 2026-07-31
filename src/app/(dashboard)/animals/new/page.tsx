@@ -22,6 +22,7 @@ import { parseAnimalsList } from "@/lib/animals-api";
 import { PhotoSourcePicker } from "@/components/photo-source-picker";
 import { cn } from "@/lib/utils";
 import { useObjectUrls } from "@/hooks/use-object-urls";
+import { rememberCampEartag, suggestNextEartag } from "@/lib/eartag";
 
 function Field({
   label,
@@ -48,17 +49,21 @@ function Field({
   );
 }
 
+type CampOption = { id: string; name: string; code?: string | null };
+
 export default function NewAnimalPage() {
   const t = useT();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showMore, setShowMore] = useState(false);
-  const [camps, setCamps] = useState<{ id: string; name: string }[]>([]);
+  const [camps, setCamps] = useState<CampOption[]>([]);
   const [owners, setOwners] = useState<{ id: string; name: string; role?: string }[]>([]);
   const [breeds, setBreeds] = useState<{ id: string; name: string }[]>([]);
   const [animals, setAnimals] = useState<{ id: string; eartag: string; sex: string }[]>([]);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const photoPreviewUrls = useObjectUrls(photoFiles);
+  const [eartagManual, setEartagManual] = useState(false);
+  const [lastEartag, setLastEartag] = useState<string | null>(null);
   const [form, setForm] = useState({
     eartag: "",
     breed: "",
@@ -82,6 +87,46 @@ export default function NewAnimalPage() {
   const isExternal =
     form.acquisitionType === "PURCHASED" || form.acquisitionType === "GIFT";
 
+  async function applyCampEartagSuggestion(campId: string) {
+    const camp = camps.find((c) => c.id === campId);
+    let suggested: string | null = null;
+    let last: string | null = null;
+
+    try {
+      const res = await fetch(`/api/camps/${campId}/next-eartag`);
+      if (res.ok) {
+        const data = await res.json();
+        suggested = data.suggested || null;
+        last = data.lastEartag || null;
+      }
+    } catch {
+      /* offline */
+    }
+
+    if (!suggested) {
+      const { recallCampEartag } = await import("@/lib/eartag");
+      const remembered = recallCampEartag(campId);
+      suggested = suggestNextEartag({
+        campCode: camp?.code,
+        existingEartags: [
+          ...animals.map((a) => a.eartag),
+          ...(remembered ? [remembered] : []),
+        ],
+      });
+      last = last || remembered;
+    }
+
+    setLastEartag(last);
+    setForm((prev) => {
+      const shouldFill = !eartagManual || !prev.eartag.trim();
+      return {
+        ...prev,
+        campId,
+        eartag: shouldFill && suggested ? suggested : prev.eartag,
+      };
+    });
+  }
+
   useEffect(() => {
     const CACHE_KEY = "register-lookups-v1";
 
@@ -91,7 +136,7 @@ export default function NewAnimalPage() {
       b: unknown,
       a: unknown
     ) {
-      setCamps(Array.isArray(c) ? c : []);
+      setCamps(Array.isArray(c) ? (c as CampOption[]) : []);
       const ownerList = Array.isArray(o) ? o : [];
       setOwners(ownerList);
       setBreeds(Array.isArray(b) ? b : []);
@@ -202,6 +247,7 @@ export default function NewAnimalPage() {
     if (!navigator.onLine) {
       try {
         await enqueueSync("create", "animal", payload, photoFiles);
+        rememberCampEartag(form.campId, form.eartag.trim());
       } catch (err) {
         alert(err instanceof Error ? err.message : t("failedToCreateAnimal"));
         setLoading(false);
@@ -239,6 +285,7 @@ export default function NewAnimalPage() {
 
     if (res.ok) {
       const animal = await res.json();
+      rememberCampEartag(form.campId, form.eartag.trim());
       router.push(`/animals/${animal.id}`);
     } else {
       const err = await res.json();
@@ -269,14 +316,60 @@ export default function NewAnimalPage() {
       <form onSubmit={handleSubmit} className="space-y-4">
         <Card>
           <CardContent className="grid gap-4 pt-6 sm:grid-cols-2">
-            <Field label={t("eartag")} required className="sm:col-span-2">
+            <Field
+              label={t("camp")}
+              required
+              className="sm:col-span-2"
+              hint={t("eartagAutoHint")}
+            >
+              <Select
+                value={form.campId || undefined}
+                onValueChange={(v) => {
+                  void applyCampEartagSuggestion(v);
+                }}
+                required
+              >
+                <SelectTrigger autoFocus>
+                  <SelectValue placeholder={t("selectCamp")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {camps.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.code ? `${c.code} · ${c.name}` : c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <Field
+              label={t("eartag")}
+              required
+              className="sm:col-span-2"
+              hint={
+                lastEartag || form.eartag
+                  ? [
+                      lastEartag
+                        ? t("eartagLastUsed", { tag: lastEartag })
+                        : null,
+                      form.eartag && !eartagManual
+                        ? t("eartagSuggested", { tag: form.eartag })
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
+                  : undefined
+              }
+            >
               <Input
                 id="eartag"
                 value={form.eartag}
-                onChange={(e) => setForm({ ...form, eartag: e.target.value })}
-                placeholder="e.g. MY-0042"
+                onChange={(e) => {
+                  setEartagManual(true);
+                  setForm({ ...form, eartag: e.target.value });
+                }}
+                placeholder="e.g. MR-01-042"
                 required
-                autoFocus
               />
             </Field>
 
@@ -329,25 +422,6 @@ export default function NewAnimalPage() {
                   <SelectItem value="MALE">{t("male")}</SelectItem>
                   <SelectItem value="FEMALE">{t("female")}</SelectItem>
                   <SelectItem value="UNKNOWN">{t("unknownSex")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-
-            <Field label={t("camp")} required className="sm:col-span-2">
-              <Select
-                value={form.campId || undefined}
-                onValueChange={(v) => setForm({ ...form, campId: v })}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t("selectCamp")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {camps.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
                 </SelectContent>
               </Select>
             </Field>

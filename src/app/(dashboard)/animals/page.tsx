@@ -145,6 +145,7 @@ function AnimalsPageContent() {
   const [loading, setLoading] = useState(true);
   const [ageMode, setAgeMode] = useState<AgeDisplayMode>("AUTO");
   const [yearColors, setYearColors] = useState<Record<string, string>>({});
+  const [defaultTagColor, setDefaultTagColor] = useState<string | null>(null);
   const [filters, setFilters] = useState<Filters>(() => filtersFromParams(searchParams));
   const [searchInput, setSearchInput] = useState(filters.search);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -188,6 +189,8 @@ function AnimalsPageContent() {
       setOwners(Array.isArray(o) ? o : []);
       if (settings?.ageDisplayMode) setAgeMode(settings.ageDisplayMode);
       if (settings?.eartagYearColors) setYearColors(settings.eartagYearColors);
+      if (settings?.defaultTagColor) setDefaultTagColor(settings.defaultTagColor);
+      else setDefaultTagColor(null);
     });
   }, []);
 
@@ -637,6 +640,7 @@ function AnimalsPageContent() {
                         eartag={animal.eartag}
                         campTagColor={animal.camp.tagColor}
                         animalTagColor={animal.tagColor}
+                        defaultTagColor={defaultTagColor}
                         dob={animal.dob}
                         ageMonths={animal.ageMonths}
                         yearColors={yearColors}
@@ -698,6 +702,7 @@ function AnimalsPageContent() {
                       eartag={animal.eartag}
                       campTagColor={animal.camp.tagColor}
                       animalTagColor={animal.tagColor}
+                      defaultTagColor={defaultTagColor}
                       dob={animal.dob}
                       ageMonths={animal.ageMonths}
                       yearColors={yearColors}

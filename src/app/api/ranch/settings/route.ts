@@ -8,6 +8,7 @@ import {
   type AgeDisplayMode,
 } from "@/lib/utils";
 import {
+  getRanchDefaultTagColor,
   getRanchEartagYearColors,
   normalizeTagColor,
 } from "@/lib/tag-color";
@@ -32,6 +33,7 @@ export async function GET() {
     ageDisplayMode: getRanchAgeDisplayMode(ranch.settings),
     grazingFeePerAnimalTzs: getRanchGrazingFeePerAnimal(ranch.settings),
     eartagYearColors: getRanchEartagYearColors(ranch.settings),
+    defaultTagColor: getRanchDefaultTagColor(ranch.settings),
     settings: ranch.settings,
   });
 }
@@ -81,6 +83,27 @@ export async function PATCH(req: NextRequest) {
     next.grazingFeePerAnimalTzs = fee;
   }
 
+  if (body.defaultTagColor !== undefined) {
+    if (!canManageCamps) {
+      return NextResponse.json(
+        { error: "Only ranch managers can change default eartag colour" },
+        { status: 403 }
+      );
+    }
+    if (body.defaultTagColor === null || body.defaultTagColor === "") {
+      next.defaultTagColor = null;
+    } else {
+      const n = normalizeTagColor(String(body.defaultTagColor));
+      if (!n) {
+        return NextResponse.json(
+          { error: "Invalid default tag colour" },
+          { status: 400 }
+        );
+      }
+      next.defaultTagColor = n;
+    }
+  }
+
   if (body.eartagYearColors !== undefined) {
     if (!canManageCamps) {
       return NextResponse.json(
@@ -126,6 +149,7 @@ export async function PATCH(req: NextRequest) {
     ageDisplayMode: getRanchAgeDisplayMode(updated.settings),
     grazingFeePerAnimalTzs: getRanchGrazingFeePerAnimal(updated.settings),
     eartagYearColors: getRanchEartagYearColors(updated.settings),
+    defaultTagColor: getRanchDefaultTagColor(updated.settings),
     settings: updated.settings,
   });
 }

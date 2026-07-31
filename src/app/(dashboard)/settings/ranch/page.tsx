@@ -22,6 +22,7 @@ export default function RanchSettingsPage() {
   const [mode, setMode] = useState<AgeDisplayMode>("AUTO");
   const [grazingFee, setGrazingFee] = useState("");
   const [yearRows, setYearRows] = useState<YearRow[]>([]);
+  const [defaultTagColor, setDefaultTagColor] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -33,6 +34,7 @@ export default function RanchSettingsPage() {
         if (data?.grazingFeePerAnimalTzs != null) {
           setGrazingFee(String(data.grazingFeePerAnimalTzs));
         }
+        if (data?.defaultTagColor) setDefaultTagColor(data.defaultTagColor);
         if (data?.eartagYearColors) {
           setYearRows(
             Object.entries(data.eartagYearColors as Record<string, string>)
@@ -58,6 +60,7 @@ export default function RanchSettingsPage() {
       body: JSON.stringify({
         ageDisplayMode: mode,
         grazingFeePerAnimalTzs: grazingFee === "" ? 0 : grazingFee,
+        defaultTagColor: defaultTagColor || null,
         eartagYearColors,
       }),
     });
@@ -68,6 +71,7 @@ export default function RanchSettingsPage() {
         setGrazingFee(String(data.grazingFeePerAnimalTzs));
       }
       if (data.ageDisplayMode) setMode(data.ageDisplayMode);
+      setDefaultTagColor(data.defaultTagColor || "");
       if (data.eartagYearColors) {
         setYearRows(
           Object.entries(data.eartagYearColors as Record<string, string>)
@@ -141,6 +145,36 @@ export default function RanchSettingsPage() {
           <CardTitle>{t("tagColorYearRules")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>{t("tagColorDefault")}</Label>
+            <Select
+              value={defaultTagColor || "none"}
+              onValueChange={(v) => {
+                setDefaultTagColor(v === "none" ? "" : v);
+                setMessage("");
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">{t("tagColorNone")}</SelectItem>
+                {TAG_COLORS.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {tagColorLabel(c, locale)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">
+              {t("tagColorDefaultHelp")}
+            </p>
+            {defaultTagColor && (
+              <TagColorSwatch color={defaultTagColor} locale={locale} />
+            )}
+          </div>
+
+          <div className="border-t pt-4 space-y-3">
           <p className="text-sm text-muted-foreground">{t("tagColorYearHelp")}</p>
           <div className="space-y-3">
             {yearRows.map((row, i) => (
@@ -194,7 +228,7 @@ export default function RanchSettingsPage() {
                     setMessage("");
                   }}
                 >
-                  {t("cancel")}
+                  ×
                 </Button>
               </div>
             ))}
@@ -213,6 +247,7 @@ export default function RanchSettingsPage() {
           >
             {t("addYearColor")}
           </Button>
+          </div>
           <Button onClick={save} disabled={saving}>
             {saving ? t("saving") : t("save")}
           </Button>
