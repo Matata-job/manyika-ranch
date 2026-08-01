@@ -2,10 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
 import { useT } from "@/components/providers/locale-provider";
+import { hasPermission } from "@/lib/auth/rbac";
+import type { Role } from "@prisma/client";
 
 interface MortalityReport {
   total: number;
@@ -33,6 +37,10 @@ interface MortalityReport {
 
 export default function MortalityPage() {
   const t = useT();
+  const { data: session } = useSession();
+  const canManageMortality = session?.user?.role
+    ? hasPermission(session.user.role as Role, "manageMortality")
+    : false;
   const [data, setData] = useState<MortalityReport | null>(null);
 
   useEffect(() => {
@@ -43,9 +51,16 @@ export default function MortalityPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">{t("mortalityTitle")}</h1>
-        <p className="text-muted-foreground">{t("mortalitySubtitle")}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">{t("mortalityTitle")}</h1>
+          <p className="text-muted-foreground">{t("mortalitySubtitle")}</p>
+        </div>
+        {canManageMortality && (
+          <Button asChild>
+            <Link href="/mortality/bulk">{t("bulkMortality")}</Link>
+          </Button>
+        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">

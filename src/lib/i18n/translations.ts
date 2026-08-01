@@ -367,6 +367,21 @@ const en = {
   mortalityTitle: "Mortality",
   mortalitySubtitle: "Deaths and culls",
   noMortality: "No mortality records",
+  bulkMortality: "Bulk cull / death",
+  bulkMortalityTitle: "Bulk cull / death",
+  bulkMortalitySubtitle:
+    "Record death or culling for many animals in one camp with the same cause and disposal.",
+  backToMortality: "Back to mortality",
+  mortalityDetails: "2. Cause and disposal",
+  markAsCulling: "Mark as culling",
+  confirmBulkMortality:
+    "Record {cause} for {n} animals? Status will become deceased.",
+  recordBulkMortality: "Record bulk mortality",
+  bulkMortalityFailed: "Bulk mortality failed",
+  bulkCullResult: "Culled {n} animals",
+  bulkDeathResult: "Recorded death for {n} animals",
+  bulkMortalityPhotoNote:
+    "Eartag photos are not attached in bulk. Add photos later on each animal’s Death tab if needed.",
 
   // Sales
   salesTitle: "Sales",
@@ -376,6 +391,26 @@ const en = {
   price: "Price",
   saleDate: "Sale date",
   recordSale: "Record sale",
+  bulkSale: "Bulk sale",
+  bulkSaleTitle: "Bulk sale",
+  bulkSaleSubtitle:
+    "Sell many animals from one camp to the same buyer in one step.",
+  backToSales: "Back to sales",
+  saleDetails: "2. Sale details",
+  existingBuyer: "Existing buyer",
+  newBuyer: "New buyer",
+  selectBuyer: "Select buyer",
+  buyerRequired: "Buyer is required",
+  priceRequired: "Price is required",
+  priceMode: "Price mode",
+  pricePerAnimal: "Same price per animal",
+  priceTotalSplit: "Total price split equally",
+  priceEachPreview: "{price} each × {n} animals",
+  weightKgOptional: "Weight each (kg, optional)",
+  confirmBulkSale: "Sell {n} animals to {buyer}? This cannot be undone easily.",
+  recordBulkSale: "Record bulk sale",
+  bulkSaleFailed: "Bulk sale failed",
+  bulkSaleResult: "Sold {n} animals to {buyer} at {price} each",
 
   // Buyers
   buyersTitle: "Buyers",
@@ -1105,6 +1140,21 @@ const sw: Dict = {
   mortalityTitle: "Vifo",
   mortalitySubtitle: "Vifo na uteuzi",
   noMortality: "Hakuna rekodi za vifo",
+  bulkMortality: "Uteuzi / kifo cha kundi",
+  bulkMortalityTitle: "Uteuzi / kifo cha kundi",
+  bulkMortalitySubtitle:
+    "Rekodi kifo au uteuzi kwa wanyama wengi katika kambi moja kwa sababu na utupaji sawa.",
+  backToMortality: "Rudi kwenye vifo",
+  mortalityDetails: "2. Sababu na utupaji",
+  markAsCulling: "Weka kama uteuzi",
+  confirmBulkMortality:
+    "Rekodi {cause} kwa wanyama {n}? Hali itakuwa wamefariki.",
+  recordBulkMortality: "Rekodi vifo vya kundi",
+  bulkMortalityFailed: "Imeshindwa kurekodi vifo vya kundi",
+  bulkCullResult: "Wamechaguliwa {n} wanyama",
+  bulkDeathResult: "Vifo vimewekwa kwa wanyama {n}",
+  bulkMortalityPhotoNote:
+    "Picha za eartag haziambatishwi kwa kundi. Ongeza baadaye kwenye kichupo cha Kifo cha kila mnyama ikihitajika.",
 
   salesTitle: "Mauzo",
   salesSubtitle: "Historia ya mauzo ya wanyama",
@@ -1113,6 +1163,27 @@ const sw: Dict = {
   price: "Bei",
   saleDate: "Tarehe ya mauzo",
   recordSale: "Rekodi mauzo",
+  bulkSale: "Mauzo ya kundi",
+  bulkSaleTitle: "Mauzo ya kundi",
+  bulkSaleSubtitle:
+    "Uza wanyama wengi kutoka kambi moja kwa mnunuzi mmoja kwa hatua moja.",
+  backToSales: "Rudi kwenye mauzo",
+  saleDetails: "2. Maelezo ya mauzo",
+  existingBuyer: "Mnunuzi aliyepo",
+  newBuyer: "Mnunuzi mpya",
+  selectBuyer: "Chagua mnunuzi",
+  buyerRequired: "Mnunuzi anahitajika",
+  priceRequired: "Bei inahitajika",
+  priceMode: "Aina ya bei",
+  pricePerAnimal: "Bei sawa kwa kila mnyama",
+  priceTotalSplit: "Bei jumla igawanywe sawa",
+  priceEachPreview: "{price} kila mmoja × wanyama {n}",
+  weightKgOptional: "Uzito kila mmoja (kg, hiari)",
+  confirmBulkSale:
+    "Uza wanyama {n} kwa {buyer}? Hii haiwezi kutenduliwa kwa urahisi.",
+  recordBulkSale: "Rekodi mauzo ya kundi",
+  bulkSaleFailed: "Mauzo ya kundi yameshindwa",
+  bulkSaleResult: "Wameuzwa {n} kwa {buyer} kwa {price} kila mmoja",
 
   buyersTitle: "Wanunuzi",
   buyersSubtitle: "Mawasiliano ya wanunuzi na historia ya ununuzi",

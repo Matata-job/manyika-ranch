@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { Download } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
+import { hasPermission } from "@/lib/auth/rbac";
+import type { Role } from "@prisma/client";
 
 interface SalesReport {
   summary: {
@@ -45,6 +48,10 @@ interface SalesReport {
 
 export default function SalesPage() {
   const t = useT();
+  const { data: session } = useSession();
+  const canManageSales = session?.user?.role
+    ? hasPermission(session.user.role as Role, "manageSales")
+    : false;
   const [data, setData] = useState<SalesReport | null>(null);
   const [camps, setCamps] = useState<{ id: string; name: string }[]>([]);
   const [breedOptions, setBreedOptions] = useState<string[]>([]);
@@ -146,10 +153,17 @@ export default function SalesPage() {
           <h1 className="text-3xl font-bold">{t("salesTitle")}</h1>
           <p className="text-muted-foreground">{t("salesSubtitle")}</p>
         </div>
-        <Button variant="outline" onClick={exportCsv} disabled={!data?.sales?.length}>
-          <Download className="h-4 w-4 mr-2" />
-          {t("exportCsv")}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {canManageSales && (
+            <Button asChild>
+              <Link href="/sales/bulk">{t("bulkSale")}</Link>
+            </Button>
+          )}
+          <Button variant="outline" onClick={exportCsv} disabled={!data?.sales?.length}>
+            <Download className="h-4 w-4 mr-2" />
+            {t("exportCsv")}
+          </Button>
+        </div>
       </div>
 
       <Card>
