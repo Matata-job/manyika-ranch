@@ -49,6 +49,7 @@ export default function BulkSalePage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loadingAnimals, setLoadingAnimals] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showExtras, setShowExtras] = useState(false);
   const [buyerMode, setBuyerMode] = useState<"existing" | "new">("existing");
   const [form, setForm] = useState({
     buyerId: "",
@@ -453,18 +454,6 @@ export default function BulkSalePage() {
                 )}
               </div>
               <div className="space-y-2">
-                <Label>{t("weightKgOptional")}</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step="any"
-                  value={form.weightAtSale}
-                  onChange={(e) =>
-                    setForm({ ...form, weightAtSale: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
                 <Label>{t("saleDate")}</Label>
                 <Input
                   type="date"
@@ -476,15 +465,40 @@ export default function BulkSalePage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>{t("transport")}</Label>
-              <Input
-                value={form.transport}
-                onChange={(e) =>
-                  setForm({ ...form, transport: e.target.value })
-                }
-              />
-            </div>
+            <button
+              type="button"
+              className="text-sm text-primary hover:underline"
+              onClick={() => setShowExtras((v) => !v)}
+            >
+              {showExtras ? t("hideSaleExtras") : t("showSaleExtras")}
+            </button>
+
+            {showExtras && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>{t("weightKgOptional")}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="any"
+                    value={form.weightAtSale}
+                    onChange={(e) =>
+                      setForm({ ...form, weightAtSale: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>{t("transport")}</Label>
+                  <Input
+                    value={form.transport}
+                    onChange={(e) =>
+                      setForm({ ...form, transport: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>{t("notes")}</Label>
               <Textarea

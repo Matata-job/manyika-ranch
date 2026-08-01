@@ -293,6 +293,7 @@ export default function AnimalDetailPage() {
   const [editingDeath, setEditingDeath] = useState(false);
   const [savingDeath, setSavingDeath] = useState(false);
   const [savingSale, setSavingSale] = useState(false);
+  const [showSaleExtras, setShowSaleExtras] = useState(false);
   const [saleForm, setSaleForm] = useState({
     buyerId: "",
     buyer: "",
@@ -1776,21 +1777,40 @@ export default function AnimalDetailPage() {
                     onChange={(e) => setSaleForm({ ...saleForm, priceTzs: e.target.value })}
                   />
                   <Input
-                    type="number"
-                    placeholder={t("weightAtSaleKg")}
-                    value={saleForm.weightAtSale}
-                    onChange={(e) => setSaleForm({ ...saleForm, weightAtSale: e.target.value })}
-                  />
-                  <Input
                     type="date"
                     value={saleForm.saleDate}
                     onChange={(e) => setSaleForm({ ...saleForm, saleDate: e.target.value })}
                   />
-                  <Input
-                    placeholder={t("transportLogistics")}
-                    value={saleForm.transport}
-                    onChange={(e) => setSaleForm({ ...saleForm, transport: e.target.value })}
-                  />
+                  <div className="sm:col-span-2">
+                    <button
+                      type="button"
+                      className="text-sm text-primary hover:underline"
+                      onClick={() => setShowSaleExtras((v) => !v)}
+                    >
+                      {showSaleExtras
+                        ? t("hideSaleExtras")
+                        : t("showSaleExtras")}
+                    </button>
+                  </div>
+                  {showSaleExtras && (
+                    <>
+                      <Input
+                        type="number"
+                        placeholder={t("weightAtSaleKg")}
+                        value={saleForm.weightAtSale}
+                        onChange={(e) =>
+                          setSaleForm({ ...saleForm, weightAtSale: e.target.value })
+                        }
+                      />
+                      <Input
+                        placeholder={t("transportLogistics")}
+                        value={saleForm.transport}
+                        onChange={(e) =>
+                          setSaleForm({ ...saleForm, transport: e.target.value })
+                        }
+                      />
+                    </>
+                  )}
                   <Textarea
                     placeholder={t("notes")}
                     value={saleForm.notes}

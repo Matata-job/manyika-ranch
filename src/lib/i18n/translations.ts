@@ -391,6 +391,8 @@ const en = {
   price: "Price",
   saleDate: "Sale date",
   recordSale: "Record sale",
+  showSaleExtras: "Show weight & transport",
+  hideSaleExtras: "Hide weight & transport",
   bulkSale: "Bulk sale",
   bulkSaleTitle: "Bulk sale",
   bulkSaleSubtitle:
@@ -1163,6 +1165,8 @@ const sw: Dict = {
   price: "Bei",
   saleDate: "Tarehe ya mauzo",
   recordSale: "Rekodi mauzo",
+  showSaleExtras: "Onyesha uzito na usafiri",
+  hideSaleExtras: "Ficha uzito na usafiri",
   bulkSale: "Mauzo ya kundi",
   bulkSaleTitle: "Mauzo ya kundi",
   bulkSaleSubtitle:
