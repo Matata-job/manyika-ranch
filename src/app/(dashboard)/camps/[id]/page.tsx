@@ -29,6 +29,10 @@ import {
   type CampPhoto,
 } from "@/components/camp-photo-gallery";
 import { OptionalSection } from "@/components/optional-section";
+import {
+  DEFAULT_PAGE_SIZE,
+  ListPagination,
+} from "@/components/list-pagination";
 
 const CampLocationPicker = dynamic(
   () =>
@@ -55,6 +59,12 @@ interface CampDetail {
     sex: string;
     ageMonths: number | null;
   }[];
+  animalTotal?: number;
+  animalsLimit?: number;
+  animalsOffset?: number;
+  animalsHasMore?: boolean;
+  bySex?: Record<string, number>;
+  _count?: { animals: number };
   assignments: { user: { name: string; role: string } }[];
   photos: CampPhoto[];
 }
@@ -69,6 +79,8 @@ export default function CampDetailPage() {
 
   const [camp, setCamp] = useState<CampDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [animalsLoading, setAnimalsLoading] = useState(false);
+  const [animalsOffset, setAnimalsOffset] = useState(0);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showLocation, setShowLocation] = useState(false);
@@ -83,26 +95,39 @@ export default function CampDetailPage() {
     tagColor: "",
   });
 
-  const load = useCallback(async () => {
-    const res = await fetch(`/api/camps/${id}`);
-    if (res.ok) {
-      const data = await res.json();
-      setCamp(data);
-      setForm({
-        name: data.name || "",
-        sizeAcres: data.sizeAcres != null ? String(data.sizeAcres) : "",
-        latitude: data.latitude != null ? String(data.latitude) : "",
-        longitude: data.longitude != null ? String(data.longitude) : "",
-        waterSources: data.waterSources || "",
-        notes: data.notes || "",
-        tagColor: data.tagColor || "",
+  const load = useCallback(
+    async (offset = 0, opts?: { soft?: boolean }) => {
+      if (opts?.soft) setAnimalsLoading(true);
+      else setLoading(true);
+      const params = new URLSearchParams({
+        limit: String(DEFAULT_PAGE_SIZE),
+        offset: String(offset),
       });
-    }
-    setLoading(false);
-  }, [id]);
+      const res = await fetch(`/api/camps/${id}?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCamp(data);
+        setAnimalsOffset(offset);
+        if (!opts?.soft) {
+          setForm({
+            name: data.name || "",
+            sizeAcres: data.sizeAcres != null ? String(data.sizeAcres) : "",
+            latitude: data.latitude != null ? String(data.latitude) : "",
+            longitude: data.longitude != null ? String(data.longitude) : "",
+            waterSources: data.waterSources || "",
+            notes: data.notes || "",
+            tagColor: data.tagColor || "",
+          });
+        }
+      }
+      setLoading(false);
+      setAnimalsLoading(false);
+    },
+    [id]
+  );
 
   useEffect(() => {
-    load();
+    load(0);
   }, [load]);
 
   async function saveDetails() {
@@ -127,7 +152,7 @@ export default function CampDetailPage() {
       return;
     }
     setEditing(false);
-    load();
+    load(animalsOffset, { soft: true });
   }
 
   if (loading) {
@@ -137,13 +162,9 @@ export default function CampDetailPage() {
     return <p className="text-muted-foreground">{t("noResults")}</p>;
   }
 
-  const bySex = camp.animals.reduce(
-    (acc, a) => {
-      acc[a.sex] = (acc[a.sex] || 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>
-  );
+  const animalTotal =
+    camp.animalTotal ?? camp._count?.animals ?? camp.animals.length;
+  const bySex = camp.bySex ?? {};
 
   return (
     <div className="space-y-6">
@@ -168,10 +189,21 @@ export default function CampDetailPage() {
             <h1 className="text-3xl font-bold">{camp.name}</h1>
             <p className="text-muted-foreground">
               {camp.code && <span className="mr-2 font-medium">{camp.code}</span>}
-              {camp.animals.length} {t("activeAnimals").toLowerCase()}
+              {animalTotal} {t("activeAnimals").toLowerCase()}
               {camp.sizeAcres != null &&
                 ` · ${camp.sizeAcres} ${t("acres")}`}
             </p>
+            {(bySex.MALE || bySex.FEMALE || bySex.UNKNOWN) && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {[
+                  bySex.MALE ? `${bySex.MALE} ${t("male")}` : null,
+                  bySex.FEMALE ? `${bySex.FEMALE} ${t("female")}` : null,
+                  bySex.UNKNOWN ? `${bySex.UNKNOWN} ${t("unknownSex")}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            )}
             {camp.tagColor && (
               <div className="mt-1">
                 <TagColorSwatch color={camp.tagColor} locale={locale} />
@@ -364,7 +396,7 @@ export default function CampDetailPage() {
           initialPhotos={camp.photos || []}
           logoUrl={camp.logoUrl}
           canEdit={canManage}
-          onPhotosChange={load}
+          onPhotosChange={() => load(animalsOffset, { soft: true })}
           onLogoChange={(url) =>
             setCamp((c) => (c ? { ...c, logoUrl: url } : c))
           }
@@ -372,51 +404,72 @@ export default function CampDetailPage() {
       </OptionalSection>
 
       <div>
-        <h2 className="text-xl font-semibold mb-4">{t("animalsInCamp")}</h2>
-        {camp.animals.length === 0 ? (
+        <h2 className="text-xl font-semibold mb-4">
+          {t("animalsInCamp")}
+          <span className="ml-2 text-base font-normal text-muted-foreground">
+            ({animalTotal})
+          </span>
+        </h2>
+        {animalTotal === 0 ? (
           <p className="text-muted-foreground text-sm">{t("noAnimalsInCamp")}</p>
         ) : (
-          <div className="rounded-lg border">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="p-3 text-left">{t("eartag")}</th>
-                  <th className="p-3 text-left">{t("breed")}</th>
-                  <th className="p-3 text-left">{t("sex")}</th>
-                  <th className="p-3 text-left">{t("age")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {camp.animals.map((animal) => (
-                  <tr key={animal.id} className="border-b hover:bg-muted/30">
-                    <td className="p-3">
-                      <Link
-                        href={`/animals/${animal.id}`}
-                        className="text-primary hover:underline font-medium"
-                      >
-                        {animal.eartag}
-                      </Link>
-                    </td>
-                    <td className="p-3">{animal.breed}</td>
-                    <td className="p-3">
-                      <Badge variant="secondary">
-                        {animal.sex === "MALE"
-                          ? t("male")
-                          : animal.sex === "FEMALE"
-                            ? t("female")
-                            : t("unknownSex")}
-                      </Badge>
-                    </td>
-                    <td className="p-3">
-                      {animal.ageMonths != null
-                        ? `${Math.floor(animal.ageMonths / 12)}y ${animal.ageMonths % 12}mo`
-                        : "—"}
-                    </td>
+          <>
+            <div className="rounded-lg border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="p-3 text-left">{t("eartag")}</th>
+                    <th className="p-3 text-left">{t("breed")}</th>
+                    <th className="p-3 text-left">{t("sex")}</th>
+                    <th className="p-3 text-left">{t("age")}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {camp.animals.map((animal) => (
+                    <tr key={animal.id} className="border-b hover:bg-muted/30">
+                      <td className="p-3">
+                        <Link
+                          href={`/animals/${animal.id}`}
+                          className="text-primary hover:underline font-medium"
+                        >
+                          {animal.eartag}
+                        </Link>
+                      </td>
+                      <td className="p-3">{animal.breed}</td>
+                      <td className="p-3">
+                        <Badge variant="secondary">
+                          {animal.sex === "MALE"
+                            ? t("male")
+                            : animal.sex === "FEMALE"
+                              ? t("female")
+                              : t("unknownSex")}
+                        </Badge>
+                      </td>
+                      <td className="p-3">
+                        {animal.ageMonths != null
+                          ? `${Math.floor(animal.ageMonths / 12)}y ${animal.ageMonths % 12}mo`
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <ListPagination
+              total={animalTotal}
+              limit={DEFAULT_PAGE_SIZE}
+              offset={animalsOffset}
+              loading={animalsLoading}
+              onPrev={() =>
+                load(Math.max(0, animalsOffset - DEFAULT_PAGE_SIZE), {
+                  soft: true,
+                })
+              }
+              onNext={() =>
+                load(animalsOffset + DEFAULT_PAGE_SIZE, { soft: true })
+              }
+            />
+          </>
         )}
       </div>
     </div>

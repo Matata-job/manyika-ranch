@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatDate } from "@/lib/utils";
 import { useT } from "@/components/providers/locale-provider";
+import {
+  DEFAULT_PAGE_SIZE,
+  ListPagination,
+} from "@/components/list-pagination";
 
 interface RanchEvent {
   id: string;
@@ -51,6 +55,8 @@ export default function EventsPage() {
   const t = useT();
   const months = useMemo(() => monthOptions(), []);
   const [events, setEvents] = useState<RanchEvent[]>([]);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
   const [type, setType] = useState("");
   const [mode, setMode] = useState<"all" | "month" | "range">("all");
   const [month, setMonth] = useState(months[0]?.value || "");
@@ -58,20 +64,38 @@ export default function EventsPage() {
   const [to, setTo] = useState("");
   const [loading, setLoading] = useState(true);
 
+  const load = useCallback(
+    async (pageOffset: number) => {
+      setLoading(true);
+      const params = new URLSearchParams({
+        limit: String(DEFAULT_PAGE_SIZE),
+        offset: String(pageOffset),
+      });
+      if (type) params.set("type", type);
+      if (mode === "month" && month) params.set("month", month);
+      if (mode === "range") {
+        if (from) params.set("from", from);
+        if (to) params.set("to", to);
+      }
+      const res = await fetch(`/api/events?${params}`);
+      const data = res.ok ? await res.json() : null;
+      if (Array.isArray(data)) {
+        setEvents(data);
+        setTotal(data.length);
+        setOffset(0);
+      } else {
+        setEvents(Array.isArray(data?.events) ? data.events : []);
+        setTotal(typeof data?.total === "number" ? data.total : 0);
+        setOffset(pageOffset);
+      }
+      setLoading(false);
+    },
+    [type, mode, month, from, to]
+  );
+
   useEffect(() => {
-    setLoading(true);
-    const params = new URLSearchParams();
-    if (type) params.set("type", type);
-    if (mode === "month" && month) params.set("month", month);
-    if (mode === "range") {
-      if (from) params.set("from", from);
-      if (to) params.set("to", to);
-    }
-    fetch(`/api/events?${params}`)
-      .then((r) => r.json())
-      .then(setEvents)
-      .finally(() => setLoading(false));
-  }, [type, mode, month, from, to]);
+    load(0);
+  }, [load]);
 
   return (
     <div className="space-y-6">
@@ -89,9 +113,9 @@ export default function EventsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All types</SelectItem>
-                {EVENT_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {t.replace(/_/g, " ")}
+                {EVENT_TYPES.map((ev) => (
+                  <SelectItem key={ev} value={ev}>
+                    {ev.replace(/_/g, " ")}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -152,7 +176,15 @@ export default function EventsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{loading ? t("loading") : `${events.length} events`}</CardTitle>
+          <CardTitle>
+            {loading
+              ? t("loading")
+              : t("showingRangeOf", {
+                  from: total === 0 ? 0 : offset + 1,
+                  to: Math.min(offset + events.length, total),
+                  total,
+                })}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {events.length === 0 && !loading ? (
@@ -182,6 +214,14 @@ export default function EventsPage() {
               ))}
             </div>
           )}
+          <ListPagination
+            total={total}
+            limit={DEFAULT_PAGE_SIZE}
+            offset={offset}
+            loading={loading}
+            onPrev={() => load(Math.max(0, offset - DEFAULT_PAGE_SIZE))}
+            onNext={() => load(offset + DEFAULT_PAGE_SIZE)}
+          />
         </CardContent>
       </Card>
     </div>

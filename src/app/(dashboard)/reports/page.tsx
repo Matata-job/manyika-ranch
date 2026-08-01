@@ -26,6 +26,10 @@ import {
   rangeForMonthPreset,
   type MonthPreset,
 } from "@/lib/reports/date-range";
+import {
+  DEFAULT_PAGE_SIZE,
+  ListPagination,
+} from "@/components/list-pagination";
 
 type ReportTab = "herd" | "health" | "sales" | "finance";
 
@@ -211,6 +215,7 @@ export default function ReportsPage() {
   const [health, setHealth] = useState<HealthReport | null>(null);
   const [sales, setSales] = useState<SalesReport | null>(null);
   const [finance, setFinance] = useState<FinanceReport | null>(null);
+  const [tableOffset, setTableOffset] = useState(0);
 
   const [importResults, setImportResults] = useState<
     { eartag: string; success: boolean; error?: string }[] | null
@@ -234,6 +239,7 @@ export default function ReportsPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setTableOffset(0);
     const params = new URLSearchParams();
     if (camp !== "all") params.set("camp", camp);
     if (ageGroup !== "all") params.set("ageGroup", ageGroup);
@@ -625,7 +631,10 @@ export default function ReportsPage() {
 
       <Tabs
         value={tab}
-        onValueChange={(v) => setTab(v as ReportTab)}
+        onValueChange={(v) => {
+          setTab(v as ReportTab);
+          setTableOffset(0);
+        }}
         className="space-y-4"
       >
         <TabsList className="flex flex-wrap h-auto gap-1">
@@ -686,6 +695,7 @@ export default function ReportsPage() {
                   {herd.animals.length === 0 ? (
                     <p className="text-muted-foreground text-sm">{t("noReportRows")}</p>
                   ) : (
+                    <>
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b text-left text-muted-foreground">
@@ -698,7 +708,9 @@ export default function ReportsPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {herd.animals.slice(0, 100).map((a) => (
+                        {herd.animals
+                          .slice(tableOffset, tableOffset + DEFAULT_PAGE_SIZE)
+                          .map((a) => (
                           <tr key={a.id} className="border-b last:border-0">
                             <td className="py-2 pr-3">
                               <Link
@@ -719,11 +731,18 @@ export default function ReportsPage() {
                         ))}
                       </tbody>
                     </table>
-                  )}
-                  {herd.animals.length > 100 && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {t("showingFirstN", { n: 100, total: herd.animals.length })}
-                    </p>
+                    <ListPagination
+                      total={herd.animals.length}
+                      limit={DEFAULT_PAGE_SIZE}
+                      offset={tableOffset}
+                      onPrev={() =>
+                        setTableOffset(Math.max(0, tableOffset - DEFAULT_PAGE_SIZE))
+                      }
+                      onNext={() =>
+                        setTableOffset(tableOffset + DEFAULT_PAGE_SIZE)
+                      }
+                    />
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -910,6 +929,7 @@ export default function ReportsPage() {
                   {sales.sales.length === 0 ? (
                     <p className="text-muted-foreground text-sm">{t("noReportRows")}</p>
                   ) : (
+                    <>
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b text-left text-muted-foreground">
@@ -921,7 +941,9 @@ export default function ReportsPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {sales.sales.slice(0, 100).map((s) => (
+                        {sales.sales
+                          .slice(tableOffset, tableOffset + DEFAULT_PAGE_SIZE)
+                          .map((s) => (
                           <tr key={s.id} className="border-b last:border-0">
                             <td className="py-2 pr-3">{formatDate(s.saleDate)}</td>
                             <td className="py-2 pr-3">
@@ -939,6 +961,18 @@ export default function ReportsPage() {
                         ))}
                       </tbody>
                     </table>
+                    <ListPagination
+                      total={sales.sales.length}
+                      limit={DEFAULT_PAGE_SIZE}
+                      offset={tableOffset}
+                      onPrev={() =>
+                        setTableOffset(Math.max(0, tableOffset - DEFAULT_PAGE_SIZE))
+                      }
+                      onNext={() =>
+                        setTableOffset(tableOffset + DEFAULT_PAGE_SIZE)
+                      }
+                    />
+                    </>
                   )}
                 </CardContent>
               </Card>

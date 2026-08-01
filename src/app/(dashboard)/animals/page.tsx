@@ -16,6 +16,10 @@ import { cn, formatAge, type AgeDisplayMode } from "@/lib/utils";
 import { parseAnimalsPage } from "@/lib/animals-api";
 import { EartagBadge } from "@/components/eartag-badge";
 import { useLocale, useT } from "@/components/providers/locale-provider";
+import {
+  DEFAULT_PAGE_SIZE,
+  ListPagination,
+} from "@/components/list-pagination";
 
 interface Animal {
   id: string;
@@ -137,8 +141,8 @@ function AnimalsPageContent() {
 
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [total, setTotal] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [loadingPage, setLoadingPage] = useState(false);
   const [camps, setCamps] = useState<{ id: string; name: string }[]>([]);
   const [breeds, setBreeds] = useState<{ id: string; name: string }[]>([]);
   const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
@@ -265,9 +269,9 @@ function AnimalsPageContent() {
     return () => clearTimeout(timer);
   }, [searchInput]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const PAGE_SIZE = 100;
+  const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
-  function buildAnimalsParams(offset: number) {
+  function buildAnimalsParams(pageOffset: number) {
     const params = new URLSearchParams();
     if (filters.search) params.set("search", filters.search);
     if (filters.camp !== "all") params.set("camp", filters.camp);
@@ -280,37 +284,33 @@ function AnimalsPageContent() {
     if (filters.pregnant !== "all") params.set("pregnant", filters.pregnant);
     if (filters.sort) params.set("sort", filters.sort);
     params.set("limit", String(PAGE_SIZE));
-    params.set("offset", String(offset));
+    params.set("offset", String(pageOffset));
     return params;
   }
 
-  useEffect(() => {
-    setLoading(true);
-    fetch(`/api/animals?${buildAnimalsParams(0)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
+  const loadPage = useCallback(
+    async (pageOffset: number, opts?: { soft?: boolean }) => {
+      if (opts?.soft) setLoadingPage(true);
+      else setLoading(true);
+      try {
+        const res = await fetch(`/api/animals?${buildAnimalsParams(pageOffset)}`);
+        const data = res.ok ? await res.json() : null;
         const page = parseAnimalsPage<Animal>(data);
         setAnimals(page.animals);
         setTotal(page.total);
-        setHasMore(page.hasMore);
-      })
-      .finally(() => setLoading(false));
-  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
+        setOffset(pageOffset);
+      } finally {
+        setLoading(false);
+        setLoadingPage(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [filters]
+  );
 
-  async function loadMore() {
-    if (loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    try {
-      const res = await fetch(`/api/animals?${buildAnimalsParams(animals.length)}`);
-      if (!res.ok) return;
-      const page = parseAnimalsPage<Animal>(await res.json());
-      setAnimals((prev) => [...prev, ...page.animals]);
-      setTotal(page.total);
-      setHasMore(page.hasMore);
-    } finally {
-      setLoadingMore(false);
-    }
-  }
+  useEffect(() => {
+    loadPage(0);
+  }, [loadPage]);
 
   const advancedCount = useMemo(
     () => ADVANCED_KEYS.filter((k) => filters[k] !== DEFAULTS[k]).length,
@@ -347,10 +347,16 @@ function AnimalsPageContent() {
           <p className="text-sm text-muted-foreground mt-1">
             {loading
               ? t("loading")
-              : t("showingOfAnimals", {
-                  shown: animals.length,
-                  total,
-                })}
+              : total > 0
+                ? t("showingRangeOf", {
+                    from: offset + 1,
+                    to: Math.min(offset + animals.length, total),
+                    total,
+                  })
+                : t("showingOfAnimals", {
+                    shown: 0,
+                    total: 0,
+                  })}
             {hasActiveFilters && !loading ? ` · ${t("filtered")}` : ""}
           </p>
         </div>
@@ -732,16 +738,15 @@ function AnimalsPageContent() {
         </div>
       )}
 
-      {!loading && hasMore && (
-        <div className="flex justify-center pt-2">
-          <Button
-            variant="outline"
-            onClick={loadMore}
-            disabled={loadingMore}
-          >
-            {loadingMore ? t("loading") : t("loadMoreAnimals")}
-          </Button>
-        </div>
+      {!loading && (
+        <ListPagination
+          total={total}
+          limit={PAGE_SIZE}
+          offset={offset}
+          loading={loadingPage}
+          onPrev={() => loadPage(Math.max(0, offset - PAGE_SIZE), { soft: true })}
+          onNext={() => loadPage(offset + PAGE_SIZE, { soft: true })}
+        />
       )}
     </div>
   );

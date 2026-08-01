@@ -11,35 +11,77 @@ function parseOptionalFloat(value: unknown): number | null | undefined {
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
   const result = await requireCampAccess(id);
   if (!result.ok) return result.error;
 
-  const camp = await prisma.camp.findUnique({
-    where: { id },
-    include: {
-      animals: {
-        where: { status: "ACTIVE" },
-        select: { id: true, eartag: true, breed: true, sex: true, ageMonths: true },
-        take: 50,
-        orderBy: { eartag: "asc" },
-      },
-      _count: { select: { animals: { where: { status: "ACTIVE" } } } },
-      assignments: {
-        include: { user: { select: { id: true, name: true, role: true } } },
-      },
-      photos: {
-        orderBy: { takenAt: "desc" },
-        include: { uploadedBy: { select: { name: true } } },
-      },
-    },
-  });
+  const { searchParams } = new URL(req.url);
+  const limit = Math.min(
+    Math.max(parseInt(searchParams.get("limit") || "50", 10) || 50, 1),
+    200
+  );
+  const offset = Math.max(
+    parseInt(searchParams.get("offset") || "0", 10) || 0,
+    0
+  );
 
-  if (!camp) return NextResponse.json({ error: "Camp not found" }, { status: 404 });
-  return NextResponse.json(camp);
+  const [camp, animalTotal, sexGroups] = await Promise.all([
+    prisma.camp.findUnique({
+      where: { id },
+      include: {
+        animals: {
+          where: { status: "ACTIVE" },
+          select: {
+            id: true,
+            eartag: true,
+            breed: true,
+            sex: true,
+            ageMonths: true,
+          },
+          take: limit,
+          skip: offset,
+          orderBy: { eartag: "asc" },
+        },
+        assignments: {
+          include: {
+            user: { select: { id: true, name: true, role: true } },
+          },
+        },
+        photos: {
+          orderBy: { takenAt: "desc" },
+          include: { uploadedBy: { select: { name: true } } },
+        },
+      },
+    }),
+    prisma.animal.count({ where: { campId: id, status: "ACTIVE" } }),
+    prisma.animal.groupBy({
+      by: ["sex"],
+      where: { campId: id, status: "ACTIVE" },
+      _count: { _all: true },
+    }),
+  ]);
+
+  if (!camp) {
+    return NextResponse.json({ error: "Camp not found" }, { status: 404 });
+  }
+
+  const bySex: Record<string, number> = {};
+  for (const g of sexGroups) {
+    bySex[g.sex] = g._count._all;
+  }
+
+  return NextResponse.json({
+    ...camp,
+    animalTotal,
+    animalsLimit: limit,
+    animalsOffset: offset,
+    animalsHasMore: offset + camp.animals.length < animalTotal,
+    bySex,
+    _count: { animals: animalTotal },
+  });
 }
 
 export async function PATCH(

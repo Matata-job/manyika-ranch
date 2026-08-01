@@ -13,7 +13,14 @@ export async function GET(req: NextRequest) {
   const from = searchParams.get("from");
   const to = searchParams.get("to");
   const month = searchParams.get("month"); // YYYY-MM
-  const take = Math.min(parseInt(searchParams.get("limit") || "100", 10), 300);
+  const limit = Math.min(
+    Math.max(parseInt(searchParams.get("limit") || "50", 10) || 50, 1),
+    300
+  );
+  const offset = Math.max(
+    parseInt(searchParams.get("offset") || "0", 10) || 0,
+    0
+  );
 
   const animalScope = await buildAnimalScope(result.user.id, result.user.role as Role, {
     campId,
@@ -34,25 +41,37 @@ export async function GET(req: NextRequest) {
     };
   }
 
-  const events = await prisma.animalEvent.findMany({
-    where: {
-      animal: animalScope,
-      ...(type ? { type: type as AnimalEventType } : {}),
-      ...(occurredAt ? { occurredAt } : {}),
-    },
-    orderBy: { occurredAt: "desc" },
-    take,
-    include: {
-      animal: {
-        select: {
-          id: true,
-          eartag: true,
-          camp: { select: { name: true } },
-        },
-      },
-      recordedBy: { select: { name: true } },
-    },
-  });
+  const where = {
+    animal: animalScope,
+    ...(type ? { type: type as AnimalEventType } : {}),
+    ...(occurredAt ? { occurredAt } : {}),
+  };
 
-  return NextResponse.json(events);
+  const [events, total] = await Promise.all([
+    prisma.animalEvent.findMany({
+      where,
+      orderBy: { occurredAt: "desc" },
+      take: limit,
+      skip: offset,
+      include: {
+        animal: {
+          select: {
+            id: true,
+            eartag: true,
+            camp: { select: { name: true } },
+          },
+        },
+        recordedBy: { select: { name: true } },
+      },
+    }),
+    prisma.animalEvent.count({ where }),
+  ]);
+
+  return NextResponse.json({
+    events,
+    total,
+    limit,
+    offset,
+    hasMore: offset + events.length < total,
+  });
 }

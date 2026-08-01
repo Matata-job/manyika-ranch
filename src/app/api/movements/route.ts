@@ -17,6 +17,14 @@ export async function GET(req: NextRequest) {
   const campId = searchParams.get("camp");
   const from = searchParams.get("from");
   const to = searchParams.get("to");
+  const limit = Math.min(
+    Math.max(parseInt(searchParams.get("limit") || "50", 10) || 50, 1),
+    200
+  );
+  const offset = Math.max(
+    parseInt(searchParams.get("offset") || "0", 10) || 0,
+    0
+  );
 
   const movementScope = await buildMovementScope(
     result.user.id,
@@ -44,28 +52,40 @@ export async function GET(req: NextRequest) {
         }
       : {};
 
-  const movements = await prisma.movement.findMany({
-    where: {
-      AND: [movementScope, dateFilter, campFilter],
-    },
-    orderBy: { date: "desc" },
-    take: 200,
-    include: {
-      animal: {
-        select: {
-          id: true,
-          eartag: true,
-          breed: true,
-          camp: { select: { id: true, name: true } },
-        },
-      },
-      fromCamp: { select: { id: true, name: true } },
-      toCamp: { select: { id: true, name: true } },
-      authorizedBy: { select: { name: true } },
-    },
-  });
+  const where = {
+    AND: [movementScope, dateFilter, campFilter],
+  };
 
-  return NextResponse.json(movements);
+  const [movements, total] = await Promise.all([
+    prisma.movement.findMany({
+      where,
+      orderBy: { date: "desc" },
+      take: limit,
+      skip: offset,
+      include: {
+        animal: {
+          select: {
+            id: true,
+            eartag: true,
+            breed: true,
+            camp: { select: { id: true, name: true } },
+          },
+        },
+        fromCamp: { select: { id: true, name: true } },
+        toCamp: { select: { id: true, name: true } },
+        authorizedBy: { select: { name: true } },
+      },
+    }),
+    prisma.movement.count({ where }),
+  ]);
+
+  return NextResponse.json({
+    movements,
+    total,
+    limit,
+    offset,
+    hasMore: offset + movements.length < total,
+  });
 }
 
 /**

@@ -23,6 +23,10 @@ import type { Role } from "@prisma/client";
 import { useT } from "@/components/providers/locale-provider";
 import { parseAnimalsList } from "@/lib/animals-api";
 import { ArrowRightLeft } from "lucide-react";
+import {
+  DEFAULT_PAGE_SIZE,
+  ListPagination,
+} from "@/components/list-pagination";
 
 interface Camp {
   id: string;
@@ -72,6 +76,8 @@ export default function MovementsPage() {
   } | null>(null);
 
   const [movements, setMovements] = useState<Movement[]>([]);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyOffset, setHistoryOffset] = useState(0);
   const [historyCamp, setHistoryCamp] = useState("all");
   const [historyFrom, setHistoryFrom] = useState("");
   const [historyTo, setHistoryTo] = useState("");
@@ -154,20 +160,39 @@ export default function MovementsPage() {
     total: animals.length,
   });
 
-  const loadHistory = useCallback(async () => {
-    setLoadingHistory(true);
-    const params = new URLSearchParams();
-    if (historyCamp !== "all") params.set("camp", historyCamp);
-    if (historyFrom) params.set("from", historyFrom);
-    if (historyTo) params.set("to", historyTo);
-    const res = await fetch(`/api/movements?${params}`);
-    if (res.ok) setMovements(await res.json());
-    else setMovements([]);
-    setLoadingHistory(false);
-  }, [historyCamp, historyFrom, historyTo]);
+  const loadHistory = useCallback(
+    async (pageOffset = 0) => {
+      setLoadingHistory(true);
+      const params = new URLSearchParams({
+        limit: String(DEFAULT_PAGE_SIZE),
+        offset: String(pageOffset),
+      });
+      if (historyCamp !== "all") params.set("camp", historyCamp);
+      if (historyFrom) params.set("from", historyFrom);
+      if (historyTo) params.set("to", historyTo);
+      const res = await fetch(`/api/movements?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setMovements(data);
+          setHistoryTotal(data.length);
+          setHistoryOffset(0);
+        } else {
+          setMovements(Array.isArray(data.movements) ? data.movements : []);
+          setHistoryTotal(typeof data.total === "number" ? data.total : 0);
+          setHistoryOffset(pageOffset);
+        }
+      } else {
+        setMovements([]);
+        setHistoryTotal(0);
+      }
+      setLoadingHistory(false);
+    },
+    [historyCamp, historyFrom, historyTo]
+  );
 
   useEffect(() => {
-    loadHistory();
+    loadHistory(0);
   }, [loadHistory]);
 
   async function submitMove(e: React.FormEvent) {
@@ -225,7 +250,7 @@ export default function MovementsPage() {
     setReason("");
     setMoveDate("");
     await loadAnimals(fromCampId, sex);
-    await loadHistory();
+    await loadHistory(0);
   }
 
   const destinationCamps = camps.filter((c) => c.id !== fromCampId);
@@ -496,7 +521,7 @@ export default function MovementsPage() {
                   <Button
                     type="button"
                     variant="secondary"
-                    onClick={loadHistory}
+                    onClick={() => loadHistory(0)}
                     disabled={loadingHistory}
                   >
                     {loadingHistory ? t("loading") : t("applyFilters")}
@@ -508,12 +533,20 @@ export default function MovementsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>{t("recentMovements")}</CardTitle>
+              <CardTitle>
+                {t("recentMovements")}
+                {historyTotal > 0 && (
+                  <span className="ml-2 text-base font-normal text-muted-foreground">
+                    ({historyTotal})
+                  </span>
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {movements.length === 0 ? (
                 <p className="text-sm text-muted-foreground">{t("noMovements")}</p>
               ) : (
+                <>
                 <div className="rounded-lg border overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -549,6 +582,17 @@ export default function MovementsPage() {
                     </tbody>
                   </table>
                 </div>
+                <ListPagination
+                  total={historyTotal}
+                  limit={DEFAULT_PAGE_SIZE}
+                  offset={historyOffset}
+                  loading={loadingHistory}
+                  onPrev={() =>
+                    loadHistory(Math.max(0, historyOffset - DEFAULT_PAGE_SIZE))
+                  }
+                  onNext={() => loadHistory(historyOffset + DEFAULT_PAGE_SIZE)}
+                />
+                </>
               )}
             </CardContent>
           </Card>

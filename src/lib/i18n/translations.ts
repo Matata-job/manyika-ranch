@@ -187,6 +187,9 @@ const en = {
   noPhoto: "No photo",
   showingOfAnimals: "Showing {shown} of {total}",
   loadMoreAnimals: "Load more",
+  showingRangeOf: "Showing {from}–{to} of {total}",
+  previous: "Previous",
+  next: "Next",
   filtered: "filtered",
   tagColor: "Eartag colour",
   tagColorHelp:
@@ -885,6 +888,9 @@ const sw: Dict = {
   noPhoto: "Hakuna picha",
   showingOfAnimals: "Inaonyesha {shown} kati ya {total}",
   loadMoreAnimals: "Pakia zaidi",
+  showingRangeOf: "Inaonyesha {from}–{to} kati ya {total}",
+  previous: "Iliyotangulia",
+  next: "Ifuatayo",
   filtered: "imechujwa",
   tagColor: "Rangi ya eartag",
   tagColorHelp:
