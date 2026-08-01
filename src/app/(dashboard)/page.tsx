@@ -8,6 +8,10 @@ import { getScopedCampWhere, getScopedAnimalWhere } from "@/lib/auth/scope";
 import { hasPermission, isCampScopedRole } from "@/lib/auth/rbac";
 import { serverT } from "@/lib/i18n/server";
 import type { TranslationKey } from "@/lib/i18n/translations";
+import {
+  getHealthNotifyDaysEarly,
+  syncHealthDueAlerts,
+} from "@/lib/services/health-schedule";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -18,7 +22,17 @@ export default async function DashboardPage() {
   const campWhere = await getScopedCampWhere(user.id, role, user.ranchId);
   const animalWhere = await getScopedAnimalWhere(user.id, role);
 
-  const [campCount, animalCount, vaccinationDue, alertCount, camps] =
+  // Keep vaccination/treatment due alerts fresh when staff open the dashboard
+  await syncHealthDueAlerts(user.ranchId);
+
+  const ranch = await prisma.ranch.findUnique({
+    where: { id: user.ranchId },
+    select: { settings: true },
+  });
+  const notifyDays = getHealthNotifyDaysEarly(ranch?.settings);
+  const healthHorizon = new Date(Date.now() + notifyDays * 86400000);
+
+  const [campCount, animalCount, vaccinationDue, treatmentDue, alertCount, camps] =
     await Promise.all([
       prisma.camp.count({ where: campWhere }),
       prisma.animal.count({
@@ -26,7 +40,13 @@ export default async function DashboardPage() {
       }),
       prisma.vaccination.count({
         where: {
-          nextDue: { lte: new Date(Date.now() + 30 * 86400000) },
+          nextDue: { lte: healthHorizon, not: null },
+          animal: { status: "ACTIVE", ...animalWhere },
+        },
+      }),
+      prisma.treatment.count({
+        where: {
+          nextDue: { lte: healthHorizon, not: null },
           animal: { status: "ACTIVE", ...animalWhere },
         },
       }),
@@ -49,6 +69,7 @@ export default async function DashboardPage() {
     ]);
 
   const canViewReports = hasPermission(role, "viewReports");
+  const healthDue = vaccinationDue + treatmentDue;
 
   const stats: {
     labelKey: TranslationKey;
@@ -69,9 +90,9 @@ export default async function DashboardPage() {
       ? [
           {
             labelKey: "vaccinationsDue" as const,
-            value: vaccinationDue,
+            value: healthDue,
             icon: HeartPulse,
-            href: "/reports",
+            href: "/health",
             color: "text-amber-600",
           },
         ]

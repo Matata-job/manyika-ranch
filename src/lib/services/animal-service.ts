@@ -37,33 +37,6 @@ export async function updateAnimalAgeMonths(animalId: string, dob: Date | null) 
   });
 }
 
-export async function checkVaccinationAlerts() {
-  const dueVaccinations = await prisma.vaccination.findMany({
-    where: {
-      nextDue: { lte: new Date() },
-      animal: { status: "ACTIVE" },
-    },
-    include: { animal: { select: { id: true, eartag: true } } },
-  });
+/** @deprecated Prefer syncHealthDueAlerts from health-schedule */
+export { checkVaccinationAlerts, syncHealthDueAlerts } from "@/lib/services/health-schedule";
 
-  for (const v of dueVaccinations) {
-    const existing = await prisma.alert.findFirst({
-      where: {
-        type: "VACCINATION_DUE",
-        animalId: v.animalId,
-        status: "PENDING",
-      },
-    });
-    if (!existing) {
-      await prisma.alert.create({
-        data: {
-          type: "VACCINATION_DUE",
-          title: `Vaccination due: ${v.animal.eartag}`,
-          message: `${v.vaccineName} is due for animal ${v.animal.eartag}`,
-          animalId: v.animalId,
-          dueDate: v.nextDue,
-        },
-      });
-    }
-  }
-}

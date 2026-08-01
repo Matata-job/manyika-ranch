@@ -111,6 +111,18 @@ export async function POST(req: NextRequest) {
       ? withdrawalPeriod
       : null;
 
+  const {
+    clearPriorTreatmentNextDue,
+    resolveHealthAlertsForDose,
+    syncHealthDueAlerts,
+  } = await import("@/lib/services/health-schedule");
+
+  // Clear prior nextDue before creating new doses so we don't wipe the new rows.
+  for (const a of animals) {
+    await clearPriorTreatmentNextDue(a.id, product);
+    await resolveHealthAlertsForDose(a.id, "TREATMENT_DUE", product);
+  }
+
   await prisma.$transaction(async (tx) => {
     await tx.treatment.createMany({
       data: animals.map((a) => ({
@@ -154,6 +166,8 @@ export async function POST(req: NextRequest) {
       })),
     });
   });
+
+  await syncHealthDueAlerts(result.user.ranchId);
 
   await createAuditLog(result.user.id, "CREATE", "BulkTreatment", result.user.ranchId, {
     type: treatmentType,

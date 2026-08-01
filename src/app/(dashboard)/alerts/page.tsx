@@ -23,6 +23,7 @@ export default function AlertsPage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
 
   async function loadAlerts() {
+    await fetch("/api/health/sync-alerts", { method: "POST" }).catch(() => null);
     const res = await fetch("/api/alerts");
     if (res.ok) setAlerts(await res.json());
   }
@@ -57,7 +58,14 @@ export default function AlertsPage() {
                   <div key={alert.id} className="flex items-start justify-between border-b pb-3">
                     <div>
                       <div className="flex items-center gap-2">
-                        <Badge variant={alert.type === "VACCINATION_DUE" ? "warning" : "secondary"}>
+                        <Badge
+                          variant={
+                            alert.type === "VACCINATION_DUE" ||
+                            alert.type === "TREATMENT_DUE"
+                              ? "warning"
+                              : "secondary"
+                          }
+                        >
                           {alert.type.replace(/_/g, " ")}
                         </Badge>
                         <span className="font-medium">{alert.title}</span>

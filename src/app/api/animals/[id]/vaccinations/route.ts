@@ -72,6 +72,15 @@ export async function POST(
     },
   });
 
+  const {
+    clearPriorVaccinationNextDue,
+    resolveHealthAlertsForDose,
+    syncHealthDueAlerts,
+  } = await import("@/lib/services/health-schedule");
+  await clearPriorVaccinationNextDue(id, vaccineName, vaccination.id);
+  await resolveHealthAlertsForDose(id, "VACCINATION_DUE", vaccineName);
+  await syncHealthDueAlerts(result.user.ranchId);
+
   const { logAnimalEvent } = await import("@/lib/services/event-service");
   await logAnimalEvent({
     animalId: id,

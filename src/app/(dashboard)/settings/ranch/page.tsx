@@ -21,6 +21,7 @@ export default function RanchSettingsPage() {
   const { locale } = useLocale();
   const [mode, setMode] = useState<AgeDisplayMode>("AUTO");
   const [grazingFee, setGrazingFee] = useState("");
+  const [healthNotifyDays, setHealthNotifyDays] = useState("14");
   const [yearRows, setYearRows] = useState<YearRow[]>([]);
   const [defaultTagColor, setDefaultTagColor] = useState("");
   const [saving, setSaving] = useState(false);
@@ -33,6 +34,9 @@ export default function RanchSettingsPage() {
         if (data?.ageDisplayMode) setMode(data.ageDisplayMode);
         if (data?.grazingFeePerAnimalTzs != null) {
           setGrazingFee(String(data.grazingFeePerAnimalTzs));
+        }
+        if (data?.healthNotifyDaysEarly != null) {
+          setHealthNotifyDays(String(data.healthNotifyDaysEarly));
         }
         if (data?.defaultTagColor) setDefaultTagColor(data.defaultTagColor);
         if (data?.eartagYearColors) {
@@ -60,6 +64,7 @@ export default function RanchSettingsPage() {
       body: JSON.stringify({
         ageDisplayMode: mode,
         grazingFeePerAnimalTzs: grazingFee === "" ? 0 : grazingFee,
+        healthNotifyDaysEarly: healthNotifyDays === "" ? 14 : healthNotifyDays,
         defaultTagColor: defaultTagColor || null,
         eartagYearColors,
       }),
@@ -69,6 +74,9 @@ export default function RanchSettingsPage() {
       const data = await res.json();
       if (data.grazingFeePerAnimalTzs != null) {
         setGrazingFee(String(data.grazingFeePerAnimalTzs));
+      }
+      if (data.healthNotifyDaysEarly != null) {
+        setHealthNotifyDays(String(data.healthNotifyDaysEarly));
       }
       if (data.ageDisplayMode) setMode(data.ageDisplayMode);
       setDefaultTagColor(data.defaultTagColor || "");
@@ -285,6 +293,24 @@ export default function RanchSettingsPage() {
             <p>6 mo → {formatAge(6, mode)}</p>
             <p>15 mo → {formatAge(15, mode)}</p>
             <p>36 mo → {formatAge(36, mode)}</p>
+          </div>
+
+          <div className="space-y-2 border-t pt-4">
+            <Label htmlFor="health-notify">{t("healthNotifyDaysEarly")}</Label>
+            <Input
+              id="health-notify"
+              type="number"
+              min={0}
+              max={90}
+              value={healthNotifyDays}
+              onChange={(e) => {
+                setHealthNotifyDays(e.target.value);
+                setMessage("");
+              }}
+            />
+            <p className="text-sm text-muted-foreground">
+              {t("healthNotifyDaysEarlyHelp")}
+            </p>
           </div>
 
           <Button onClick={save} disabled={saving}>

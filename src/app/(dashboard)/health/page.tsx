@@ -40,19 +40,76 @@ interface TreatmentSchedule {
   intervalDays: number | null;
 }
 
-interface DueVaccination {
+interface CalendarItem {
   id: string;
-  vaccineName: string;
+  kind: "vaccination" | "treatment";
+  label: string;
+  type?: string;
   nextDue: string;
-  animal: { id: string; eartag: string; camp: { name: string } };
+  daysUntil: number;
+  status: "overdue" | "due_soon" | "upcoming";
+  animal: { id: string; eartag: string; camp: { id: string; name: string } };
 }
 
-interface DueTreatment {
-  id: string;
-  product: string;
-  type: string;
-  nextDue: string;
-  animal: { id: string; eartag: string; camp: { name: string } };
+function DueList({
+  items,
+  emptyLabel,
+  t,
+}: {
+  items: CalendarItem[];
+  emptyLabel: string;
+  t: (key: TranslationKey, vars?: Record<string, string | number>) => string;
+}) {
+  if (items.length === 0) {
+    return <p className="text-muted-foreground text-sm">{emptyLabel}</p>;
+  }
+  return (
+    <div className="space-y-2">
+      {items.map((item) => (
+        <div
+          key={`${item.kind}-${item.id}`}
+          className="flex items-center justify-between border-b pb-2 gap-2"
+        >
+          <div className="min-w-0">
+            <Link
+              href={`/animals/${item.animal.id}`}
+              className="font-medium text-primary hover:underline"
+            >
+              {item.animal.eartag}
+            </Link>
+            <p className="text-sm text-muted-foreground truncate">
+              {item.kind === "vaccination" ? t("vaccination") : t("treatment")}
+              {": "}
+              {item.label}
+              {item.type ? ` (${t(treatmentTypeKey(item.type))})` : ""}
+              {" · "}
+              {item.animal.camp.name}
+            </p>
+          </div>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <Badge
+              variant={
+                item.status === "overdue"
+                  ? "destructive"
+                  : item.status === "due_soon"
+                    ? "warning"
+                    : "secondary"
+              }
+            >
+              {formatDate(item.nextDue)}
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              {item.daysUntil < 0
+                ? t("daysOverdue", { n: Math.abs(item.daysUntil) })
+                : item.daysUntil === 0
+                  ? t("dueToday")
+                  : t("dueInDays", { n: item.daysUntil })}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function HealthPage() {
@@ -65,8 +122,11 @@ export default function HealthPage() {
   const [treatmentSchedules, setTreatmentSchedules] = useState<
     TreatmentSchedule[]
   >([]);
-  const [due, setDue] = useState<DueVaccination[]>([]);
-  const [dueTreatments, setDueTreatments] = useState<DueTreatment[]>([]);
+  const [overdue, setOverdue] = useState<CalendarItem[]>([]);
+  const [dueSoon, setDueSoon] = useState<CalendarItem[]>([]);
+  const [upcoming, setUpcoming] = useState<CalendarItem[]>([]);
+  const [notifyDaysEarly, setNotifyDaysEarly] = useState(14);
+  const [daysAhead, setDaysAhead] = useState(60);
 
   useEffect(() => {
     fetch("/api/health/vaccines")
@@ -75,12 +135,18 @@ export default function HealthPage() {
     fetch("/api/health/treatment-schedules")
       .then((r) => (r.ok ? r.json() : []))
       .then((d) => setTreatmentSchedules(Array.isArray(d) ? d : []));
-    fetch("/api/reports/vaccination-due")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((d) => setDue(Array.isArray(d) ? d : []));
-    fetch("/api/reports/treatment-due")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((d) => setDueTreatments(Array.isArray(d) ? d : []));
+    fetch("/api/health/calendar?days=60")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return;
+        setOverdue(Array.isArray(d.overdue) ? d.overdue : []);
+        setDueSoon(Array.isArray(d.dueSoon) ? d.dueSoon : []);
+        setUpcoming(Array.isArray(d.upcoming) ? d.upcoming : []);
+        if (typeof d.notifyDaysEarly === "number") {
+          setNotifyDaysEarly(d.notifyDaysEarly);
+        }
+        if (typeof d.daysAhead === "number") setDaysAhead(d.daysAhead);
+      });
   }, []);
 
   return (
@@ -89,6 +155,9 @@ export default function HealthPage() {
         <div>
           <h1 className="text-3xl font-bold">{t("healthTitle")}</h1>
           <p className="text-muted-foreground">{t("healthSubtitle")}</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {t("healthCalendarHint", { notify: notifyDaysEarly, ahead: daysAhead })}
+          </p>
         </div>
         {canManage && (
           <div className="flex flex-wrap gap-2">
@@ -110,72 +179,34 @@ export default function HealthPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{t("vaccinationsDue30")}</CardTitle>
+          <CardTitle>{t("healthOverdue")}</CardTitle>
         </CardHeader>
         <CardContent>
-          {due.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              {t("noVaccinationsDue")}
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {due.map((v) => (
-                <div
-                  key={v.id}
-                  className="flex items-center justify-between border-b pb-2"
-                >
-                  <div>
-                    <Link
-                      href={`/animals/${v.animal.id}`}
-                      className="font-medium text-primary hover:underline"
-                    >
-                      {v.animal.eartag}
-                    </Link>
-                    <p className="text-sm text-muted-foreground">
-                      {v.vaccineName} · {v.animal.camp.name}
-                    </p>
-                  </div>
-                  <Badge variant="warning">{formatDate(v.nextDue)}</Badge>
-                </div>
-              ))}
-            </div>
-          )}
+          <DueList items={overdue} emptyLabel={t("noHealthOverdue")} t={t} />
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>{t("treatmentsDue30")}</CardTitle>
+          <CardTitle>
+            {t("healthDueSoon", { n: notifyDaysEarly })}
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          {dueTreatments.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              {t("noTreatmentsDue")}
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {dueTreatments.map((dt) => (
-                <div
-                  key={dt.id}
-                  className="flex items-center justify-between border-b pb-2"
-                >
-                  <div>
-                    <Link
-                      href={`/animals/${dt.animal.id}`}
-                      className="font-medium text-primary hover:underline"
-                    >
-                      {dt.animal.eartag}
-                    </Link>
-                    <p className="text-sm text-muted-foreground">
-                      {dt.product} ({t(treatmentTypeKey(dt.type))}) ·{" "}
-                      {dt.animal.camp.name}
-                    </p>
-                  </div>
-                  <Badge variant="warning">{formatDate(dt.nextDue)}</Badge>
-                </div>
-              ))}
-            </div>
-          )}
+          <DueList items={dueSoon} emptyLabel={t("noHealthDueSoon")} t={t} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("healthUpcoming", { n: daysAhead })}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DueList
+            items={upcoming}
+            emptyLabel={t("noHealthUpcoming")}
+            t={t}
+          />
         </CardContent>
       </Card>
 

@@ -12,6 +12,7 @@ import {
   getRanchEartagYearColors,
   normalizeTagColor,
 } from "@/lib/tag-color";
+import { getHealthNotifyDaysEarly } from "@/lib/services/health-schedule";
 import type { Prisma, Role } from "@prisma/client";
 
 export async function GET() {
@@ -32,6 +33,7 @@ export async function GET() {
     name: ranch.name,
     ageDisplayMode: getRanchAgeDisplayMode(ranch.settings),
     grazingFeePerAnimalTzs: getRanchGrazingFeePerAnimal(ranch.settings),
+    healthNotifyDaysEarly: getHealthNotifyDaysEarly(ranch.settings),
     eartagYearColors: getRanchEartagYearColors(ranch.settings),
     defaultTagColor: getRanchDefaultTagColor(ranch.settings),
     settings: ranch.settings,
@@ -81,6 +83,23 @@ export async function PATCH(req: NextRequest) {
       );
     }
     next.grazingFeePerAnimalTzs = fee;
+  }
+
+  if (body.healthNotifyDaysEarly !== undefined) {
+    if (!canManageCamps) {
+      return NextResponse.json(
+        { error: "Only ranch managers can change health alert settings" },
+        { status: 403 }
+      );
+    }
+    const days = parseInt(String(body.healthNotifyDaysEarly), 10);
+    if (!Number.isFinite(days) || days < 0 || days > 90) {
+      return NextResponse.json(
+        { error: "Health notify days must be between 0 and 90" },
+        { status: 400 }
+      );
+    }
+    next.healthNotifyDaysEarly = days;
   }
 
   if (body.defaultTagColor !== undefined) {
@@ -148,6 +167,7 @@ export async function PATCH(req: NextRequest) {
     name: updated.name,
     ageDisplayMode: getRanchAgeDisplayMode(updated.settings),
     grazingFeePerAnimalTzs: getRanchGrazingFeePerAnimal(updated.settings),
+    healthNotifyDaysEarly: getHealthNotifyDaysEarly(updated.settings),
     eartagYearColors: getRanchEartagYearColors(updated.settings),
     defaultTagColor: getRanchDefaultTagColor(updated.settings),
     settings: updated.settings,
