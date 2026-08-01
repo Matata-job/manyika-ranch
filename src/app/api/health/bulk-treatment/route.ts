@@ -114,7 +114,6 @@ export async function POST(req: NextRequest) {
   const {
     clearPriorTreatmentNextDue,
     resolveHealthAlertsForDose,
-    syncHealthDueAlerts,
   } = await import("@/lib/services/health-schedule");
 
   // Clear prior nextDue before creating new doses so we don't wipe the new rows.
@@ -167,7 +166,8 @@ export async function POST(req: NextRequest) {
     });
   });
 
-  await syncHealthDueAlerts(result.user.ranchId);
+  const { syncAllRanchAlerts } = await import("@/lib/services/alert-sync");
+  await syncAllRanchAlerts(result.user.ranchId);
 
   await createAuditLog(result.user.id, "CREATE", "BulkTreatment", result.user.ranchId, {
     type: treatmentType,

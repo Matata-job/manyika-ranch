@@ -34,9 +34,9 @@ export async function GET(req: NextRequest) {
   });
   const notifyDaysEarly = getHealthNotifyDaysEarly(ranch?.settings);
 
-  // Refresh early alerts when calendar is opened
-  const { syncHealthDueAlerts } = await import("@/lib/services/health-schedule");
-  await syncHealthDueAlerts(result.user.ranchId);
+  // Refresh all automated alerts when calendar is opened
+  const { syncAllRanchAlerts } = await import("@/lib/services/alert-sync");
+  await syncAllRanchAlerts(result.user.ranchId);
 
   const calendar = await getHealthCalendar({
     animalWhere: animalScope,

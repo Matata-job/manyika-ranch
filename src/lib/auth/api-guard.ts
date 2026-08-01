@@ -168,7 +168,8 @@ export async function buildMovementScope(
   };
 }
 
-/** Alerts visible to the user — camp-scoped roles never see ranch-wide orphan alerts. */
+/** Alerts visible to the user — camp-scoped roles never see ranch-wide orphan alerts,
+ * except medicine stock alerts (no animal). */
 export async function buildAlertScope(
   userId: string,
   role: Role
@@ -177,7 +178,12 @@ export async function buildAlertScope(
   if ("error" in animalScope) return animalScope;
 
   if (isCampScopedRole(role)) {
-    return { animal: animalScope };
+    return {
+      OR: [
+        { animal: animalScope },
+        { animalId: null, type: "MEDICINE_LOW" },
+      ],
+    };
   }
 
   return {

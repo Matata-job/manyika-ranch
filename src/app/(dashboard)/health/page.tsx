@@ -167,6 +167,9 @@ export default function HealthPage() {
                 {t("manageSchedules")}
               </Link>
             </Button>
+            <Button asChild variant="outline">
+              <Link href="/health/inventory">{t("medicineInventory")}</Link>
+            </Button>
             <Button asChild>
               <Link href="/health/bulk-treatment">
                 <Syringe className="h-4 w-4 mr-2" />

@@ -56,5 +56,10 @@ export async function POST(
     metadata: { weightKg: log.weightKg, method: log.method },
   });
 
+  const { refreshWeightAlertForAnimal } = await import(
+    "@/lib/services/alert-sync"
+  );
+  await refreshWeightAlertForAnimal(id, result.user.ranchId);
+
   return NextResponse.json(log, { status: 201 });
 }

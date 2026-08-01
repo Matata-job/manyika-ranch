@@ -162,9 +162,13 @@ export async function POST(req: NextRequest) {
     typeof body.reason === "string" && body.reason.trim()
       ? body.reason.trim()
       : "Camp transfer";
+  const endOfToday = new Date();
+  endOfToday.setHours(23, 59, 59, 999);
+  const asPending = body.pending === true || date > endOfToday;
 
   let moved = 0;
   let skipped = 0;
+  let pending = 0;
   const errors: { eartag?: string; id: string; error: string }[] = [];
 
   for (const id of animalIds) {
@@ -204,36 +208,43 @@ export async function POST(req: NextRequest) {
             toCampId,
             date,
             reason,
+            status: asPending ? "PENDING" : "COMPLETED",
             authorizedById: result.user.id,
           },
         });
-        await tx.animal.update({
-          where: { id: animal.id },
-          data: { campId: toCampId },
-        });
+        if (!asPending) {
+          await tx.animal.update({
+            where: { id: animal.id },
+            data: { campId: toCampId },
+          });
+        }
       });
 
-      await logAnimalEvent({
-        animalId: animal.id,
-        type: "MOVEMENT",
-        title: `Moved ${animal.camp.name} → ${toCamp.name}`,
-        description: reason,
-        occurredAt: date,
-        recordedById: result.user.id,
-        metadata: {
+      if (asPending) {
+        pending += 1;
+      } else {
+        await logAnimalEvent({
+          animalId: animal.id,
+          type: "MOVEMENT",
+          title: `Moved ${animal.camp.name} → ${toCamp.name}`,
+          description: reason,
+          occurredAt: date,
+          recordedById: result.user.id,
+          metadata: {
+            fromCampId: animal.campId,
+            toCampId,
+            bulk: true,
+          },
+        });
+
+        await createAuditLog(result.user.id, "MOVE", "Animal", animal.id, {
           fromCampId: animal.campId,
           toCampId,
           bulk: true,
-        },
-      });
+        });
 
-      await createAuditLog(result.user.id, "MOVE", "Animal", animal.id, {
-        fromCampId: animal.campId,
-        toCampId,
-        bulk: true,
-      });
-
-      moved += 1;
+        moved += 1;
+      }
     } catch (e) {
       skipped += 1;
       errors.push({
@@ -244,8 +255,14 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (pending > 0) {
+    const { syncMovementAlerts } = await import("@/lib/services/alert-sync");
+    await syncMovementAlerts(result.user.ranchId);
+  }
+
   return NextResponse.json({
     moved,
+    pending,
     skipped,
     toCamp: toCamp.name,
     errors: errors.slice(0, 50),

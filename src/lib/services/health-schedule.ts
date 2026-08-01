@@ -3,6 +3,8 @@ import type { AlertType, Prisma } from "@prisma/client";
 
 export const DEFAULT_HEALTH_NOTIFY_DAYS = 14;
 export const DEFAULT_HEALTH_CALENDAR_DAYS = 60;
+export const DEFAULT_WEIGHT_DROP_PERCENT = 15;
+export const DEFAULT_MEDICINE_EXPIRY_DAYS = 30;
 
 export function getHealthNotifyDaysEarly(settings: unknown): number {
   const raw = (settings as { healthNotifyDaysEarly?: unknown } | null)
@@ -12,13 +14,38 @@ export function getHealthNotifyDaysEarly(settings: unknown): number {
   return Math.min(Math.floor(n), 90);
 }
 
+export function getHealthCalendarDays(settings: unknown): number {
+  const raw = (settings as { healthCalendarDays?: unknown } | null)
+    ?.healthCalendarDays;
+  const n = typeof raw === "number" ? raw : parseInt(String(raw ?? ""), 10);
+  if (!Number.isFinite(n) || n < 7) return DEFAULT_HEALTH_CALENDAR_DAYS;
+  return Math.min(Math.floor(n), 180);
+}
+
+export function getWeightAlertDropPercent(settings: unknown): number {
+  const raw = (settings as { weightAlertDropPercent?: unknown } | null)
+    ?.weightAlertDropPercent;
+  const n = typeof raw === "number" ? raw : parseInt(String(raw ?? ""), 10);
+  if (!Number.isFinite(n) || n <= 0) return DEFAULT_WEIGHT_DROP_PERCENT;
+  return Math.min(Math.floor(n), 80);
+}
+
+export function getWeightAlertMinKg(settings: unknown): number | null {
+  const raw = (settings as { weightAlertMinKg?: unknown } | null)
+    ?.weightAlertMinKg;
+  if (raw == null || raw === "") return null;
+  const n = typeof raw === "number" ? raw : parseFloat(String(raw));
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
+}
+
 function startOfDay(d: Date): Date {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
   return x;
 }
 
-function daysUntil(due: Date, from = new Date()): number {
+export function daysUntil(due: Date, from = new Date()): number {
   const ms = startOfDay(due).getTime() - startOfDay(from).getTime();
   return Math.round(ms / 86400000);
 }
@@ -56,17 +83,63 @@ export async function clearPriorTreatmentNextDue(
   });
 }
 
-async function upsertDueAlert(input: {
+export async function upsertAlert(input: {
   type: AlertType;
+  title: string;
+  message: string;
+  animalId?: string | null;
+  dueDate?: Date | null;
+  /** Extra match key when title may change (e.g. product name in message) */
+  matchContains?: string;
+}) {
+  const existing = await prisma.alert.findFirst({
+    where: {
+      type: input.type,
+      status: { in: ["PENDING", "ACKNOWLEDGED"] },
+      ...(input.animalId
+        ? { animalId: input.animalId }
+        : { animalId: null }),
+      OR: [
+        { title: input.title },
+        ...(input.matchContains
+          ? [{ title: { contains: input.matchContains } }, { message: { contains: input.matchContains } }]
+          : []),
+      ],
+    },
+  });
+
+  if (existing) {
+    await prisma.alert.update({
+      where: { id: existing.id },
+      data: {
+        title: input.title,
+        message: input.message,
+        dueDate: input.dueDate ?? null,
+        status: "PENDING",
+      },
+    });
+    return existing.id;
+  }
+
+  const created = await prisma.alert.create({
+    data: {
+      type: input.type,
+      title: input.title,
+      message: input.message,
+      animalId: input.animalId ?? null,
+      dueDate: input.dueDate ?? null,
+    },
+  });
+  return created.id;
+}
+
+async function upsertHealthDueAlert(input: {
+  type: "VACCINATION_DUE" | "TREATMENT_DUE";
   animalId: string;
   eartag: string;
   label: string;
   dueDate: Date;
 }) {
-  const title =
-    input.type === "VACCINATION_DUE"
-      ? `Vaccination due: ${input.eartag} — ${input.label}`
-      : `Treatment due: ${input.eartag} — ${input.label}`;
   const days = daysUntil(input.dueDate);
   const when =
     days < 0
@@ -74,36 +147,17 @@ async function upsertDueAlert(input: {
       : days === 0
         ? "due today"
         : `due in ${days} day(s)`;
-  const message =
-    input.type === "VACCINATION_DUE"
-      ? `${input.label} for ${input.eartag} is ${when} (${input.dueDate.toISOString().slice(0, 10)})`
-      : `${input.label} for ${input.eartag} is ${when} (${input.dueDate.toISOString().slice(0, 10)})`;
+  const kind = input.type === "VACCINATION_DUE" ? "Vaccination" : "Treatment";
+  const title = `${kind} due: ${input.eartag} — ${input.label}`;
+  const message = `${input.label} for ${input.eartag} is ${when} (${input.dueDate.toISOString().slice(0, 10)})`;
 
-  const existing = await prisma.alert.findFirst({
-    where: {
-      type: input.type,
-      animalId: input.animalId,
-      status: { in: ["PENDING", "ACKNOWLEDGED"] },
-      title,
-    },
-  });
-
-  if (existing) {
-    await prisma.alert.update({
-      where: { id: existing.id },
-      data: { message, dueDate: input.dueDate, status: "PENDING" },
-    });
-    return;
-  }
-
-  await prisma.alert.create({
-    data: {
-      type: input.type,
-      title,
-      message,
-      animalId: input.animalId,
-      dueDate: input.dueDate,
-    },
+  await upsertAlert({
+    type: input.type,
+    title,
+    message,
+    animalId: input.animalId,
+    dueDate: input.dueDate,
+    matchContains: input.label,
   });
 }
 
@@ -113,44 +167,51 @@ export async function resolveHealthAlertsForDose(
   type: AlertType,
   label: string
 ) {
-  const titleFragment =
-    type === "VACCINATION_DUE"
-      ? `Vaccination due:`
-      : `Treatment due:`;
   await prisma.alert.updateMany({
     where: {
       animalId,
       type,
       status: { in: ["PENDING", "ACKNOWLEDGED"] },
-      title: { contains: label },
+      OR: [
+        { title: { contains: label } },
+        { message: { contains: label } },
+      ],
     },
     data: { status: "RESOLVED", resolvedAt: new Date() },
   });
-  // Fallback: resolve any matching type+animal with product in title
-  void titleFragment;
 }
 
 /**
- * Create/update early + overdue vaccination and treatment alerts.
- * Lead time comes from ranch settings (default 14 days).
+ * Create/update vaccination and treatment alerts for overdue + calendar window.
+ * notifyDaysEarly is used for messaging; calendarDays controls which dues get alerts
+ * (aligned with the Health page so items you see there also appear in Alerts).
  */
 export async function syncHealthDueAlerts(ranchId?: string): Promise<{
   vaccinations: number;
   treatments: number;
   notifyDaysEarly: number;
+  calendarDays: number;
 }> {
   const ranch = ranchId
     ? await prisma.ranch.findUnique({ where: { id: ranchId } })
     : await prisma.ranch.findFirst();
   const notifyDaysEarly = getHealthNotifyDaysEarly(ranch?.settings);
+  const calendarDays = getHealthCalendarDays(ranch?.settings);
+  // Alert horizon matches Health calendar so overdue + upcoming dues create alerts
+  const horizonDays = Math.max(notifyDaysEarly, calendarDays);
   const horizon = new Date();
-  horizon.setDate(horizon.getDate() + notifyDaysEarly);
+  horizon.setDate(horizon.getDate() + horizonDays);
+
+  const animalFilter = {
+    status: "ACTIVE" as const,
+    ...(ranchId ? { camp: { ranchId } } : {}),
+  };
 
   const [vaccinations, treatments] = await Promise.all([
     prisma.vaccination.findMany({
       where: {
         nextDue: { lte: horizon, not: null },
-        animal: { status: "ACTIVE", ...(ranchId ? { camp: { ranchId } } : {}) },
+        animal: animalFilter,
       },
       include: { animal: { select: { id: true, eartag: true } } },
       orderBy: { nextDue: "asc" },
@@ -158,22 +219,21 @@ export async function syncHealthDueAlerts(ranchId?: string): Promise<{
     prisma.treatment.findMany({
       where: {
         nextDue: { lte: horizon, not: null },
-        animal: { status: "ACTIVE", ...(ranchId ? { camp: { ranchId } } : {}) },
+        animal: animalFilter,
       },
       include: { animal: { select: { id: true, eartag: true } } },
       orderBy: { nextDue: "asc" },
     }),
   ]);
 
-  // One alert per animal + vaccine/product (latest due only already via cleared priors)
-  const vaccSeen = new Set<string>();
+  const activeVaccKeys = new Set<string>();
   let vaccCount = 0;
   for (const v of vaccinations) {
     if (!v.nextDue) continue;
     const key = `${v.animalId}:${v.vaccineName}`;
-    if (vaccSeen.has(key)) continue;
-    vaccSeen.add(key);
-    await upsertDueAlert({
+    if (activeVaccKeys.has(key)) continue;
+    activeVaccKeys.add(key);
+    await upsertHealthDueAlert({
       type: "VACCINATION_DUE",
       animalId: v.animalId,
       eartag: v.animal.eartag,
@@ -183,14 +243,14 @@ export async function syncHealthDueAlerts(ranchId?: string): Promise<{
     vaccCount += 1;
   }
 
-  const treatSeen = new Set<string>();
+  const activeTreatKeys = new Set<string>();
   let treatCount = 0;
   for (const t of treatments) {
     if (!t.nextDue) continue;
     const key = `${t.animalId}:${t.product}`;
-    if (treatSeen.has(key)) continue;
-    treatSeen.add(key);
-    await upsertDueAlert({
+    if (activeTreatKeys.has(key)) continue;
+    activeTreatKeys.add(key);
+    await upsertHealthDueAlert({
       type: "TREATMENT_DUE",
       animalId: t.animalId,
       eartag: t.animal.eartag,
@@ -200,7 +260,50 @@ export async function syncHealthDueAlerts(ranchId?: string): Promise<{
     treatCount += 1;
   }
 
-  return { vaccinations: vaccCount, treatments: treatCount, notifyDaysEarly };
+  // Resolve stale health alerts that no longer have an open nextDue in window
+  if (ranchId) {
+    const openHealth = await prisma.alert.findMany({
+      where: {
+        type: { in: ["VACCINATION_DUE", "TREATMENT_DUE"] },
+        status: { in: ["PENDING", "ACKNOWLEDGED"] },
+        animal: { camp: { ranchId } },
+      },
+      select: { id: true, type: true, animalId: true, title: true, message: true },
+    });
+    for (const a of openHealth) {
+      if (!a.animalId) continue;
+      const labelMatch =
+        (a.title.split("—")[1] || "").trim() ||
+        (a.message.split(" for ")[0] || "").trim();
+      if (!labelMatch) continue;
+      const stillDue =
+        a.type === "VACCINATION_DUE"
+          ? await prisma.vaccination.findFirst({
+              where: {
+                animalId: a.animalId,
+                vaccineName: { contains: labelMatch },
+                nextDue: { lte: horizon, not: null },
+                animal: { status: "ACTIVE" },
+              },
+            })
+          : await prisma.treatment.findFirst({
+              where: {
+                animalId: a.animalId,
+                product: { contains: labelMatch },
+                nextDue: { lte: horizon, not: null },
+                animal: { status: "ACTIVE" },
+              },
+            });
+      if (!stillDue) {
+        await prisma.alert.update({
+          where: { id: a.id },
+          data: { status: "RESOLVED", resolvedAt: new Date() },
+        });
+      }
+    }
+  }
+
+  return { vaccinations: vaccCount, treatments: treatCount, notifyDaysEarly, calendarDays };
 }
 
 /** @deprecated Use syncHealthDueAlerts */

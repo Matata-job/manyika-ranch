@@ -45,36 +45,47 @@ export async function POST(
     return NextResponse.json({ error: "Destination camp not found" }, { status: 404 });
   }
 
+  const date = body.date ? new Date(body.date) : new Date();
+  const endOfToday = new Date();
+  endOfToday.setHours(23, 59, 59, 999);
+  const asPending = body.pending === true || date > endOfToday;
+
   const movement = await prisma.movement.create({
     data: {
       animalId: id,
       fromCampId: animal.campId,
       toCampId: body.toCampId,
-      date: body.date ? new Date(body.date) : new Date(),
+      date,
       reason: body.reason,
+      status: asPending ? "PENDING" : "COMPLETED",
       authorizedById: result.user.id,
     },
   });
 
-  await prisma.animal.update({
-    where: { id },
-    data: { campId: body.toCampId },
-  });
+  if (!asPending) {
+    await prisma.animal.update({
+      where: { id },
+      data: { campId: body.toCampId },
+    });
 
-  await logAnimalEvent({
-    animalId: id,
-    type: "MOVEMENT",
-    title: `Moved ${fromCamp?.name || "camp"} → ${toCamp.name}`,
-    description: body.reason || undefined,
-    occurredAt: movement.date,
-    recordedById: result.user.id,
-    metadata: { fromCampId: animal.campId, toCampId: body.toCampId },
-  });
+    await logAnimalEvent({
+      animalId: id,
+      type: "MOVEMENT",
+      title: `Moved ${fromCamp?.name || "camp"} → ${toCamp.name}`,
+      description: body.reason || undefined,
+      occurredAt: movement.date,
+      recordedById: result.user.id,
+      metadata: { fromCampId: animal.campId, toCampId: body.toCampId },
+    });
 
-  await createAuditLog(result.user.id, "MOVE", "Animal", id, {
-    fromCampId: animal.campId,
-    toCampId: body.toCampId,
-  });
+    await createAuditLog(result.user.id, "MOVE", "Animal", id, {
+      fromCampId: animal.campId,
+      toCampId: body.toCampId,
+    });
+  } else {
+    const { syncMovementAlerts } = await import("@/lib/services/alert-sync");
+    await syncMovementAlerts(result.user.ranchId);
+  }
 
   return NextResponse.json(movement, { status: 201 });
 }

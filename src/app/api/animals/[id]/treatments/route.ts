@@ -102,11 +102,11 @@ export async function POST(
   const {
     clearPriorTreatmentNextDue,
     resolveHealthAlertsForDose,
-    syncHealthDueAlerts,
   } = await import("@/lib/services/health-schedule");
   await clearPriorTreatmentNextDue(id, product, treatment.id);
   await resolveHealthAlertsForDose(id, "TREATMENT_DUE", product);
-  await syncHealthDueAlerts(result.user.ranchId);
+  const { syncAllRanchAlerts } = await import("@/lib/services/alert-sync");
+  await syncAllRanchAlerts(result.user.ranchId);
 
   const { logAnimalEvent } = await import("@/lib/services/event-service");
   await logAnimalEvent({

@@ -12,7 +12,7 @@ import {
   getRanchEartagYearColors,
   normalizeTagColor,
 } from "@/lib/tag-color";
-import { getHealthNotifyDaysEarly } from "@/lib/services/health-schedule";
+import { getHealthNotifyDaysEarly, getWeightAlertDropPercent, getWeightAlertMinKg } from "@/lib/services/health-schedule";
 import type { Prisma, Role } from "@prisma/client";
 
 export async function GET() {
@@ -34,6 +34,8 @@ export async function GET() {
     ageDisplayMode: getRanchAgeDisplayMode(ranch.settings),
     grazingFeePerAnimalTzs: getRanchGrazingFeePerAnimal(ranch.settings),
     healthNotifyDaysEarly: getHealthNotifyDaysEarly(ranch.settings),
+    weightAlertDropPercent: getWeightAlertDropPercent(ranch.settings),
+    weightAlertMinKg: getWeightAlertMinKg(ranch.settings),
     eartagYearColors: getRanchEartagYearColors(ranch.settings),
     defaultTagColor: getRanchDefaultTagColor(ranch.settings),
     settings: ranch.settings,
@@ -102,6 +104,44 @@ export async function PATCH(req: NextRequest) {
     next.healthNotifyDaysEarly = days;
   }
 
+  if (body.weightAlertDropPercent !== undefined) {
+    if (!canManageCamps) {
+      return NextResponse.json(
+        { error: "Only ranch managers can change weight alert settings" },
+        { status: 403 }
+      );
+    }
+    const pct = parseInt(String(body.weightAlertDropPercent), 10);
+    if (!Number.isFinite(pct) || pct < 1 || pct > 80) {
+      return NextResponse.json(
+        { error: "Weight drop percent must be between 1 and 80" },
+        { status: 400 }
+      );
+    }
+    next.weightAlertDropPercent = pct;
+  }
+
+  if (body.weightAlertMinKg !== undefined) {
+    if (!canManageCamps) {
+      return NextResponse.json(
+        { error: "Only ranch managers can change weight alert settings" },
+        { status: 403 }
+      );
+    }
+    if (body.weightAlertMinKg === null || body.weightAlertMinKg === "") {
+      next.weightAlertMinKg = null;
+    } else {
+      const kg = parseFloat(String(body.weightAlertMinKg));
+      if (!Number.isFinite(kg) || kg <= 0) {
+        return NextResponse.json(
+          { error: "Minimum weight must be a positive number" },
+          { status: 400 }
+        );
+      }
+      next.weightAlertMinKg = kg;
+    }
+  }
+
   if (body.defaultTagColor !== undefined) {
     if (!canManageCamps) {
       return NextResponse.json(
@@ -168,6 +208,8 @@ export async function PATCH(req: NextRequest) {
     ageDisplayMode: getRanchAgeDisplayMode(updated.settings),
     grazingFeePerAnimalTzs: getRanchGrazingFeePerAnimal(updated.settings),
     healthNotifyDaysEarly: getHealthNotifyDaysEarly(updated.settings),
+    weightAlertDropPercent: getWeightAlertDropPercent(updated.settings),
+    weightAlertMinKg: getWeightAlertMinKg(updated.settings),
     eartagYearColors: getRanchEartagYearColors(updated.settings),
     defaultTagColor: getRanchDefaultTagColor(updated.settings),
     settings: updated.settings,

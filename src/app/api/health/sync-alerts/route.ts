@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/api-guard";
 import { hasPermission } from "@/lib/auth/rbac";
-import { syncHealthDueAlerts } from "@/lib/services/health-schedule";
+import { syncAllRanchAlerts } from "@/lib/services/alert-sync";
 import type { Role } from "@prisma/client";
 
 export async function POST() {
@@ -9,10 +9,14 @@ export async function POST() {
   if (!result.ok) return result.error;
 
   const role = result.user.role as Role;
-  if (!hasPermission(role, "manageHealth") && !hasPermission(role, "viewReports")) {
+  if (
+    !hasPermission(role, "manageHealth") &&
+    !hasPermission(role, "viewReports") &&
+    !hasPermission(role, "viewAnimal")
+  ) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const summary = await syncHealthDueAlerts(result.user.ranchId);
+  const summary = await syncAllRanchAlerts(result.user.ranchId);
   return NextResponse.json(summary);
 }

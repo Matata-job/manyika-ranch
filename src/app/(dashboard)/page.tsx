@@ -8,10 +8,8 @@ import { getScopedCampWhere, getScopedAnimalWhere } from "@/lib/auth/scope";
 import { hasPermission, isCampScopedRole } from "@/lib/auth/rbac";
 import { serverT } from "@/lib/i18n/server";
 import type { TranslationKey } from "@/lib/i18n/translations";
-import {
-  getHealthNotifyDaysEarly,
-  syncHealthDueAlerts,
-} from "@/lib/services/health-schedule";
+import { getHealthNotifyDaysEarly } from "@/lib/services/health-schedule";
+import { syncAllRanchAlerts } from "@/lib/services/alert-sync";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -23,7 +21,7 @@ export default async function DashboardPage() {
   const animalWhere = await getScopedAnimalWhere(user.id, role);
 
   // Keep vaccination/treatment due alerts fresh when staff open the dashboard
-  await syncHealthDueAlerts(user.ranchId);
+  await syncAllRanchAlerts(user.ranchId);
 
   const ranch = await prisma.ranch.findUnique({
     where: { id: user.ranchId },
@@ -54,7 +52,12 @@ export default async function DashboardPage() {
         where: {
           status: "PENDING",
           ...(isCampScopedRole(role)
-            ? { animal: animalWhere }
+            ? {
+                OR: [
+                  { animal: animalWhere },
+                  { animalId: null, type: "MEDICINE_LOW" },
+                ],
+              }
             : { OR: [{ animalId: null }, { animal: animalWhere }] }),
         },
       }),

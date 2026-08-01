@@ -22,6 +22,8 @@ export default function RanchSettingsPage() {
   const [mode, setMode] = useState<AgeDisplayMode>("AUTO");
   const [grazingFee, setGrazingFee] = useState("");
   const [healthNotifyDays, setHealthNotifyDays] = useState("14");
+  const [weightDropPercent, setWeightDropPercent] = useState("15");
+  const [weightMinKg, setWeightMinKg] = useState("");
   const [yearRows, setYearRows] = useState<YearRow[]>([]);
   const [defaultTagColor, setDefaultTagColor] = useState("");
   const [saving, setSaving] = useState(false);
@@ -37,6 +39,14 @@ export default function RanchSettingsPage() {
         }
         if (data?.healthNotifyDaysEarly != null) {
           setHealthNotifyDays(String(data.healthNotifyDaysEarly));
+        }
+        if (data?.weightAlertDropPercent != null) {
+          setWeightDropPercent(String(data.weightAlertDropPercent));
+        }
+        if (data?.weightAlertMinKg != null) {
+          setWeightMinKg(String(data.weightAlertMinKg));
+        } else {
+          setWeightMinKg("");
         }
         if (data?.defaultTagColor) setDefaultTagColor(data.defaultTagColor);
         if (data?.eartagYearColors) {
@@ -65,6 +75,8 @@ export default function RanchSettingsPage() {
         ageDisplayMode: mode,
         grazingFeePerAnimalTzs: grazingFee === "" ? 0 : grazingFee,
         healthNotifyDaysEarly: healthNotifyDays === "" ? 14 : healthNotifyDays,
+        weightAlertDropPercent: weightDropPercent === "" ? 15 : weightDropPercent,
+        weightAlertMinKg: weightMinKg === "" ? null : weightMinKg,
         defaultTagColor: defaultTagColor || null,
         eartagYearColors,
       }),
@@ -78,6 +90,12 @@ export default function RanchSettingsPage() {
       if (data.healthNotifyDaysEarly != null) {
         setHealthNotifyDays(String(data.healthNotifyDaysEarly));
       }
+      if (data.weightAlertDropPercent != null) {
+        setWeightDropPercent(String(data.weightAlertDropPercent));
+      }
+      setWeightMinKg(
+        data.weightAlertMinKg != null ? String(data.weightAlertMinKg) : ""
+      );
       if (data.ageDisplayMode) setMode(data.ageDisplayMode);
       setDefaultTagColor(data.defaultTagColor || "");
       if (data.eartagYearColors) {
@@ -310,6 +328,43 @@ export default function RanchSettingsPage() {
             />
             <p className="text-sm text-muted-foreground">
               {t("healthNotifyDaysEarlyHelp")}
+            </p>
+          </div>
+
+          <div className="space-y-2 border-t pt-4">
+            <Label htmlFor="weight-drop">{t("weightAlertDropPercent")}</Label>
+            <Input
+              id="weight-drop"
+              type="number"
+              min={1}
+              max={80}
+              value={weightDropPercent}
+              onChange={(e) => {
+                setWeightDropPercent(e.target.value);
+                setMessage("");
+              }}
+            />
+            <p className="text-sm text-muted-foreground">
+              {t("weightAlertDropPercentHelp")}
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="weight-min">{t("weightAlertMinKg")}</Label>
+            <Input
+              id="weight-min"
+              type="number"
+              min={0}
+              step="any"
+              value={weightMinKg}
+              onChange={(e) => {
+                setWeightMinKg(e.target.value);
+                setMessage("");
+              }}
+              placeholder="e.g. 250"
+            />
+            <p className="text-sm text-muted-foreground">
+              {t("weightAlertMinKgHelp")}
             </p>
           </div>
 

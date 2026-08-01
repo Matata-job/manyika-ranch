@@ -72,6 +72,12 @@ enum AlertStatus {
   RESOLVED
 }
 
+enum MovementStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
 enum DeathCause {
   DISEASE
   INJURY
@@ -156,6 +162,7 @@ model Ranch {
   expenses  Expense[]
   otherIncomes OtherIncome[]
   ownerInvoices OwnerInvoice[]
+  medicineInventory MedicineInventory[]
 }
 
 model User {
@@ -470,20 +477,22 @@ model CalvingRecord {
 }
 
 model Movement {
-  id             String   @id @default(cuid())
+  id             String         @id @default(cuid())
   animalId       String
-  animal         Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  animal         Animal         @relation(fields: [animalId], references: [id], onDelete: Cascade)
   fromCampId     String
-  fromCamp       Camp     @relation("MovementFrom", fields: [fromCampId], references: [id])
+  fromCamp       Camp           @relation("MovementFrom", fields: [fromCampId], references: [id])
   toCampId       String
-  toCamp         Camp     @relation("MovementTo", fields: [toCampId], references: [id])
-  date           DateTime @default(now())
+  toCamp         Camp           @relation("MovementTo", fields: [toCampId], references: [id])
+  date           DateTime       @default(now())
   reason         String?
+  status         MovementStatus @default(COMPLETED)
   authorizedById String
-  authorizedBy   User     @relation("MovementAuthorizer", fields: [authorizedById], references: [id])
-  createdAt      DateTime @default(now())
+  authorizedBy   User           @relation("MovementAuthorizer", fields: [authorizedById], references: [id])
+  createdAt      DateTime       @default(now())
 
   @@index([animalId, date])
+  @@index([status])
 }
 
 model OwnershipTransfer {
@@ -665,15 +674,20 @@ model AnimalEvent {
 }
 
 model MedicineInventory {
-  id        String   @id @default(cuid())
-  campId    String?
-  camp      Camp?    @relation(fields: [campId], references: [id])
-  name      String
-  quantity  Float
-  unit      String   @default("doses")
-  expiry    DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String    @id @default(cuid())
+  ranchId     String
+  ranch       Ranch     @relation(fields: [ranchId], references: [id], onDelete: Cascade)
+  campId      String?
+  camp        Camp?     @relation(fields: [campId], references: [id])
+  name        String
+  quantity    Float
+  minQuantity Float     @default(10)
+  unit        String    @default("doses")
+  expiry      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([ranchId])
 }
 
 model RainfallLog {
