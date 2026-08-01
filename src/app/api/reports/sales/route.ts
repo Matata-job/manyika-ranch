@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePermission, buildAnimalScope } from "@/lib/auth/api-guard";
+import { ageGroupWhere } from "@/lib/reports/age-filter";
+import { prismaDateRange } from "@/lib/reports/date-range";
 import type { Role } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -12,28 +14,23 @@ export async function GET(req: NextRequest) {
   const to = searchParams.get("to");
   const campId = searchParams.get("camp");
   const breed = searchParams.get("breed");
+  const ageGroup = searchParams.get("ageGroup");
 
   const scope = await buildAnimalScope(result.user.id, result.user.role as Role, {
     campId: campId && campId !== "all" ? campId : null,
   });
   if ("error" in scope) return scope.error;
 
-  const dateFilter =
-    from || to
-      ? {
-          saleDate: {
-            ...(from ? { gte: new Date(from) } : {}),
-            ...(to ? { lte: new Date(`${to}T23:59:59.999Z`) } : {}),
-          },
-        }
-      : {};
+  const ageWhere = ageGroupWhere(ageGroup);
+  const dateFilter = prismaDateRange(from, to);
 
   const sales = await prisma.sale.findMany({
     where: {
-      ...dateFilter,
+      ...(dateFilter ? { saleDate: dateFilter } : {}),
       animal: {
         ...scope,
         ...(breed && breed !== "all" ? { breed } : {}),
+        ...(ageWhere ? { AND: [ageWhere] } : {}),
       },
     },
     include: {

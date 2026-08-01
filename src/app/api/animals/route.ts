@@ -9,61 +9,10 @@ import { createAuditLog, withComputedAge } from "@/lib/services/animal-service";
 import { computeAgeMonths } from "@/lib/utils";
 import { logAnimalEvent } from "@/lib/services/event-service";
 import type { Role, Sex, AnimalStatus, Prisma } from "@prisma/client";
+import { ageGroupWhere } from "@/lib/reports/age-filter";
 
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 5000;
-
-function monthsAgo(months: number): Date {
-  const d = new Date();
-  d.setMonth(d.getMonth() - months);
-  return d;
-}
-
-/** Age band filter using DOB when present, else stored ageMonths. */
-function ageGroupWhere(ageGroup: string | null): Prisma.AnimalWhereInput | undefined {
-  if (!ageGroup || ageGroup === "all") return undefined;
-  if (ageGroup === "calf") {
-    return {
-      OR: [
-        { dob: { gt: monthsAgo(12) } },
-        { AND: [{ dob: null }, { ageMonths: { lt: 12 } }] },
-      ],
-    };
-  }
-  if (ageGroup === "yearling") {
-    return {
-      OR: [
-        {
-          AND: [{ dob: { lte: monthsAgo(12) } }, { dob: { gt: monthsAgo(24) } }],
-        },
-        {
-          AND: [{ dob: null }, { ageMonths: { gte: 12, lt: 24 } }],
-        },
-      ],
-    };
-  }
-  if (ageGroup === "adult") {
-    return {
-      OR: [
-        {
-          AND: [{ dob: { lte: monthsAgo(24) } }, { dob: { gt: monthsAgo(60) } }],
-        },
-        {
-          AND: [{ dob: null }, { ageMonths: { gte: 24, lt: 60 } }],
-        },
-      ],
-    };
-  }
-  if (ageGroup === "mature") {
-    return {
-      OR: [
-        { dob: { lte: monthsAgo(60) } },
-        { AND: [{ dob: null }, { ageMonths: { gte: 60 } }] },
-      ],
-    };
-  }
-  return undefined;
-}
 
 export async function GET(req: NextRequest) {
   const result = await requirePermission("viewAnimal");
