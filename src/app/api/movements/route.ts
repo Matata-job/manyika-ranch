@@ -200,8 +200,9 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+      let movementId = "";
       await prisma.$transaction(async (tx) => {
-        await tx.movement.create({
+        const mov = await tx.movement.create({
           data: {
             animalId: animal.id,
             fromCampId: animal.campId,
@@ -212,6 +213,7 @@ export async function POST(req: NextRequest) {
             authorizedById: result.user.id,
           },
         });
+        movementId = mov.id;
         if (!asPending) {
           await tx.animal.update({
             where: { id: animal.id },
@@ -222,6 +224,21 @@ export async function POST(req: NextRequest) {
 
       if (asPending) {
         pending += 1;
+        await logAnimalEvent({
+          animalId: animal.id,
+          type: "MOVEMENT",
+          title: `Transfer pending: ${animal.camp.name} → ${toCamp.name}`,
+          description: reason,
+          occurredAt: date,
+          recordedById: result.user.id,
+          metadata: {
+            movementId,
+            fromCampId: animal.campId,
+            toCampId,
+            bulk: true,
+            pending: true,
+          },
+        });
       } else {
         await logAnimalEvent({
           animalId: animal.id,
@@ -231,6 +248,7 @@ export async function POST(req: NextRequest) {
           occurredAt: date,
           recordedById: result.user.id,
           metadata: {
+            movementId,
             fromCampId: animal.campId,
             toCampId,
             bulk: true,

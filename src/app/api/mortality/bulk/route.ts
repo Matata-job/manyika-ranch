@@ -150,34 +150,35 @@ export async function POST(req: NextRequest) {
       where: { id: { in: animals.map((a) => a.id) } },
       data: { status: "DECEASED" },
     });
-
-    await tx.animalEvent.createMany({
-      data: animals.map((a) => ({
-        animalId: a.id,
-        type: isCulling ? ("CULLING" as const) : ("DEATH" as const),
-        title: isCulling
-          ? `Culled: ${a.eartag}`
-          : `Death recorded: ${a.eartag}`,
-        description: [
-          `Cause: ${cause}`,
-          causeDetail,
-          `Disposal: ${disposalMethod}`,
-          "bulk",
-        ]
-          .filter(Boolean)
-          .join(" · "),
-        occurredAt: date,
-        recordedById: result.user.id,
-        metadata: {
-          cause,
-          disposalMethod,
-          insuranceClaim,
-          isCulling,
-          bulk: true,
-        },
-      })),
-    });
   });
+
+  const { logAnimalEventsBulk } = await import("@/lib/services/event-service");
+  await logAnimalEventsBulk(
+    animals.map((a) => ({
+      animalId: a.id,
+      type: isCulling ? ("CULLING" as const) : ("DEATH" as const),
+      title: isCulling
+        ? `Culled: ${a.eartag}`
+        : `Death recorded: ${a.eartag}`,
+      description: [
+        `Cause: ${cause}`,
+        causeDetail,
+        `Disposal: ${disposalMethod}`,
+        "bulk",
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      occurredAt: date,
+      recordedById: result.user.id,
+      metadata: {
+        cause,
+        disposalMethod,
+        insuranceClaim,
+        isCulling,
+        bulk: true,
+      },
+    }))
+  );
 
   await createAuditLog(
     result.user.id,

@@ -137,34 +137,36 @@ export async function POST(req: NextRequest) {
         notes,
       })),
     });
-
-    await tx.animalEvent.createMany({
-      data: animals.map((a) => ({
-        animalId: a.id,
-        type: "TREATMENT" as const,
-        title: `Treatment: ${treatmentType!.replace(/_/g, " ")}`,
-        description: [
-          product,
-          dose ? `Dose: ${dose}` : null,
-          withdrawal != null ? `Withdrawal: ${withdrawal} days` : null,
-          nextDue ? `Next due ${nextDue.toISOString().slice(0, 10)}` : null,
-          notes,
-        ]
-          .filter(Boolean)
-          .join(" · "),
-        occurredAt: date,
-        recordedById: result.user.id,
-        metadata: {
-          bulk: true,
-          type: treatmentType,
-          product,
-          withdrawalPeriod: withdrawal,
-          nextDue,
-          treatmentCatalogId,
-        },
-      })),
-    });
   });
+
+  const { logAnimalEventsBulk } = await import("@/lib/services/event-service");
+  await logAnimalEventsBulk(
+    animals.map((a) => ({
+      animalId: a.id,
+      type: "TREATMENT" as const,
+      title: `Treatment: ${treatmentType!.replace(/_/g, " ")}`,
+      description: [
+        product,
+        dose ? `Dose: ${dose}` : null,
+        withdrawal != null ? `Withdrawal: ${withdrawal} days` : null,
+        nextDue ? `Next due ${nextDue.toISOString().slice(0, 10)}` : null,
+        notes,
+        "bulk",
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      occurredAt: date,
+      recordedById: result.user.id,
+      metadata: {
+        bulk: true,
+        type: treatmentType,
+        product,
+        withdrawalPeriod: withdrawal,
+        nextDue: nextDue ? nextDue.toISOString() : null,
+        treatmentCatalogId,
+      },
+    }))
+  );
 
   const { syncAllRanchAlerts } = await import("@/lib/services/alert-sync");
   await syncAllRanchAlerts(result.user.ranchId);

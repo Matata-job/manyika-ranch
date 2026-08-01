@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePermission, buildAnimalScope } from "@/lib/auth/api-guard";
 import { createAuditLog } from "@/lib/services/animal-service";
+import { logAnimalEventsBulk } from "@/lib/services/event-service";
 import type { Role } from "@prisma/client";
 
 /**
@@ -129,7 +130,7 @@ export async function POST(req: NextRequest) {
       ? Math.round((priceInput / animals.length) * 100) / 100
       : priceInput;
 
-  const saleIds: string[] = [];
+  const saleRows: { animalId: string; saleId: string; eartag: string }[] = [];
 
   await prisma.$transaction(async (tx) => {
     for (const animal of animals) {
@@ -145,47 +146,50 @@ export async function POST(req: NextRequest) {
           notes,
         },
       });
-      saleIds.push(sale.id);
+      saleRows.push({
+        animalId: animal.id,
+        saleId: sale.id,
+        eartag: animal.eartag,
+      });
 
       await tx.animal.update({
         where: { id: animal.id },
         data: { status: "SOLD" },
       });
-
-      const pricePerKg =
-        weightAtSale && weightAtSale > 0
-          ? Math.round(pricePerAnimal / weightAtSale)
-          : null;
-
-      await tx.animalEvent.create({
-        data: {
-          animalId: animal.id,
-          type: "SALE",
-          title: `Sold to ${buyerName}`,
-          description: [
-            `TZS ${pricePerAnimal.toLocaleString()}`,
-            weightAtSale ? `${weightAtSale} kg` : null,
-            pricePerKg != null
-              ? `TZS ${pricePerKg.toLocaleString()}/kg`
-              : null,
-            "bulk sale",
-          ]
-            .filter(Boolean)
-            .join(" · "),
-          occurredAt: saleDate,
-          recordedById: result.user.id,
-          metadata: {
-            saleId: sale.id,
-            buyer: buyerName,
-            buyerId,
-            priceTzs: pricePerAnimal,
-            weightAtSale,
-            bulk: true,
-          },
-        },
-      });
     }
   });
+
+  // Timeline events after sales commit so Events always stays in sync
+  const pricePerKg =
+    weightAtSale && weightAtSale > 0
+      ? Math.round(pricePerAnimal / weightAtSale)
+      : null;
+
+  await logAnimalEventsBulk(
+    saleRows.map((row) => ({
+      animalId: row.animalId,
+      type: "SALE" as const,
+      title: `Sold to ${buyerName}`,
+      description: [
+        `TZS ${pricePerAnimal.toLocaleString()}`,
+        weightAtSale ? `${weightAtSale} kg` : null,
+        pricePerKg != null ? `TZS ${pricePerKg.toLocaleString()}/kg` : null,
+        "bulk sale",
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      occurredAt: saleDate,
+      recordedById: result.user.id,
+      metadata: {
+        saleId: row.saleId,
+        buyer: buyerName,
+        buyerId,
+        priceTzs: pricePerAnimal,
+        weightAtSale,
+        bulk: true,
+      },
+    }))
+  );
 
   await createAuditLog(
     result.user.id,
@@ -201,7 +205,7 @@ export async function POST(req: NextRequest) {
       count: animals.length,
       animalIds: animals.map((a) => a.id),
       skipped: animalIds.length - animals.length,
-      saleIds,
+      saleIds: saleRows.map((r) => r.saleId),
     }
   );
 

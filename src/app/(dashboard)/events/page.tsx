@@ -27,16 +27,20 @@ interface RanchEvent {
 const EVENT_TYPES = [
   "DEATH",
   "CULLING",
+  "SALE",
   "MOVEMENT",
+  "TREATMENT",
+  "VACCINATION",
   "WEIGHT",
   "HEALTH",
-  "VACCINATION",
   "BREEDING",
   "CALVING",
   "CASTRATION",
   "NOTE",
   "STATUS_CHANGE",
-  "SALE",
+  "REGISTERED",
+  "QUARANTINE",
+  "OWNERSHIP_TRANSFER",
 ] as const;
 
 function monthOptions(count = 24): { value: string; label: string }[] {

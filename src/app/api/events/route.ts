@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePermission, buildAnimalScope } from "@/lib/auth/api-guard";
-import type { AnimalEventType, Role } from "@prisma/client";
+import { backfillMissingRanchEvents } from "@/lib/services/event-service";
+import type { AnimalEventType, Prisma, Role } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
   const result = await requirePermission("viewAnimal");
   if (!result.ok) return result.error;
+
+  // Repair timeline gaps from bulk ops that missed event rows
+  try {
+    await backfillMissingRanchEvents(result.user.ranchId);
+  } catch {
+    // listing events should still work if backfill fails
+  }
 
   const { searchParams } = new URL(req.url);
   const campId = searchParams.get("camp");
@@ -22,9 +30,8 @@ export async function GET(req: NextRequest) {
     0
   );
 
-  const animalScope = await buildAnimalScope(result.user.id, result.user.role as Role, {
-    campId,
-  });
+  const role = result.user.role as Role;
+  const animalScope = await buildAnimalScope(result.user.id, role, { campId });
   if ("error" in animalScope) return animalScope.error;
 
   let occurredAt: { gte?: Date; lte?: Date } | undefined;
@@ -41,8 +48,16 @@ export async function GET(req: NextRequest) {
     };
   }
 
-  const where = {
-    animal: animalScope,
+  const animalFilter: Prisma.AnimalWhereInput =
+    role === "EXTERNAL_OWNER"
+      ? animalScope
+      : {
+          ...animalScope,
+          camp: { ranchId: result.user.ranchId },
+        };
+
+  const where: Prisma.AnimalEventWhereInput = {
+    animal: animalFilter,
     ...(type ? { type: type as AnimalEventType } : {}),
     ...(occurredAt ? { occurredAt } : {}),
   };
@@ -50,7 +65,7 @@ export async function GET(req: NextRequest) {
   const [events, total] = await Promise.all([
     prisma.animalEvent.findMany({
       where,
-      orderBy: { occurredAt: "desc" },
+      orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
       take: limit,
       skip: offset,
       include: {
