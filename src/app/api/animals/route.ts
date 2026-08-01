@@ -9,7 +9,7 @@ import { createAuditLog, withComputedAge } from "@/lib/services/animal-service";
 import { computeAgeMonths } from "@/lib/utils";
 import { logAnimalEvent } from "@/lib/services/event-service";
 import type { Role, Sex, AnimalStatus, Prisma } from "@prisma/client";
-import { ageGroupWhere } from "@/lib/reports/age-filter";
+import { ageGroupWhere, ageMonthsRangeWhere, dobRangeWhere } from "@/lib/reports/age-filter";
 
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 5000;
@@ -28,6 +28,10 @@ export async function GET(req: NextRequest) {
   const castrated = searchParams.get("castrated");
   const pregnant = searchParams.get("pregnant");
   const ageGroup = searchParams.get("ageGroup");
+  const ageMinRaw = searchParams.get("ageMinMonths");
+  const ageMaxRaw = searchParams.get("ageMaxMonths");
+  const dobFrom = searchParams.get("dobFrom");
+  const dobTo = searchParams.get("dobTo");
   const sort = searchParams.get("sort") || "eartag_asc";
   const limit = Math.min(
     Math.max(
@@ -47,7 +51,29 @@ export async function GET(req: NextRequest) {
   });
   if ("error" in scope) return scope.error;
 
-  const ageWhere = ageGroupWhere(ageGroup);
+  const ageMinMonths =
+    ageMinRaw != null && ageMinRaw !== ""
+      ? parseInt(ageMinRaw, 10)
+      : null;
+  const ageMaxMonths =
+    ageMaxRaw != null && ageMaxRaw !== ""
+      ? parseInt(ageMaxRaw, 10)
+      : null;
+  const hasCustomAge =
+    (ageMinMonths != null && !Number.isNaN(ageMinMonths)) ||
+    (ageMaxMonths != null && !Number.isNaN(ageMaxMonths)) ||
+    !!dobFrom ||
+    !!dobTo;
+
+  // Custom months / DOB range take precedence over preset age groups
+  const ageWhere = hasCustomAge
+    ? undefined
+    : ageGroupWhere(ageGroup);
+  const monthsWhere = ageMonthsRangeWhere(
+    ageMinMonths != null && !Number.isNaN(ageMinMonths) ? ageMinMonths : null,
+    ageMaxMonths != null && !Number.isNaN(ageMaxMonths) ? ageMaxMonths : null
+  );
+  const bornWhere = dobRangeWhere(dobFrom, dobTo);
 
   const where: Prisma.AnimalWhereInput = {
     ...scope,
@@ -81,6 +107,8 @@ export async function GET(req: NextRequest) {
           ]
         : []),
       ...(ageWhere ? [ageWhere] : []),
+      ...(monthsWhere ? [monthsWhere] : []),
+      ...(bornWhere ? [bornWhere] : []),
     ],
   };
 

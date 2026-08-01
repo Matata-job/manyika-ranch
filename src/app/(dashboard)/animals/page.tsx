@@ -45,6 +45,10 @@ type Filters = {
   breed: string;
   camp: string;
   ageGroup: string;
+  ageMinMonths: string;
+  ageMaxMonths: string;
+  dobFrom: string;
+  dobTo: string;
   status: string;
   owner: string;
   castrated: string;
@@ -62,6 +66,10 @@ const DEFAULTS: Filters = {
   breed: "all",
   camp: "all",
   ageGroup: "all",
+  ageMinMonths: "",
+  ageMaxMonths: "",
+  dobFrom: "",
+  dobTo: "",
   status: "ACTIVE",
   owner: "all",
   castrated: "all",
@@ -74,6 +82,10 @@ const ADVANCED_KEYS: (keyof Filters)[] = [
   "breed",
   "camp",
   "ageGroup",
+  "ageMinMonths",
+  "ageMaxMonths",
+  "dobFrom",
+  "dobTo",
   "status",
   "owner",
   "castrated",
@@ -87,6 +99,10 @@ function filtersFromParams(params: URLSearchParams): Filters {
     breed: params.get("breed") || "all",
     camp: params.get("camp") || "all",
     ageGroup: params.get("ageGroup") || "all",
+    ageMinMonths: params.get("ageMinMonths") || "",
+    ageMaxMonths: params.get("ageMaxMonths") || "",
+    dobFrom: params.get("dobFrom") || "",
+    dobTo: params.get("dobTo") || "",
     status: params.get("status") || "ACTIVE",
     owner: params.get("owner") || "all",
     castrated: params.get("castrated") || "all",
@@ -226,6 +242,22 @@ function AnimalsPageContent() {
       if (value !== "MALE") next.castrated = "all";
       if (value !== "FEMALE") next.pregnant = "all";
     }
+    // Preset age group clears custom month / DOB filters
+    if (key === "ageGroup" && value !== "all") {
+      next.ageMinMonths = "";
+      next.ageMaxMonths = "";
+      next.dobFrom = "";
+      next.dobTo = "";
+    }
+    // Custom age/DOB clears preset group
+    if (
+      key === "ageMinMonths" ||
+      key === "ageMaxMonths" ||
+      key === "dobFrom" ||
+      key === "dobTo"
+    ) {
+      if (value) next.ageGroup = "all";
+    }
     setFilters(next);
     syncUrl(next);
   }
@@ -278,6 +310,10 @@ function AnimalsPageContent() {
     if (filters.sex !== "all") params.set("sex", filters.sex);
     if (filters.breed !== "all") params.set("breed", filters.breed);
     if (filters.ageGroup !== "all") params.set("ageGroup", filters.ageGroup);
+    if (filters.ageMinMonths) params.set("ageMinMonths", filters.ageMinMonths);
+    if (filters.ageMaxMonths) params.set("ageMaxMonths", filters.ageMaxMonths);
+    if (filters.dobFrom) params.set("dobFrom", filters.dobFrom);
+    if (filters.dobTo) params.set("dobTo", filters.dobTo);
     if (filters.status) params.set("status", filters.status);
     if (filters.owner !== "all") params.set("owner", filters.owner);
     if (filters.castrated !== "all") params.set("castrated", filters.castrated);
@@ -565,13 +601,59 @@ function AnimalsPageContent() {
                   <SelectValue placeholder={t("ageGroup")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All ages</SelectItem>
+                  <SelectItem value="all">{t("allAges")}</SelectItem>
                   <SelectItem value="calf">{t("calves")}</SelectItem>
                   <SelectItem value="yearling">{t("weaners")}</SelectItem>
                   <SelectItem value="adult">{t("adults")}</SelectItem>
-                  <SelectItem value="mature">Mature (5y+)</SelectItem>
+                  <SelectItem value="mature">{t("ageMature")}</SelectItem>
                 </SelectContent>
               </Select>
+
+              <div className="sm:col-span-2 grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">{t("ageMinMonths")}</p>
+                  <Input
+                    type="number"
+                    min={0}
+                    className="h-9 bg-background border-muted-foreground/15 shadow-none"
+                    placeholder="0"
+                    value={filters.ageMinMonths}
+                    onChange={(e) => updateFilter("ageMinMonths", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">{t("ageMaxMonths")}</p>
+                  <Input
+                    type="number"
+                    min={0}
+                    className="h-9 bg-background border-muted-foreground/15 shadow-none"
+                    placeholder="e.g. 24"
+                    value={filters.ageMaxMonths}
+                    onChange={(e) => updateFilter("ageMaxMonths", e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="sm:col-span-2 grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">{t("bornFrom")}</p>
+                  <Input
+                    type="date"
+                    className="h-9 bg-background border-muted-foreground/15 shadow-none"
+                    value={filters.dobFrom}
+                    onChange={(e) => updateFilter("dobFrom", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">{t("bornTo")}</p>
+                  <Input
+                    type="date"
+                    className="h-9 bg-background border-muted-foreground/15 shadow-none"
+                    value={filters.dobTo}
+                    onChange={(e) => updateFilter("dobTo", e.target.value)}
+                  />
+                </div>
+              </div>
 
               <Select value={filters.status} onValueChange={(v) => updateFilter("status", v)}>
                 <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">

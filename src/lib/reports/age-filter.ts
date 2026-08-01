@@ -54,6 +54,61 @@ export function ageGroupWhere(
   return undefined;
 }
 
+/**
+ * Custom age range in months (inclusive).
+ * Uses DOB when present, else stored ageMonths.
+ */
+export function ageMonthsRangeWhere(
+  minMonths: number | null | undefined,
+  maxMonths: number | null | undefined
+): Prisma.AnimalWhereInput | undefined {
+  const min =
+    minMonths != null && Number.isFinite(minMonths) && minMonths >= 0
+      ? Math.floor(minMonths)
+      : null;
+  const max =
+    maxMonths != null && Number.isFinite(maxMonths) && maxMonths >= 0
+      ? Math.floor(maxMonths)
+      : null;
+  if (min == null && max == null) return undefined;
+  if (min != null && max != null && min > max) return undefined;
+
+  const dobParts: Prisma.DateTimeFilter = {};
+  const ageParts: Prisma.IntNullableFilter = {};
+
+  // At least `min` months old → born on or before monthsAgo(min)
+  if (min != null) {
+    dobParts.lte = monthsAgo(min);
+    ageParts.gte = min;
+  }
+  // At most `max` months old → born on or after monthsAgo(max)
+  if (max != null) {
+    dobParts.gte = monthsAgo(max);
+    ageParts.lte = max;
+  }
+
+  return {
+    OR: [
+      { dob: dobParts },
+      { AND: [{ dob: null }, { ageMonths: ageParts }] },
+    ],
+  };
+}
+
+/** Filter by birth-date (DOB) range inclusive. */
+export function dobRangeWhere(
+  from: string | null | undefined,
+  to: string | null | undefined
+): Prisma.AnimalWhereInput | undefined {
+  if (!from && !to) return undefined;
+  return {
+    dob: {
+      ...(from ? { gte: new Date(from) } : {}),
+      ...(to ? { lte: new Date(`${to}T23:59:59.999Z`) } : {}),
+    },
+  };
+}
+
 export const AGE_GROUP_VALUES = [
   "all",
   "calf",
