@@ -109,7 +109,7 @@ export default function MovementsPage() {
       .filter((a) => a.status === "ACTIVE" || a.status === "QUARANTINE")
       .sort((a, b) => a.eartag.localeCompare(b.eartag));
     setAnimals(list);
-    setSelected(new Set(list.map((a) => a.id)));
+    setSelected(new Set());
     setLoadingAnimals(false);
   }, []);
 
