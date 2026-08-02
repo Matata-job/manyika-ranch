@@ -8,10 +8,24 @@ export const HERD_PLANS = [
 
 export type HerdPlanValue = (typeof HERD_PLANS)[number];
 
+/** Min age (months) for mating dam/sire and “suggested breeding stock”. */
+export const BREEDING_ELIGIBLE_MONTHS = 22;
+
 export function isHerdPlan(value: unknown): value is HerdPlanValue {
   return (
     typeof value === "string" &&
     (HERD_PLANS as readonly string[]).includes(value)
+  );
+}
+
+/** True when age is known and ≥ breeding-eligible months. */
+export function isBreedingEligibleAge(
+  ageMonths: number | null | undefined
+): boolean {
+  return (
+    ageMonths != null &&
+    Number.isFinite(ageMonths) &&
+    ageMonths >= BREEDING_ELIGIBLE_MONTHS
   );
 }
 

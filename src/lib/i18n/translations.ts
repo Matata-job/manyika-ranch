@@ -468,11 +468,29 @@ const en = {
   expectedCalving: "Expected calving",
   suggestedBreedingStock: "Suggested breeding stock",
   suggestedBreedingStockHelp:
-    "Animals planned keep for breeding (good genetics to retain).",
+    "Keep for breeding, age {n} months or older — ready for mating.",
   suggestedToRemove: "Suggested to remove",
   suggestedToRemoveHelp:
     "Animals planned sell next cycle — prefer not to breed these.",
-  noKeepForBreeding: "No animals planned keep for breeding yet.",
+  noKeepForBreeding: "No breeding-age animals planned keep yet.",
+  futureReplacements: "Future replacements",
+  futureReplacementsHelp:
+    "Kept for genetics under {n} months — not used in mating until {n} months.",
+  noFutureReplacements: "No young keep-for-breeding animals in this filter.",
+  breedingFilters: "Filters",
+  breedingCustomAgeHelp:
+    "Use min/max months for a custom age (e.g. 22 and 22). That clears the age-group preset.",
+  matingAgeHelp:
+    "Dams and sires must be at least {n} months (sires not castrated).",
+  bulkHerdPlan: "Set herd plan",
+  bulkHerdPlanHelp:
+    "Select animals in the filter below, then Keep, Sell next cycle, or Clear plan.",
+  bulkHerdPlanResult: "Updated {n} animals ({skipped} skipped).",
+  clearHerdPlan: "Clear plan",
+  deselectAll: "Deselect all",
+  selectedCount: "{n} of {total} selected",
+  noAnimalsInFilter: "No animals match these filters.",
+  searchEartag: "Search eartag…",
   herdPlan: "Herd plan",
   herdPlanExcluded: "No special plan",
   herdPlanKeepBreeding: "Keep for breeding",
@@ -1259,11 +1277,29 @@ const sw: Dict = {
   expectedCalving: "Uzazi unaotarajiwa",
   suggestedBreedingStock: "Mifugo inayopendekezwa kwa uzazi",
   suggestedBreedingStockHelp:
-    "Wanyama walio na mpango wa kuhifadhi kwa uzazi (jenetiki nzuri).",
+    "Hifadhi kwa uzazi, umri miezi {n} au zaidi — tayari kwa kuoanishwa.",
   suggestedToRemove: "Wanaopendekezwa kuondolewa",
   suggestedToRemoveHelp:
     "Wanyama walio na mpango wa kuuza mzunguko ujao — usipende kuwazalisha.",
-  noKeepForBreeding: "Hakuna wanyama walio na mpango wa kuhifadhi kwa uzazi bado.",
+  noKeepForBreeding: "Hakuna wanyama wa umri wa uzazi walio na mpango wa kuhifadhi bado.",
+  futureReplacements: "Wabadilishaji wa baadaye",
+  futureReplacementsHelp:
+    "Waliohifadhiwa kwa jenetiki chini ya miezi {n} — hawatumiwi kuoanishwa hadi miezi {n}.",
+  noFutureReplacements: "Hakuna wanyama wadogo wa kuhifadhi kwa uzazi kwenye kichujio hiki.",
+  breedingFilters: "Vichujio",
+  breedingCustomAgeHelp:
+    "Tumia miezi ya chini/juu kwa umri maalum (mf. 22 na 22). Hiyo inaondoa kundi la umri.",
+  matingAgeHelp:
+    "Mama na baba lazima wawe angalau miezi {n} (dume wasiohaswa).",
+  bulkHerdPlan: "Weka mpango wa mifugo",
+  bulkHerdPlanHelp:
+    "Chagua wanyama kwenye kichujio, kisha Hifadhi, Uza mzunguko ujao, au Ondoa mpango.",
+  bulkHerdPlanResult: "Imesasishwa wanyama {n} ({skipped} wamerukwa).",
+  clearHerdPlan: "Ondoa mpango",
+  deselectAll: "Ondoa uteuzi wote",
+  selectedCount: "{n} kati ya {total} wamechaguliwa",
+  noAnimalsInFilter: "Hakuna wanyama wanaolingana na vichujio hivi.",
+  searchEartag: "Tafuta lebo…",
   herdPlan: "Mpango wa mifugo",
   herdPlanExcluded: "Hakuna mpango maalum",
   herdPlanKeepBreeding: "Hifadhi kwa uzazi",
