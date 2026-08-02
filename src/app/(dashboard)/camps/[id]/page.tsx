@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { ArrowLeft, Pencil, Plus, StickyNote } from "lucide-react";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 import { useLocale, useT } from "@/components/providers/locale-provider";
@@ -76,6 +76,7 @@ export default function CampDetailPage() {
   const { data: session } = useSession();
   const role = session?.user?.role as Role | undefined;
   const canManage = role ? hasPermission(role, "manageCamps") : false;
+  const canRegister = role ? hasPermission(role, "createAnimal") : false;
 
   const [camp, setCamp] = useState<CampDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,6 +86,7 @@ export default function CampDetailPage() {
   const [saving, setSaving] = useState(false);
   const [showLocation, setShowLocation] = useState(false);
   const [showPhotos, setShowPhotos] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
   const [form, setForm] = useState({
     name: "",
     sizeAcres: "",
@@ -118,6 +120,7 @@ export default function CampDetailPage() {
             notes: data.notes || "",
             tagColor: data.tagColor || "",
           });
+          setShowNotes(Boolean(data.notes?.trim()));
         }
       }
       setLoading(false);
@@ -152,6 +155,7 @@ export default function CampDetailPage() {
       return;
     }
     setEditing(false);
+    setShowNotes(Boolean(form.notes.trim()));
     load(animalsOffset, { soft: true });
   }
 
@@ -165,6 +169,15 @@ export default function CampDetailPage() {
   const animalTotal =
     camp.animalTotal ?? camp._count?.animals ?? camp.animals.length;
   const bySex = camp.bySex ?? {};
+  const sexLine = [
+    bySex.MALE ? `${bySex.MALE} ${t("male")}` : null,
+    bySex.FEMALE ? `${bySex.FEMALE} ${t("female")}` : null,
+    bySex.UNKNOWN ? `${bySex.UNKNOWN} ${t("unknownSex")}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const hasNotes = Boolean(camp.notes?.trim());
+  const registerHref = `/animals/new?camp=${camp.id}`;
 
   return (
     <div className="space-y-6">
@@ -174,50 +187,6 @@ export default function CampDetailPage() {
       >
         <ArrowLeft className="h-4 w-4 mr-1" /> {t("navCamps")}
       </Link>
-
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-        <div className="flex items-start gap-4">
-          {camp.logoUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={camp.logoUrl}
-              alt=""
-              className="h-16 w-16 rounded-lg border object-cover"
-            />
-          )}
-          <div>
-            <h1 className="text-3xl font-bold">{camp.name}</h1>
-            <p className="text-muted-foreground">
-              {camp.code && <span className="mr-2 font-medium">{camp.code}</span>}
-              {animalTotal} {t("activeAnimals").toLowerCase()}
-              {camp.sizeAcres != null &&
-                ` · ${camp.sizeAcres} ${t("acres")}`}
-            </p>
-            {(bySex.MALE || bySex.FEMALE || bySex.UNKNOWN) && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {[
-                  bySex.MALE ? `${bySex.MALE} ${t("male")}` : null,
-                  bySex.FEMALE ? `${bySex.FEMALE} ${t("female")}` : null,
-                  bySex.UNKNOWN ? `${bySex.UNKNOWN} ${t("unknownSex")}` : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-            )}
-            {camp.tagColor && (
-              <div className="mt-1">
-                <TagColorSwatch color={camp.tagColor} locale={locale} />
-              </div>
-            )}
-          </div>
-        </div>
-        {canManage && !editing && (
-          <Button variant="outline" onClick={() => setEditing(true)}>
-            <Pencil className="h-4 w-4 mr-2" />
-            {t("editDetails")}
-          </Button>
-        )}
-      </div>
 
       {editing ? (
         <Card>
@@ -311,50 +280,122 @@ export default function CampDetailPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">{t("male")}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{bySex.MALE || 0}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">{t("female")}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{bySex.FEMALE || 0}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">{t("unknownSex")}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{bySex.UNKNOWN || 0}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">{t("sizeAcres")}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">
-                {camp.sizeAcres != null ? camp.sizeAcres : "—"}
+        <>
+          <section className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-muted/60 via-background to-background">
+            <div className="absolute inset-x-0 top-0 h-1 bg-foreground/10" />
+            <div className="p-5 sm:p-6 space-y-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex items-start gap-4 min-w-0">
+                  {camp.logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={camp.logoUrl}
+                      alt=""
+                      className="h-16 w-16 sm:h-20 sm:w-20 rounded-xl border object-cover shrink-0 shadow-sm"
+                    />
+                  ) : (
+                    <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-xl border bg-muted/80 shrink-0 flex items-center justify-center text-lg font-semibold text-muted-foreground">
+                      {(camp.code || camp.name).slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="min-w-0 space-y-1">
+                    <h1 className="text-3xl sm:text-4xl font-bold tracking-tight truncate">
+                      {camp.name}
+                    </h1>
+                    {camp.code && (
+                      <p className="text-base sm:text-lg font-mono text-muted-foreground tracking-wide">
+                        {camp.code}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 shrink-0">
+                  {canRegister && (
+                    <Button asChild>
+                      <Link href={registerHref}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        {t("registerAnimal")}
+                      </Link>
+                    </Button>
+                  )}
+                  {canManage && (
+                    <Button variant="outline" onClick={() => setEditing(true)}>
+                      <Pencil className="h-4 w-4 mr-2" />
+                      {t("editDetails")}
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-lg font-semibold tabular-nums">
+                  {animalTotal}{" "}
+                  <span className="font-medium text-muted-foreground">
+                    {t("activeAnimals").toLowerCase()}
+                  </span>
+                </p>
+                {sexLine && (
+                  <p className="text-sm sm:text-base text-muted-foreground">
+                    {sexLine}
+                  </p>
+                )}
+                {camp.tagColor && (
+                  <TagColorSwatch
+                    color={camp.tagColor}
+                    locale={locale}
+                    className="pt-0.5"
+                  />
+                )}
+              </div>
+
+              {(camp.sizeAcres != null ||
+                camp.waterSources ||
+                camp.assignments.length > 0) && (
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground border-t pt-4">
+                  {camp.sizeAcres != null && (
+                    <span>
+                      {camp.sizeAcres} {t("acres")}
+                    </span>
+                  )}
+                  {camp.waterSources && (
+                    <span>
+                      {t("waterSources")}: {camp.waterSources}
+                    </span>
+                  )}
+                  {camp.assignments.length > 0 && (
+                    <span>
+                      {t("supervisor")}:{" "}
+                      {camp.assignments.map((a) => a.user.name).join(", ")}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </section>
+
+          <OptionalSection
+            open={showNotes}
+            onToggle={() => setShowNotes((v) => !v)}
+            title={t("campNotes")}
+            summary={
+              hasNotes
+                ? camp.notes!.trim().slice(0, 80) +
+                  (camp.notes!.trim().length > 80 ? "…" : "")
+                : t("noCampNotes")
+            }
+          >
+            {hasNotes ? (
+              <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                {camp.notes}
               </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">{t("waterSources")}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm">{camp.waterSources || "—"}</p>
-            </CardContent>
-          </Card>
-        </div>
+            ) : (
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                <StickyNote className="h-4 w-4 shrink-0" />
+                {canManage ? t("noCampNotesEditHint") : t("noCampNotes")}
+              </p>
+            )}
+          </OptionalSection>
+        </>
       )}
 
       {!editing && (
@@ -404,17 +445,37 @@ export default function CampDetailPage() {
       </OptionalSection>
 
       <div>
-        <h2 className="text-xl font-semibold mb-4">
-          {t("animalsInCamp")}
-          <span className="ml-2 text-base font-normal text-muted-foreground">
-            ({animalTotal})
-          </span>
-        </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <h2 className="text-xl font-semibold">
+            {t("animalsInCamp")}
+            <span className="ml-2 text-base font-normal text-muted-foreground">
+              ({animalTotal})
+            </span>
+          </h2>
+          {canRegister && (
+            <Button asChild variant="outline" size="sm">
+              <Link href={registerHref}>
+                <Plus className="h-4 w-4 mr-2" />
+                {t("registerAnimal")}
+              </Link>
+            </Button>
+          )}
+        </div>
         {animalTotal === 0 ? (
-          <p className="text-muted-foreground text-sm">{t("noAnimalsInCamp")}</p>
+          <div className="rounded-xl border border-dashed p-8 text-center space-y-3">
+            <p className="text-muted-foreground text-sm">{t("noAnimalsInCamp")}</p>
+            {canRegister && (
+              <Button asChild>
+                <Link href={registerHref}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t("registerAnimal")}
+                </Link>
+              </Button>
+            )}
+          </div>
         ) : (
           <>
-            <div className="rounded-lg border">
+            <div className="rounded-xl border overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">

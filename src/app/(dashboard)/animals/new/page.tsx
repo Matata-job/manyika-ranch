@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,7 +54,21 @@ type CampOption = { id: string; name: string; code?: string | null };
 
 export default function NewAnimalPage() {
   const t = useT();
+  return (
+    <Suspense
+      fallback={<p className="text-sm text-muted-foreground">{t("loading")}</p>}
+    >
+      <NewAnimalPageContent />
+    </Suspense>
+  );
+}
+
+function NewAnimalPageContent() {
+  const t = useT();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const campFromQuery = searchParams.get("camp");
+  const campPrefillDone = useRef(false);
   const [loading, setLoading] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [camps, setCamps] = useState<CampOption[]>([]);
@@ -207,6 +221,13 @@ export default function NewAnimalPage() {
         // keep cached lookups if online fetch fails
       });
   }, []);
+
+  useEffect(() => {
+    if (campPrefillDone.current || !campFromQuery || camps.length === 0) return;
+    if (!camps.some((c) => c.id === campFromQuery)) return;
+    campPrefillDone.current = true;
+    void applyCampEartagSuggestion(campFromQuery);
+  }, [campFromQuery, camps]);
 
   function removePhoto(index: number) {
     setPhotoFiles((prev) => prev.filter((_, i) => i !== index));
