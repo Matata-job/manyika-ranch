@@ -304,10 +304,6 @@ export default function BreedingPage() {
       ),
     [animals]
   );
-  const removeCandidates = useMemo(
-    () => animals.filter((a) => a.herdPlan === "SELL_NEXT_CYCLE"),
-    [animals]
-  );
 
   const matingDams = useMemo(
     () =>
@@ -470,7 +466,7 @@ export default function BreedingPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>{t("suggestedBreedingStock")}</CardTitle>
@@ -506,26 +502,6 @@ export default function BreedingPage() {
             ) : (
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {keepFuture.map(planRow)}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("suggestedToRemove")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-3">
-              {t("suggestedToRemoveHelp")}
-            </p>
-            {removeCandidates.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                {t("noMarkedForSale")}
-              </p>
-            ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {removeCandidates.map(planRow)}
               </div>
             )}
           </CardContent>
