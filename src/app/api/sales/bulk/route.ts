@@ -154,7 +154,12 @@ export async function POST(req: NextRequest) {
 
       await tx.animal.update({
         where: { id: animal.id },
-        data: { status: "SOLD" },
+        data: {
+          status: "SOLD",
+          markedForSale: false,
+          saleCycleNote: null,
+          markedForSaleAt: null,
+        },
       });
     }
   });

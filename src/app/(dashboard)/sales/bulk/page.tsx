@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,8 @@ interface AnimalRow {
   breed: string;
   sex: string;
   status: string;
+  markedForSale?: boolean;
+  camp?: { id: string; name: string };
 }
 
 interface Buyer {
@@ -39,12 +42,15 @@ interface Buyer {
   phone: string | null;
 }
 
-export default function BulkSalePage() {
+function BulkSalePageContent() {
   const t = useT();
+  const searchParams = useSearchParams();
+  const preferMarked = searchParams.get("markedForSale") === "1";
   const [camps, setCamps] = useState<Camp[]>([]);
   const [buyers, setBuyers] = useState<Buyer[]>([]);
   const [campId, setCampId] = useState("");
   const [sex, setSex] = useState("all");
+  const [onlyMarked, setOnlyMarked] = useState(preferMarked);
   const [animals, setAnimals] = useState<AnimalRow[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loadingAnimals, setLoadingAnimals] = useState(false);
@@ -71,6 +77,10 @@ export default function BulkSalePage() {
   } | null>(null);
 
   useEffect(() => {
+    setOnlyMarked(preferMarked);
+  }, [preferMarked]);
+
+  useEffect(() => {
     fetch("/api/camps")
       .then((r) => r.json())
       .then((d) => setCamps(Array.isArray(d) ? d : d.camps || []));
@@ -79,18 +89,19 @@ export default function BulkSalePage() {
       .then((d) => setBuyers(Array.isArray(d) ? d : d.buyers || []));
   }, []);
 
-  async function loadAnimals(nextCampId: string, nextSex: string) {
-    if (!nextCampId) {
-      setAnimals([]);
-      setSelected(new Set());
-      return;
-    }
+  async function loadAnimals(
+    nextCampId: string,
+    nextSex: string,
+    markedOnly: boolean
+  ) {
     setLoadingAnimals(true);
     const params = new URLSearchParams({
-      camp: nextCampId,
       limit: "5000",
+      status: "ACTIVE",
     });
+    if (nextCampId) params.set("camp", nextCampId);
     if (nextSex !== "all") params.set("sex", nextSex);
+    if (markedOnly) params.set("markedForSale", "true");
     const res = await fetch(`/api/animals?${params}`);
     const data = res.ok ? await res.json() : null;
     const list: AnimalRow[] = parseAnimalsList<AnimalRow>(data).filter(
@@ -100,13 +111,22 @@ export default function BulkSalePage() {
         a.status === "MISSING"
     );
     setAnimals(list);
-    setSelected(new Set());
+    if (markedOnly) {
+      setSelected(new Set(list.map((a) => a.id)));
+    } else {
+      setSelected(new Set());
+    }
     setLoadingAnimals(false);
   }
 
   useEffect(() => {
-    if (campId) loadAnimals(campId, sex);
-  }, [campId, sex]);
+    if (onlyMarked || campId) {
+      loadAnimals(campId, sex, onlyMarked);
+    } else {
+      setAnimals([]);
+      setSelected(new Set());
+    }
+  }, [campId, sex, onlyMarked]);
 
   const allSelected = animals.length > 0 && selected.size === animals.length;
   const someSelected = selected.size > 0 && selected.size < animals.length;
@@ -208,7 +228,7 @@ export default function BulkSalePage() {
       buyer: data.buyer,
     });
     setSelected(new Set());
-    if (campId) loadAnimals(campId, sex);
+    if (onlyMarked || campId) loadAnimals(campId, sex, onlyMarked);
     if (buyerMode === "new") {
       fetch("/api/buyers")
         .then((r) => (r.ok ? r.json() : []))
@@ -251,13 +271,27 @@ export default function BulkSalePage() {
           <CardTitle>{t("chooseAnimals")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={onlyMarked}
+              onChange={(e) => {
+                setOnlyMarked(e.target.checked);
+                setResult(null);
+              }}
+            />
+            {t("onlyMarkedForSale")}
+          </label>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>{t("camp")} *</Label>
+              <Label>
+                {t("camp")}
+                {!onlyMarked ? " *" : ""}
+              </Label>
               <Select
-                value={campId || undefined}
+                value={campId || (onlyMarked ? "all" : undefined)}
                 onValueChange={(v) => {
-                  setCampId(v);
+                  setCampId(v === "all" ? "" : v);
                   setResult(null);
                 }}
               >
@@ -265,6 +299,9 @@ export default function BulkSalePage() {
                   <SelectValue placeholder={t("selectCamp")} />
                 </SelectTrigger>
                 <SelectContent>
+                  {onlyMarked && (
+                    <SelectItem value="all">{t("allCamps")}</SelectItem>
+                  )}
                   {camps.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.name}
@@ -288,13 +325,13 @@ export default function BulkSalePage() {
             </div>
           </div>
 
-          {!campId ? (
+          {!onlyMarked && !campId ? (
             <p className="text-sm text-muted-foreground">{t("selectCampLoad")}</p>
           ) : loadingAnimals ? (
             <p className="text-sm text-muted-foreground">{t("loadingAnimals")}</p>
           ) : animals.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              {t("noActiveAnimalsCamp")}
+              {onlyMarked ? t("noMarkedForSale") : t("noActiveAnimalsCamp")}
             </p>
           ) : (
             <div className="space-y-2">
@@ -326,7 +363,13 @@ export default function BulkSalePage() {
                     <span className="font-medium">{a.eartag}</span>
                     <span className="text-muted-foreground">
                       {a.breed} · {a.sex}
+                      {a.camp?.name ? ` · ${a.camp.name}` : ""}
                     </span>
+                    {a.markedForSale && (
+                      <Badge variant="warning" className="ml-auto shrink-0">
+                        {t("markedForSale")}
+                      </Badge>
+                    )}
                   </label>
                 ))}
               </div>
@@ -515,5 +558,16 @@ export default function BulkSalePage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function BulkSalePage() {
+  const t = useT();
+  return (
+    <Suspense
+      fallback={<p className="text-sm text-muted-foreground">{t("loading")}</p>}
+    >
+      <BulkSalePageContent />
+    </Suspense>
   );
 }

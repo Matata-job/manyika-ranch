@@ -73,6 +73,10 @@ interface AnimalDetail {
   sex: string;
   isCastrated?: boolean;
   isPregnant?: boolean;
+  keepForBreeding?: boolean;
+  markedForSale?: boolean;
+  breedingNote?: string | null;
+  saleCycleNote?: string | null;
   dob: string | null;
   ageMonths: number | null;
   status: string;
@@ -474,6 +478,41 @@ export default function AnimalDetailPage() {
     loadAnimal();
   }
 
+  async function togglePlanningFlag(
+    field: "keepForBreeding" | "markedForSale",
+    value: boolean
+  ) {
+    if (!animal) return;
+    if (value && field === "keepForBreeding" && animal.markedForSale) {
+      if (!window.confirm(t("confirmClearSaleForBreeding"))) return;
+    }
+    if (value && field === "markedForSale" && animal.keepForBreeding) {
+      if (!window.confirm(t("confirmClearBreedingForSale"))) return;
+    }
+    setStatusSaving(true);
+    const noteKey = field === "keepForBreeding" ? "breedingNote" : "saleCycleNote";
+    let note: string | undefined;
+    if (value) {
+      const entered = window.prompt(t("optionalPlanningNote"), "") ?? "";
+      note = entered.trim() || undefined;
+    }
+    const body: Record<string, unknown> = { [field]: value };
+    if (note !== undefined) body[noteKey] = note;
+    if (!value) body[noteKey] = null;
+    const res = await fetch(`/api/animals/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    setStatusSaving(false);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      window.alert(err.error || t("failedToSave"));
+      return;
+    }
+    loadAnimal();
+  }
+
   async function addWeight() {
     if (!weightKg) return;
     await fetch(`/api/animals/${id}/weights`, {
@@ -812,6 +851,12 @@ export default function AnimalDetailPage() {
             </Badge>
             {animal.sex === "MALE" && animal.isCastrated && <Badge variant="outline">{t("castrated")}</Badge>}
             {animal.sex === "FEMALE" && animal.isPregnant && <Badge variant="warning">{t("pregnant")}</Badge>}
+            {animal.keepForBreeding && (
+              <Badge variant="success">{t("keepForBreeding")}</Badge>
+            )}
+            {animal.markedForSale && (
+              <Badge variant="warning">{t("markedForSale")}</Badge>
+            )}
             <Badge variant={isDeceased ? "destructive" : isSold ? "warning" : "secondary"}>{animal.status}</Badge>
             {animal.deathRecord?.isCulling && <Badge variant="warning">{t("causeCulling")}</Badge>}
             {canEdit && !editingDetails && (
@@ -894,6 +939,48 @@ export default function AnimalDetailPage() {
                   Linking a calf or recording calving clears this automatically.
                 </p>
               </div>
+            )}
+            {canUpdateRecords && !isClosed && (
+              <>
+                <div>
+                  <span className="text-muted-foreground">{t("keepForBreeding")}</span>
+                  <label className="flex items-center gap-2 mt-1 text-sm font-medium">
+                    <input
+                      type="checkbox"
+                      checked={!!animal.keepForBreeding}
+                      disabled={statusSaving}
+                      onChange={(e) =>
+                        togglePlanningFlag("keepForBreeding", e.target.checked)
+                      }
+                    />
+                    {animal.keepForBreeding ? t("yes") : t("no")}
+                  </label>
+                  {animal.breedingNote && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {animal.breedingNote}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">{t("markedForSale")}</span>
+                  <label className="flex items-center gap-2 mt-1 text-sm font-medium">
+                    <input
+                      type="checkbox"
+                      checked={!!animal.markedForSale}
+                      disabled={statusSaving}
+                      onChange={(e) =>
+                        togglePlanningFlag("markedForSale", e.target.checked)
+                      }
+                    />
+                    {animal.markedForSale ? t("yes") : t("no")}
+                  </label>
+                  {animal.saleCycleNote && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {animal.saleCycleNote}
+                    </p>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </div>

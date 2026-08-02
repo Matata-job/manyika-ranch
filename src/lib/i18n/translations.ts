@@ -466,6 +466,26 @@ const en = {
   sire: "Sire",
   matingDate: "Mating date",
   expectedCalving: "Expected calving",
+  suggestedBreedingStock: "Suggested breeding stock",
+  suggestedBreedingStockHelp:
+    "Animals marked keep for breeding (good genetics to retain).",
+  suggestedToRemove: "Suggested to remove",
+  suggestedToRemoveHelp:
+    "Animals marked for the next sale cycle — prefer not to breed these.",
+  noKeepForBreeding: "No animals marked keep for breeding yet.",
+  keepForBreeding: "Keep for breeding",
+  markedForSale: "Next sale cycle",
+  optionalPlanningNote: "Optional note (why)?",
+  confirmClearSaleForBreeding:
+    "This animal is marked for sale. Clear that and keep for breeding instead?",
+  confirmClearBreedingForSale:
+    "This animal is marked keep for breeding. Clear that and mark for sale instead?",
+  saleCyclePriority: "Priority for next sale cycle",
+  saleCyclePriorityHelp:
+    "Animals flagged on their detail page to sell or remove next.",
+  noMarkedForSale: "No animals marked for the next sale cycle.",
+  bulkSellMarked: "Bulk sell marked ({n})",
+  onlyMarkedForSale: "Only animals marked for sale cycle",
 
   // Reports
   reportsTitle: "Reports",
@@ -1237,6 +1257,26 @@ const sw: Dict = {
   sire: "Baba",
   matingDate: "Tarehe ya kuoanisha",
   expectedCalving: "Uzazi unaotarajiwa",
+  suggestedBreedingStock: "Mifugo inayopendekezwa kwa uzazi",
+  suggestedBreedingStockHelp:
+    "Wanyama walioalamishwa wahifadhiwe kwa uzazi (jenetiki nzuri).",
+  suggestedToRemove: "Wanaopendekezwa kuondolewa",
+  suggestedToRemoveHelp:
+    "Wanyama walioalamishwa kwa mzunguko ujao wa mauzo — usipende kuwazalisha.",
+  noKeepForBreeding: "Hakuna wanyama walioalamishwa wahifadhiwe kwa uzazi bado.",
+  keepForBreeding: "Hifadhi kwa uzazi",
+  markedForSale: "Mzunguko ujao wa mauzo",
+  optionalPlanningNote: "Maelezo ya hiari (kwa nini)?",
+  confirmClearSaleForBreeding:
+    "Mnyama huyu amealamishwa kwa mauzo. Ondoa hiyo na uhifadhi kwa uzazi badala yake?",
+  confirmClearBreedingForSale:
+    "Mnyama huyu amealamishwa ahifadhiwe kwa uzazi. Ondoa hiyo na ualamishe kwa mauzo badala yake?",
+  saleCyclePriority: "Kipaumbele cha mzunguko ujao wa mauzo",
+  saleCyclePriorityHelp:
+    "Wanyama walioalamishwa kwenye ukurasa wao kuuzwa au kuondolewa ijayo.",
+  noMarkedForSale: "Hakuna wanyama walioalamishwa kwa mzunguko ujao wa mauzo.",
+  bulkSellMarked: "Uza kwa wingi walioalamishwa ({n})",
+  onlyMarkedForSale: "Wanyama walioalamishwa kwa mzunguko wa mauzo tu",
 
   reportsTitle: "Ripoti",
   reportsSubtitle: "Ripoti za mifugo, afya, mauzo, na fedha",

@@ -283,6 +283,14 @@ model Animal {
   sex              Sex
   isCastrated      Boolean         @default(false)
   isPregnant       Boolean         @default(false)
+  /** Preferred breeding stock (good genetics to keep) */
+  keepForBreeding  Boolean         @default(false)
+  /** Priority for next selling / remove cycle */
+  markedForSale    Boolean         @default(false)
+  breedingNote     String?
+  saleCycleNote    String?
+  keepForBreedingAt DateTime?
+  markedForSaleAt  DateTime?
   dob              DateTime?
   ageMonths        Int?
   ownerId          String
@@ -323,6 +331,8 @@ model Animal {
   @@index([campId])
   @@index([ownerId])
   @@index([status])
+  @@index([keepForBreeding])
+  @@index([markedForSale])
 }
 
 model AnimalPhoto {

@@ -84,10 +84,22 @@ export async function PATCH(
   if (!access.ok) return access.error;
   const currentCampId = access.animal.campId;
 
-  const result = await requirePermission("editAnimal");
+  const body = await req.json();
+  const PLANNING_KEYS = new Set([
+    "keepForBreeding",
+    "markedForSale",
+    "breedingNote",
+    "saleCycleNote",
+  ]);
+  const bodyKeys = Object.keys(body);
+  const isPlanningOnly =
+    bodyKeys.length > 0 && bodyKeys.every((k) => PLANNING_KEYS.has(k));
+
+  const result = isPlanningOnly
+    ? await requirePermission("updateAnimalRecords")
+    : await requirePermission("editAnimal");
   if (!result.ok) return result.error;
 
-  const body = await req.json();
   const dob =
     body.dob === null
       ? null
@@ -149,7 +161,17 @@ export async function PATCH(
 
   const previous = await prisma.animal.findUnique({
     where: { id },
-    select: { status: true, isCastrated: true, isPregnant: true, damId: true, eartag: true },
+    select: {
+      status: true,
+      isCastrated: true,
+      isPregnant: true,
+      damId: true,
+      eartag: true,
+      keepForBreeding: true,
+      markedForSale: true,
+      breedingNote: true,
+      saleCycleNote: true,
+    },
   });
 
   if (
@@ -164,6 +186,64 @@ export async function PATCH(
       },
       { status: 400 }
     );
+  }
+
+  // Planning flags: mutual exclusion (keep for breeding vs next sale cycle)
+  let nextKeepForBreeding: boolean | undefined;
+  let nextMarkedForSale: boolean | undefined;
+  let nextBreedingNote: string | null | undefined;
+  let nextSaleCycleNote: string | null | undefined;
+  let nextKeepForBreedingAt: Date | null | undefined;
+  let nextMarkedForSaleAt: Date | null | undefined;
+
+  if (body.keepForBreeding !== undefined || body.markedForSale !== undefined) {
+    if (previous && (previous.status === "SOLD" || previous.status === "DECEASED")) {
+      return NextResponse.json(
+        { error: "Cannot change planning flags on a sold or deceased animal" },
+        { status: 400 }
+      );
+    }
+    nextKeepForBreeding =
+      body.keepForBreeding !== undefined
+        ? Boolean(body.keepForBreeding)
+        : previous?.keepForBreeding;
+    nextMarkedForSale =
+      body.markedForSale !== undefined
+        ? Boolean(body.markedForSale)
+        : previous?.markedForSale;
+
+    if (nextKeepForBreeding && nextMarkedForSale) {
+      // Last write wins based on which field was sent
+      if (body.keepForBreeding === true) nextMarkedForSale = false;
+      else if (body.markedForSale === true) nextKeepForBreeding = false;
+    }
+
+    if (nextKeepForBreeding && !previous?.keepForBreeding) {
+      nextKeepForBreedingAt = new Date();
+    } else if (nextKeepForBreeding === false) {
+      nextKeepForBreedingAt = null;
+      nextBreedingNote = null;
+    }
+
+    if (nextMarkedForSale && !previous?.markedForSale) {
+      nextMarkedForSaleAt = new Date();
+    } else if (nextMarkedForSale === false) {
+      nextMarkedForSaleAt = null;
+      nextSaleCycleNote = null;
+    }
+  }
+
+  if (body.breedingNote !== undefined) {
+    nextBreedingNote =
+      body.breedingNote === null || body.breedingNote === ""
+        ? null
+        : String(body.breedingNote).trim();
+  }
+  if (body.saleCycleNote !== undefined) {
+    nextSaleCycleNote =
+      body.saleCycleNote === null || body.saleCycleNote === ""
+        ? null
+        : String(body.saleCycleNote).trim();
   }
 
   const nextSex = body.sex as string | undefined;
@@ -201,6 +281,12 @@ export async function PATCH(
       sex: body.sex,
       isCastrated: nextCastrated,
       isPregnant: nextPregnant,
+      keepForBreeding: nextKeepForBreeding,
+      markedForSale: nextMarkedForSale,
+      breedingNote: nextBreedingNote,
+      saleCycleNote: nextSaleCycleNote,
+      keepForBreedingAt: nextKeepForBreedingAt,
+      markedForSaleAt: nextMarkedForSaleAt,
       dob,
       ageMonths:
         dob instanceof Date
@@ -286,6 +372,46 @@ export async function PATCH(
         : "No longer pregnant (open / after calving / breeding season)",
       recordedById: result.user.id,
       metadata: { isPregnant: nextPregnant },
+    });
+  }
+
+  if (
+    previous &&
+    nextKeepForBreeding !== undefined &&
+    nextKeepForBreeding !== previous.keepForBreeding
+  ) {
+    await logAnimalEvent({
+      animalId: id,
+      type: "STATUS_CHANGE",
+      title: nextKeepForBreeding
+        ? "Marked keep for breeding"
+        : "Cleared keep for breeding",
+      description: nextBreedingNote || animal.breedingNote || undefined,
+      recordedById: result.user.id,
+      metadata: {
+        keepForBreeding: nextKeepForBreeding,
+        breedingNote: animal.breedingNote,
+      },
+    });
+  }
+
+  if (
+    previous &&
+    nextMarkedForSale !== undefined &&
+    nextMarkedForSale !== previous.markedForSale
+  ) {
+    await logAnimalEvent({
+      animalId: id,
+      type: "STATUS_CHANGE",
+      title: nextMarkedForSale
+        ? "Marked for next sale cycle"
+        : "Cleared sale-cycle mark",
+      description: nextSaleCycleNote || animal.saleCycleNote || undefined,
+      recordedById: result.user.id,
+      metadata: {
+        markedForSale: nextMarkedForSale,
+        saleCycleNote: animal.saleCycleNote,
+      },
     });
   }
 

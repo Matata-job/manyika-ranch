@@ -126,7 +126,7 @@ export async function POST(
 
     await tx.animal.update({
       where: { id },
-      data: { status: "SOLD" },
+      data: { status: "SOLD", markedForSale: false, saleCycleNote: null, markedForSaleAt: null },
     });
 
     return created;

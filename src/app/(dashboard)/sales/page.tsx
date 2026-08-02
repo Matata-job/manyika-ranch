@@ -53,6 +53,16 @@ export default function SalesPage() {
     ? hasPermission(session.user.role as Role, "manageSales")
     : false;
   const [data, setData] = useState<SalesReport | null>(null);
+  const [prioritySale, setPrioritySale] = useState<
+    {
+      id: string;
+      eartag: string;
+      breed: string;
+      sex: string;
+      saleCycleNote: string | null;
+      camp: { id: string; name: string };
+    }[]
+  >([]);
   const [camps, setCamps] = useState<{ id: string; name: string }[]>([]);
   const [breedOptions, setBreedOptions] = useState<string[]>([]);
   const [from, setFrom] = useState("");
@@ -94,6 +104,15 @@ export default function SalesPage() {
             .filter(Boolean)
             .sort()
         );
+      })
+      .catch(() => {});
+    fetch(
+      "/api/animals?status=ACTIVE&markedForSale=true&limit=500&sort=eartag_asc"
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const list = Array.isArray(d) ? d : d?.animals || [];
+        setPrioritySale(list);
       })
       .catch(() => {});
   }, []);
@@ -155,9 +174,18 @@ export default function SalesPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           {canManageSales && (
-            <Button asChild>
-              <Link href="/sales/bulk">{t("bulkSale")}</Link>
-            </Button>
+            <>
+              <Button asChild>
+                <Link href="/sales/bulk">{t("bulkSale")}</Link>
+              </Button>
+              {prioritySale.length > 0 && (
+                <Button asChild variant="outline">
+                  <Link href="/sales/bulk?markedForSale=1">
+                    {t("bulkSellMarked", { n: prioritySale.length })}
+                  </Link>
+                </Button>
+              )}
+            </>
           )}
           <Button variant="outline" onClick={exportCsv} disabled={!data?.sales?.length}>
             <Download className="h-4 w-4 mr-2" />
@@ -165,6 +193,43 @@ export default function SalesPage() {
           </Button>
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("saleCyclePriority")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-3">
+            {t("saleCyclePriorityHelp")}
+          </p>
+          {prioritySale.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("noMarkedForSale")}</p>
+          ) : (
+            <div className="space-y-2">
+              {prioritySale.map((a) => (
+                <div
+                  key={a.id}
+                  className="flex items-center justify-between border-b pb-2 gap-2"
+                >
+                  <div className="min-w-0">
+                    <Link
+                      href={`/animals/${a.id}`}
+                      className="font-medium text-primary hover:underline"
+                    >
+                      {a.eartag}
+                    </Link>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {a.breed} · {a.sex} · {a.camp?.name}
+                      {a.saleCycleNote ? ` · ${a.saleCycleNote}` : ""}
+                    </p>
+                  </div>
+                  <Badge variant="warning">{t("markedForSale")}</Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="pt-6">

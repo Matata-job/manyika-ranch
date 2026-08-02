@@ -26,7 +26,20 @@ interface BreedingEvent {
 export default function BreedingPage() {
   const t = useT();
   const [events, setEvents] = useState<BreedingEvent[]>([]);
-  const [animals, setAnimals] = useState<{ id: string; eartag: string; sex: string }[]>([]);
+  const [animals, setAnimals] = useState<
+    {
+      id: string;
+      eartag: string;
+      sex: string;
+      breed?: string;
+      keepForBreeding?: boolean;
+      markedForSale?: boolean;
+      breedingNote?: string | null;
+      saleCycleNote?: string | null;
+      isCastrated?: boolean;
+      camp?: { name: string };
+    }[]
+  >([]);
   const [showForm, setShowForm] = useState(false);
   const [calvingEventId, setCalvingEventId] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -108,6 +121,8 @@ export default function BreedingPage() {
 
   const females = animals.filter((a) => a.sex === "FEMALE");
   const males = animals.filter((a) => a.sex === "MALE");
+  const keepBreeding = animals.filter((a) => a.keepForBreeding);
+  const removeCandidates = animals.filter((a) => a.markedForSale);
 
   return (
     <div className="space-y-6">
@@ -125,6 +140,89 @@ export default function BreedingPage() {
           <Plus className="h-4 w-4 mr-2" />
           Record Mating
         </Button>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("suggestedBreedingStock")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-3">
+              {t("suggestedBreedingStockHelp")}
+            </p>
+            {keepBreeding.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {t("noKeepForBreeding")}
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {keepBreeding.map((a) => (
+                  <div
+                    key={a.id}
+                    className="flex items-center justify-between border-b pb-2 gap-2"
+                  >
+                    <div className="min-w-0">
+                      <Link
+                        href={`/animals/${a.id}`}
+                        className="font-medium text-primary hover:underline"
+                      >
+                        {a.eartag}
+                      </Link>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {a.breed} · {a.sex}
+                        {a.isCastrated ? ` · ${t("castrated")}` : ""}
+                        {a.camp?.name ? ` · ${a.camp.name}` : ""}
+                        {a.breedingNote ? ` · ${a.breedingNote}` : ""}
+                      </p>
+                    </div>
+                    <Badge variant="success">{t("keepForBreeding")}</Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("suggestedToRemove")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-3">
+              {t("suggestedToRemoveHelp")}
+            </p>
+            {removeCandidates.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {t("noMarkedForSale")}
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {removeCandidates.map((a) => (
+                  <div
+                    key={a.id}
+                    className="flex items-center justify-between border-b pb-2 gap-2"
+                  >
+                    <div className="min-w-0">
+                      <Link
+                        href={`/animals/${a.id}`}
+                        className="font-medium text-primary hover:underline"
+                      >
+                        {a.eartag}
+                      </Link>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {a.breed} · {a.sex}
+                        {a.camp?.name ? ` · ${a.camp.name}` : ""}
+                        {a.saleCycleNote ? ` · ${a.saleCycleNote}` : ""}
+                      </p>
+                    </div>
+                    <Badge variant="warning">{t("markedForSale")}</Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {showForm && (
@@ -147,6 +245,7 @@ export default function BreedingPage() {
                     {females.map((a) => (
                       <SelectItem key={a.id} value={a.id}>
                         {a.eartag}
+                        {a.keepForBreeding ? ` ★` : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -165,6 +264,8 @@ export default function BreedingPage() {
                     {males.map((a) => (
                       <SelectItem key={a.id} value={a.id}>
                         {a.eartag}
+                        {a.keepForBreeding ? ` ★` : ""}
+                        {a.isCastrated ? ` (${t("castrated")})` : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
