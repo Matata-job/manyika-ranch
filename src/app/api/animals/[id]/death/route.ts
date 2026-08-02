@@ -100,6 +100,9 @@ export async function POST(
       where: { id },
       data: {
         status: "DECEASED",
+        herdPlan: "EXCLUDED",
+        herdPlanNote: null,
+        herdPlanAt: null,
         ...(photoUrl ? { photoUrl } : {}),
       },
     });

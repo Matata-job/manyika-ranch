@@ -468,24 +468,24 @@ const en = {
   expectedCalving: "Expected calving",
   suggestedBreedingStock: "Suggested breeding stock",
   suggestedBreedingStockHelp:
-    "Animals marked keep for breeding (good genetics to retain).",
+    "Animals planned keep for breeding (good genetics to retain).",
   suggestedToRemove: "Suggested to remove",
   suggestedToRemoveHelp:
-    "Animals marked for the next sale cycle — prefer not to breed these.",
-  noKeepForBreeding: "No animals marked keep for breeding yet.",
-  keepForBreeding: "Keep for breeding",
-  markedForSale: "Next sale cycle",
+    "Animals planned sell next cycle — prefer not to breed these.",
+  noKeepForBreeding: "No animals planned keep for breeding yet.",
+  herdPlan: "Herd plan",
+  herdPlanExcluded: "No special plan",
+  herdPlanKeepBreeding: "Keep for breeding",
+  herdPlanSellNextCycle: "Sell next cycle",
+  herdPlanHelp:
+    "One plan per animal. Default is no special plan. Breeding and Sales use this.",
   optionalPlanningNote: "Optional note (why)?",
-  confirmClearSaleForBreeding:
-    "This animal is marked for sale. Clear that and keep for breeding instead?",
-  confirmClearBreedingForSale:
-    "This animal is marked keep for breeding. Clear that and mark for sale instead?",
-  saleCyclePriority: "Priority for next sale cycle",
+  saleCyclePriority: "Sell next cycle",
   saleCyclePriorityHelp:
-    "Animals flagged on their detail page to sell or remove next.",
-  noMarkedForSale: "No animals marked for the next sale cycle.",
-  bulkSellMarked: "Bulk sell marked ({n})",
-  onlyMarkedForSale: "Only animals marked for sale cycle",
+    "Animals with herd plan “Sell next cycle” — sell these first.",
+  noMarkedForSale: "No animals planned for sell next cycle.",
+  bulkSellMarked: "Bulk sell next cycle ({n})",
+  onlyMarkedForSale: "Only sell-next-cycle animals",
 
   // Reports
   reportsTitle: "Reports",
@@ -1259,24 +1259,24 @@ const sw: Dict = {
   expectedCalving: "Uzazi unaotarajiwa",
   suggestedBreedingStock: "Mifugo inayopendekezwa kwa uzazi",
   suggestedBreedingStockHelp:
-    "Wanyama walioalamishwa wahifadhiwe kwa uzazi (jenetiki nzuri).",
+    "Wanyama walio na mpango wa kuhifadhi kwa uzazi (jenetiki nzuri).",
   suggestedToRemove: "Wanaopendekezwa kuondolewa",
   suggestedToRemoveHelp:
-    "Wanyama walioalamishwa kwa mzunguko ujao wa mauzo — usipende kuwazalisha.",
-  noKeepForBreeding: "Hakuna wanyama walioalamishwa wahifadhiwe kwa uzazi bado.",
-  keepForBreeding: "Hifadhi kwa uzazi",
-  markedForSale: "Mzunguko ujao wa mauzo",
+    "Wanyama walio na mpango wa kuuza mzunguko ujao — usipende kuwazalisha.",
+  noKeepForBreeding: "Hakuna wanyama walio na mpango wa kuhifadhi kwa uzazi bado.",
+  herdPlan: "Mpango wa mifugo",
+  herdPlanExcluded: "Hakuna mpango maalum",
+  herdPlanKeepBreeding: "Hifadhi kwa uzazi",
+  herdPlanSellNextCycle: "Uza mzunguko ujao",
+  herdPlanHelp:
+    "Mpango mmoja kwa kila mnyama. Chaguo-msingi ni hakuna mpango maalum. Uzazi na Mauzo hutumia hii.",
   optionalPlanningNote: "Maelezo ya hiari (kwa nini)?",
-  confirmClearSaleForBreeding:
-    "Mnyama huyu amealamishwa kwa mauzo. Ondoa hiyo na uhifadhi kwa uzazi badala yake?",
-  confirmClearBreedingForSale:
-    "Mnyama huyu amealamishwa ahifadhiwe kwa uzazi. Ondoa hiyo na ualamishe kwa mauzo badala yake?",
-  saleCyclePriority: "Kipaumbele cha mzunguko ujao wa mauzo",
+  saleCyclePriority: "Uza mzunguko ujao",
   saleCyclePriorityHelp:
-    "Wanyama walioalamishwa kwenye ukurasa wao kuuzwa au kuondolewa ijayo.",
-  noMarkedForSale: "Hakuna wanyama walioalamishwa kwa mzunguko ujao wa mauzo.",
-  bulkSellMarked: "Uza kwa wingi walioalamishwa ({n})",
-  onlyMarkedForSale: "Wanyama walioalamishwa kwa mzunguko wa mauzo tu",
+    "Wanyama wenye mpango “Uza mzunguko ujao” — wauze hawa kwanza.",
+  noMarkedForSale: "Hakuna wanyama walio na mpango wa kuuza mzunguko ujao.",
+  bulkSellMarked: "Uza kwa wingi mzunguko ujao ({n})",
+  onlyMarkedForSale: "Wanyama wa kuuza mzunguko ujao tu",
 
   reportsTitle: "Ripoti",
   reportsSubtitle: "Ripoti za mifugo, afya, mauzo, na fedha",

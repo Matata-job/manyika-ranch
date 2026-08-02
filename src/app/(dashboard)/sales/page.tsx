@@ -59,7 +59,7 @@ export default function SalesPage() {
       eartag: string;
       breed: string;
       sex: string;
-      saleCycleNote: string | null;
+      herdPlanNote: string | null;
       camp: { id: string; name: string };
     }[]
   >([]);
@@ -107,7 +107,7 @@ export default function SalesPage() {
       })
       .catch(() => {});
     fetch(
-      "/api/animals?status=ACTIVE&markedForSale=true&limit=500&sort=eartag_asc"
+      "/api/animals?status=ACTIVE&herdPlan=SELL_NEXT_CYCLE&limit=500&sort=eartag_asc"
     )
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
@@ -180,7 +180,7 @@ export default function SalesPage() {
               </Button>
               {prioritySale.length > 0 && (
                 <Button asChild variant="outline">
-                  <Link href="/sales/bulk?markedForSale=1">
+                  <Link href="/sales/bulk?herdPlan=SELL_NEXT_CYCLE">
                     {t("bulkSellMarked", { n: prioritySale.length })}
                   </Link>
                 </Button>
@@ -220,10 +220,10 @@ export default function SalesPage() {
                     </Link>
                     <p className="text-sm text-muted-foreground truncate">
                       {a.breed} · {a.sex} · {a.camp?.name}
-                      {a.saleCycleNote ? ` · ${a.saleCycleNote}` : ""}
+                      {a.herdPlanNote ? ` · ${a.herdPlanNote}` : ""}
                     </p>
                   </div>
-                  <Badge variant="warning">{t("markedForSale")}</Badge>
+                  <Badge variant="warning">{t("herdPlanSellNextCycle")}</Badge>
                 </div>
               ))}
             </div>

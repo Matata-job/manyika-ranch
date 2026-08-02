@@ -156,9 +156,9 @@ export async function POST(req: NextRequest) {
         where: { id: animal.id },
         data: {
           status: "SOLD",
-          markedForSale: false,
-          saleCycleNote: null,
-          markedForSaleAt: null,
+          herdPlan: "EXCLUDED",
+          herdPlanNote: null,
+          herdPlanAt: null,
         },
       });
     }

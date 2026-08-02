@@ -85,12 +85,7 @@ export async function PATCH(
   const currentCampId = access.animal.campId;
 
   const body = await req.json();
-  const PLANNING_KEYS = new Set([
-    "keepForBreeding",
-    "markedForSale",
-    "breedingNote",
-    "saleCycleNote",
-  ]);
+  const PLANNING_KEYS = new Set(["herdPlan", "herdPlanNote"]);
   const bodyKeys = Object.keys(body);
   const isPlanningOnly =
     bodyKeys.length > 0 && bodyKeys.every((k) => PLANNING_KEYS.has(k));
@@ -167,10 +162,8 @@ export async function PATCH(
       isPregnant: true,
       damId: true,
       eartag: true,
-      keepForBreeding: true,
-      markedForSale: true,
-      breedingNote: true,
-      saleCycleNote: true,
+      herdPlan: true,
+      herdPlanNote: true,
     },
   });
 
@@ -188,62 +181,44 @@ export async function PATCH(
     );
   }
 
-  // Planning flags: mutual exclusion (keep for breeding vs next sale cycle)
-  let nextKeepForBreeding: boolean | undefined;
-  let nextMarkedForSale: boolean | undefined;
-  let nextBreedingNote: string | null | undefined;
-  let nextSaleCycleNote: string | null | undefined;
-  let nextKeepForBreedingAt: Date | null | undefined;
-  let nextMarkedForSaleAt: Date | null | undefined;
+  const { isHerdPlan } = await import("@/lib/herd-plan");
+  let nextHerdPlan: "EXCLUDED" | "KEEP_BREEDING" | "SELL_NEXT_CYCLE" | undefined;
+  let nextHerdPlanNote: string | null | undefined;
+  let nextHerdPlanAt: Date | null | undefined;
 
-  if (body.keepForBreeding !== undefined || body.markedForSale !== undefined) {
+  if (body.herdPlan !== undefined) {
     if (previous && (previous.status === "SOLD" || previous.status === "DECEASED")) {
       return NextResponse.json(
-        { error: "Cannot change planning flags on a sold or deceased animal" },
+        { error: "Cannot change herd plan on a sold or deceased animal" },
         { status: 400 }
       );
     }
-    nextKeepForBreeding =
-      body.keepForBreeding !== undefined
-        ? Boolean(body.keepForBreeding)
-        : previous?.keepForBreeding;
-    nextMarkedForSale =
-      body.markedForSale !== undefined
-        ? Boolean(body.markedForSale)
-        : previous?.markedForSale;
-
-    if (nextKeepForBreeding && nextMarkedForSale) {
-      // Last write wins based on which field was sent
-      if (body.keepForBreeding === true) nextMarkedForSale = false;
-      else if (body.markedForSale === true) nextKeepForBreeding = false;
+    if (!isHerdPlan(body.herdPlan)) {
+      return NextResponse.json(
+        { error: "Invalid herd plan (EXCLUDED, KEEP_BREEDING, or SELL_NEXT_CYCLE)" },
+        { status: 400 }
+      );
     }
-
-    if (nextKeepForBreeding && !previous?.keepForBreeding) {
-      nextKeepForBreedingAt = new Date();
-    } else if (nextKeepForBreeding === false) {
-      nextKeepForBreedingAt = null;
-      nextBreedingNote = null;
-    }
-
-    if (nextMarkedForSale && !previous?.markedForSale) {
-      nextMarkedForSaleAt = new Date();
-    } else if (nextMarkedForSale === false) {
-      nextMarkedForSaleAt = null;
-      nextSaleCycleNote = null;
+    nextHerdPlan = body.herdPlan;
+    if (nextHerdPlan === "EXCLUDED") {
+      nextHerdPlanAt = null;
+      nextHerdPlanNote = null;
+    } else if (nextHerdPlan !== previous?.herdPlan) {
+      nextHerdPlanAt = new Date();
     }
   }
 
-  if (body.breedingNote !== undefined) {
-    nextBreedingNote =
-      body.breedingNote === null || body.breedingNote === ""
+  if (body.herdPlanNote !== undefined) {
+    nextHerdPlanNote =
+      body.herdPlanNote === null || body.herdPlanNote === ""
         ? null
-        : String(body.breedingNote).trim();
-  }
-  if (body.saleCycleNote !== undefined) {
-    nextSaleCycleNote =
-      body.saleCycleNote === null || body.saleCycleNote === ""
-        ? null
-        : String(body.saleCycleNote).trim();
+        : String(body.herdPlanNote).trim();
+    if (nextHerdPlan === "EXCLUDED" || previous?.herdPlan === "EXCLUDED") {
+      // notes only apply when a plan is active
+      if ((nextHerdPlan ?? previous?.herdPlan) === "EXCLUDED") {
+        nextHerdPlanNote = null;
+      }
+    }
   }
 
   const nextSex = body.sex as string | undefined;
@@ -281,12 +256,9 @@ export async function PATCH(
       sex: body.sex,
       isCastrated: nextCastrated,
       isPregnant: nextPregnant,
-      keepForBreeding: nextKeepForBreeding,
-      markedForSale: nextMarkedForSale,
-      breedingNote: nextBreedingNote,
-      saleCycleNote: nextSaleCycleNote,
-      keepForBreedingAt: nextKeepForBreedingAt,
-      markedForSaleAt: nextMarkedForSaleAt,
+      herdPlan: nextHerdPlan,
+      herdPlanNote: nextHerdPlanNote,
+      herdPlanAt: nextHerdPlanAt,
       dob,
       ageMonths:
         dob instanceof Date
@@ -377,40 +349,23 @@ export async function PATCH(
 
   if (
     previous &&
-    nextKeepForBreeding !== undefined &&
-    nextKeepForBreeding !== previous.keepForBreeding
+    nextHerdPlan !== undefined &&
+    nextHerdPlan !== previous.herdPlan
   ) {
+    const titles: Record<string, string> = {
+      EXCLUDED: "Herd plan cleared (excluded)",
+      KEEP_BREEDING: "Marked keep for breeding",
+      SELL_NEXT_CYCLE: "Marked sell next cycle",
+    };
     await logAnimalEvent({
       animalId: id,
       type: "STATUS_CHANGE",
-      title: nextKeepForBreeding
-        ? "Marked keep for breeding"
-        : "Cleared keep for breeding",
-      description: nextBreedingNote || animal.breedingNote || undefined,
+      title: titles[nextHerdPlan] || "Herd plan updated",
+      description: animal.herdPlanNote || undefined,
       recordedById: result.user.id,
       metadata: {
-        keepForBreeding: nextKeepForBreeding,
-        breedingNote: animal.breedingNote,
-      },
-    });
-  }
-
-  if (
-    previous &&
-    nextMarkedForSale !== undefined &&
-    nextMarkedForSale !== previous.markedForSale
-  ) {
-    await logAnimalEvent({
-      animalId: id,
-      type: "STATUS_CHANGE",
-      title: nextMarkedForSale
-        ? "Marked for next sale cycle"
-        : "Cleared sale-cycle mark",
-      description: nextSaleCycleNote || animal.saleCycleNote || undefined,
-      recordedById: result.user.id,
-      metadata: {
-        markedForSale: nextMarkedForSale,
-        saleCycleNote: animal.saleCycleNote,
+        herdPlan: nextHerdPlan,
+        herdPlanNote: animal.herdPlanNote,
       },
     });
   }

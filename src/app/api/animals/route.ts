@@ -27,8 +27,7 @@ export async function GET(req: NextRequest) {
   const breed = searchParams.get("breed");
   const castrated = searchParams.get("castrated");
   const pregnant = searchParams.get("pregnant");
-  const keepForBreeding = searchParams.get("keepForBreeding");
-  const markedForSale = searchParams.get("markedForSale");
+  const herdPlan = searchParams.get("herdPlan");
   const ageGroup = searchParams.get("ageGroup");
   const ageMinRaw = searchParams.get("ageMinMonths");
   const ageMaxRaw = searchParams.get("ageMaxMonths");
@@ -97,16 +96,15 @@ export async function GET(req: NextRequest) {
       : pregnant === "false"
         ? { sex: "FEMALE" as Sex, isPregnant: false }
         : {}),
-    ...(keepForBreeding === "true"
-      ? { keepForBreeding: true }
-      : keepForBreeding === "false"
-        ? { keepForBreeding: false }
-        : {}),
-    ...(markedForSale === "true"
-      ? { markedForSale: true }
-      : markedForSale === "false"
-        ? { markedForSale: false }
-        : {}),
+    ...(herdPlan &&
+    ["EXCLUDED", "KEEP_BREEDING", "SELL_NEXT_CYCLE"].includes(herdPlan)
+      ? {
+          herdPlan: herdPlan as
+            | "EXCLUDED"
+            | "KEEP_BREEDING"
+            | "SELL_NEXT_CYCLE",
+        }
+      : {}),
     AND: [
       ...(search
         ? [

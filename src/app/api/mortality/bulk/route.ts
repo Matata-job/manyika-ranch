@@ -148,7 +148,12 @@ export async function POST(req: NextRequest) {
 
     await tx.animal.updateMany({
       where: { id: { in: animals.map((a) => a.id) } },
-      data: { status: "DECEASED" },
+      data: {
+        status: "DECEASED",
+        herdPlan: "EXCLUDED",
+        herdPlanNote: null,
+        herdPlanAt: null,
+      },
     });
   });
 

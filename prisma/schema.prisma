@@ -32,6 +32,13 @@ enum AnimalStatus {
   QUARANTINE
 }
 
+/** Herd planning: default excluded; keep for breeding; or sell next cycle. */
+enum HerdPlan {
+  EXCLUDED
+  KEEP_BREEDING
+  SELL_NEXT_CYCLE
+}
+
 enum AcquisitionType {
   BORN_ON_FARM
   PURCHASED
@@ -283,14 +290,10 @@ model Animal {
   sex              Sex
   isCastrated      Boolean         @default(false)
   isPregnant       Boolean         @default(false)
-  /** Preferred breeding stock (good genetics to keep) */
-  keepForBreeding  Boolean         @default(false)
-  /** Priority for next selling / remove cycle */
-  markedForSale    Boolean         @default(false)
-  breedingNote     String?
-  saleCycleNote    String?
-  keepForBreedingAt DateTime?
-  markedForSaleAt  DateTime?
+  /** EXCLUDED (default), KEEP_BREEDING, or SELL_NEXT_CYCLE */
+  herdPlan         HerdPlan        @default(EXCLUDED)
+  herdPlanNote     String?
+  herdPlanAt       DateTime?
   dob              DateTime?
   ageMonths        Int?
   ownerId          String
@@ -331,8 +334,7 @@ model Animal {
   @@index([campId])
   @@index([ownerId])
   @@index([status])
-  @@index([keepForBreeding])
-  @@index([markedForSale])
+  @@index([herdPlan])
 }
 
 model AnimalPhoto {

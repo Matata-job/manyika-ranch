@@ -32,7 +32,8 @@ interface AnimalRow {
   breed: string;
   sex: string;
   status: string;
-  markedForSale?: boolean;
+  herdPlan?: "EXCLUDED" | "KEEP_BREEDING" | "SELL_NEXT_CYCLE";
+  herdPlanNote?: string | null;
   camp?: { id: string; name: string };
 }
 
@@ -45,12 +46,14 @@ interface Buyer {
 function BulkSalePageContent() {
   const t = useT();
   const searchParams = useSearchParams();
-  const preferMarked = searchParams.get("markedForSale") === "1";
+  const preferSellNext =
+    searchParams.get("herdPlan") === "SELL_NEXT_CYCLE" ||
+    searchParams.get("markedForSale") === "1";
   const [camps, setCamps] = useState<Camp[]>([]);
   const [buyers, setBuyers] = useState<Buyer[]>([]);
   const [campId, setCampId] = useState("");
   const [sex, setSex] = useState("all");
-  const [onlyMarked, setOnlyMarked] = useState(preferMarked);
+  const [onlyMarked, setOnlyMarked] = useState(preferSellNext);
   const [animals, setAnimals] = useState<AnimalRow[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loadingAnimals, setLoadingAnimals] = useState(false);
@@ -77,8 +80,8 @@ function BulkSalePageContent() {
   } | null>(null);
 
   useEffect(() => {
-    setOnlyMarked(preferMarked);
-  }, [preferMarked]);
+    setOnlyMarked(preferSellNext);
+  }, [preferSellNext]);
 
   useEffect(() => {
     fetch("/api/camps")
@@ -101,7 +104,7 @@ function BulkSalePageContent() {
     });
     if (nextCampId) params.set("camp", nextCampId);
     if (nextSex !== "all") params.set("sex", nextSex);
-    if (markedOnly) params.set("markedForSale", "true");
+    if (markedOnly) params.set("herdPlan", "SELL_NEXT_CYCLE");
     const res = await fetch(`/api/animals?${params}`);
     const data = res.ok ? await res.json() : null;
     const list: AnimalRow[] = parseAnimalsList<AnimalRow>(data).filter(
@@ -365,9 +368,9 @@ function BulkSalePageContent() {
                       {a.breed} · {a.sex}
                       {a.camp?.name ? ` · ${a.camp.name}` : ""}
                     </span>
-                    {a.markedForSale && (
+                    {a.herdPlan === "SELL_NEXT_CYCLE" && (
                       <Badge variant="warning" className="ml-auto shrink-0">
-                        {t("markedForSale")}
+                        {t("herdPlanSellNextCycle")}
                       </Badge>
                     )}
                   </label>

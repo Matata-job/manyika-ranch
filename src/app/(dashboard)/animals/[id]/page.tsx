@@ -25,6 +25,12 @@ import type { TranslationKey } from "@/lib/i18n/translations";
 import { EartagBadge, TagColorSwatch } from "@/components/eartag-badge";
 import { TAG_COLORS, resolveTagColor, tagColorLabel } from "@/lib/tag-color";
 import { parseAnimalsList } from "@/lib/animals-api";
+import {
+  HERD_PLANS,
+  herdPlanBadgeVariant,
+  herdPlanLabelKey,
+  type HerdPlanValue,
+} from "@/lib/herd-plan";
 import { PhotoSourcePicker } from "@/components/photo-source-picker";
 import { useObjectUrls } from "@/hooks/use-object-urls";
 import { uploadPhotoFile } from "@/lib/client/upload-photo";
@@ -73,10 +79,9 @@ interface AnimalDetail {
   sex: string;
   isCastrated?: boolean;
   isPregnant?: boolean;
-  keepForBreeding?: boolean;
-  markedForSale?: boolean;
-  breedingNote?: string | null;
-  saleCycleNote?: string | null;
+  herdPlan?: "EXCLUDED" | "KEEP_BREEDING" | "SELL_NEXT_CYCLE";
+  herdPlanNote?: string | null;
+  herdPlanAt?: string | null;
   dob: string | null;
   ageMonths: number | null;
   status: string;
@@ -478,31 +483,24 @@ export default function AnimalDetailPage() {
     loadAnimal();
   }
 
-  async function togglePlanningFlag(
-    field: "keepForBreeding" | "markedForSale",
-    value: boolean
+  async function setHerdPlan(
+    plan: "EXCLUDED" | "KEEP_BREEDING" | "SELL_NEXT_CYCLE"
   ) {
     if (!animal) return;
-    if (value && field === "keepForBreeding" && animal.markedForSale) {
-      if (!window.confirm(t("confirmClearSaleForBreeding"))) return;
-    }
-    if (value && field === "markedForSale" && animal.keepForBreeding) {
-      if (!window.confirm(t("confirmClearBreedingForSale"))) return;
-    }
     setStatusSaving(true);
-    const noteKey = field === "keepForBreeding" ? "breedingNote" : "saleCycleNote";
-    let note: string | undefined;
-    if (value) {
-      const entered = window.prompt(t("optionalPlanningNote"), "") ?? "";
-      note = entered.trim() || undefined;
+    let note: string | null | undefined;
+    if (plan !== "EXCLUDED") {
+      const entered =
+        window.prompt(t("optionalPlanningNote"), animal.herdPlanNote || "") ??
+        "";
+      note = entered.trim() || null;
+    } else {
+      note = null;
     }
-    const body: Record<string, unknown> = { [field]: value };
-    if (note !== undefined) body[noteKey] = note;
-    if (!value) body[noteKey] = null;
     const res = await fetch(`/api/animals/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ herdPlan: plan, herdPlanNote: note }),
     });
     setStatusSaving(false);
     if (!res.ok) {
@@ -851,11 +849,10 @@ export default function AnimalDetailPage() {
             </Badge>
             {animal.sex === "MALE" && animal.isCastrated && <Badge variant="outline">{t("castrated")}</Badge>}
             {animal.sex === "FEMALE" && animal.isPregnant && <Badge variant="warning">{t("pregnant")}</Badge>}
-            {animal.keepForBreeding && (
-              <Badge variant="success">{t("keepForBreeding")}</Badge>
-            )}
-            {animal.markedForSale && (
-              <Badge variant="warning">{t("markedForSale")}</Badge>
+            {animal.herdPlan && animal.herdPlan !== "EXCLUDED" && (
+              <Badge variant={herdPlanBadgeVariant(animal.herdPlan)}>
+                {t(herdPlanLabelKey(animal.herdPlan))}
+              </Badge>
             )}
             <Badge variant={isDeceased ? "destructive" : isSold ? "warning" : "secondary"}>{animal.status}</Badge>
             {animal.deathRecord?.isCulling && <Badge variant="warning">{t("causeCulling")}</Badge>}
@@ -941,46 +938,33 @@ export default function AnimalDetailPage() {
               </div>
             )}
             {canUpdateRecords && !isClosed && (
-              <>
-                <div>
-                  <span className="text-muted-foreground">{t("keepForBreeding")}</span>
-                  <label className="flex items-center gap-2 mt-1 text-sm font-medium">
-                    <input
-                      type="checkbox"
-                      checked={!!animal.keepForBreeding}
-                      disabled={statusSaving}
-                      onChange={(e) =>
-                        togglePlanningFlag("keepForBreeding", e.target.checked)
-                      }
-                    />
-                    {animal.keepForBreeding ? t("yes") : t("no")}
-                  </label>
-                  {animal.breedingNote && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {animal.breedingNote}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">{t("markedForSale")}</span>
-                  <label className="flex items-center gap-2 mt-1 text-sm font-medium">
-                    <input
-                      type="checkbox"
-                      checked={!!animal.markedForSale}
-                      disabled={statusSaving}
-                      onChange={(e) =>
-                        togglePlanningFlag("markedForSale", e.target.checked)
-                      }
-                    />
-                    {animal.markedForSale ? t("yes") : t("no")}
-                  </label>
-                  {animal.saleCycleNote && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {animal.saleCycleNote}
-                    </p>
-                  )}
-                </div>
-              </>
+              <div className="sm:col-span-2 space-y-2">
+                <span className="text-muted-foreground">{t("herdPlan")}</span>
+                <Select
+                  value={animal.herdPlan || "EXCLUDED"}
+                  onValueChange={(v) => setHerdPlan(v as HerdPlanValue)}
+                  disabled={statusSaving}
+                >
+                  <SelectTrigger className="max-w-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {HERD_PLANS.map((plan) => (
+                      <SelectItem key={plan} value={plan}>
+                        {t(herdPlanLabelKey(plan))}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {t("herdPlanHelp")}
+                </p>
+                {animal.herdPlanNote && animal.herdPlan !== "EXCLUDED" && (
+                  <p className="text-xs text-muted-foreground">
+                    {animal.herdPlanNote}
+                  </p>
+                )}
+              </div>
             )}
           </div>
         </div>

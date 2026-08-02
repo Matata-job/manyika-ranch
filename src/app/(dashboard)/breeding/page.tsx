@@ -32,10 +32,8 @@ export default function BreedingPage() {
       eartag: string;
       sex: string;
       breed?: string;
-      keepForBreeding?: boolean;
-      markedForSale?: boolean;
-      breedingNote?: string | null;
-      saleCycleNote?: string | null;
+      herdPlan?: "EXCLUDED" | "KEEP_BREEDING" | "SELL_NEXT_CYCLE";
+      herdPlanNote?: string | null;
       isCastrated?: boolean;
       camp?: { name: string };
     }[]
@@ -121,8 +119,10 @@ export default function BreedingPage() {
 
   const females = animals.filter((a) => a.sex === "FEMALE");
   const males = animals.filter((a) => a.sex === "MALE");
-  const keepBreeding = animals.filter((a) => a.keepForBreeding);
-  const removeCandidates = animals.filter((a) => a.markedForSale);
+  const keepBreeding = animals.filter((a) => a.herdPlan === "KEEP_BREEDING");
+  const removeCandidates = animals.filter(
+    (a) => a.herdPlan === "SELL_NEXT_CYCLE"
+  );
 
   return (
     <div className="space-y-6">
@@ -173,10 +173,10 @@ export default function BreedingPage() {
                         {a.breed} · {a.sex}
                         {a.isCastrated ? ` · ${t("castrated")}` : ""}
                         {a.camp?.name ? ` · ${a.camp.name}` : ""}
-                        {a.breedingNote ? ` · ${a.breedingNote}` : ""}
+                        {a.herdPlanNote ? ` · ${a.herdPlanNote}` : ""}
                       </p>
                     </div>
-                    <Badge variant="success">{t("keepForBreeding")}</Badge>
+                    <Badge variant="success">{t("herdPlanKeepBreeding")}</Badge>
                   </div>
                 ))}
               </div>
@@ -213,10 +213,10 @@ export default function BreedingPage() {
                       <p className="text-sm text-muted-foreground truncate">
                         {a.breed} · {a.sex}
                         {a.camp?.name ? ` · ${a.camp.name}` : ""}
-                        {a.saleCycleNote ? ` · ${a.saleCycleNote}` : ""}
+                        {a.herdPlanNote ? ` · ${a.herdPlanNote}` : ""}
                       </p>
                     </div>
-                    <Badge variant="warning">{t("markedForSale")}</Badge>
+                    <Badge variant="warning">{t("herdPlanSellNextCycle")}</Badge>
                   </div>
                 ))}
               </div>
@@ -245,7 +245,8 @@ export default function BreedingPage() {
                     {females.map((a) => (
                       <SelectItem key={a.id} value={a.id}>
                         {a.eartag}
-                        {a.keepForBreeding ? ` ★` : ""}
+                        {a.herdPlan === "KEEP_BREEDING" ? ` ★` : ""}
+                        {a.herdPlan === "SELL_NEXT_CYCLE" ? ` ⚠` : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -264,7 +265,8 @@ export default function BreedingPage() {
                     {males.map((a) => (
                       <SelectItem key={a.id} value={a.id}>
                         {a.eartag}
-                        {a.keepForBreeding ? ` ★` : ""}
+                        {a.herdPlan === "KEEP_BREEDING" ? ` ★` : ""}
+                        {a.herdPlan === "SELL_NEXT_CYCLE" ? ` ⚠` : ""}
                         {a.isCastrated ? ` (${t("castrated")})` : ""}
                       </SelectItem>
                     ))}
