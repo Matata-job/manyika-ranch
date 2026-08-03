@@ -43,7 +43,6 @@ export default function NewCampPage() {
     name: "",
     code: "",
     sizeAcres: "",
-    estimatedLive: "",
     latitude: "",
     longitude: "",
     waterSources: "",
@@ -74,7 +73,6 @@ export default function NewCampPage() {
         name: form.name,
         code: form.code.trim() || null,
         sizeAcres: form.sizeAcres || null,
-        estimatedLive: form.estimatedLive || null,
         latitude: form.latitude || null,
         longitude: form.longitude || null,
         waterSources: form.waterSources || null,
@@ -170,24 +168,6 @@ export default function NewCampPage() {
                 onChange={(e) => setForm({ ...form, sizeAcres: e.target.value })}
                 placeholder="e.g. 120"
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="estimatedLive">{t("estimatedLive")}</Label>
-              <Input
-                id="estimatedLive"
-                type="number"
-                min={0}
-                step={1}
-                inputMode="numeric"
-                value={form.estimatedLive}
-                onChange={(e) =>
-                  setForm({ ...form, estimatedLive: e.target.value })
-                }
-                placeholder="e.g. 19"
-              />
-              <p className="text-sm text-muted-foreground">
-                {t("estimatedLiveHelp")}
-              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="waterSources">{t("waterSources")}</Label>

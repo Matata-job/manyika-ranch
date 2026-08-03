@@ -10,14 +10,6 @@ function parseOptionalFloat(value: unknown): number | null | undefined {
   return Number.isFinite(n) ? n : null;
 }
 
-function parseOptionalNonNegInt(value: unknown): number | null | undefined {
-  if (value === undefined) return undefined;
-  if (value === null || value === "") return null;
-  const n = parseInt(String(value), 10);
-  if (!Number.isFinite(n) || n < 0) return null;
-  return n;
-}
-
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -126,9 +118,6 @@ export async function PATCH(
   if (body.latitude !== undefined) data.latitude = parseOptionalFloat(body.latitude);
   if (body.longitude !== undefined) data.longitude = parseOptionalFloat(body.longitude);
   if (body.sizeAcres !== undefined) data.sizeAcres = parseOptionalFloat(body.sizeAcres);
-  if (body.estimatedLive !== undefined) {
-    data.estimatedLive = parseOptionalNonNegInt(body.estimatedLive);
-  }
   if (body.logoUrl !== undefined) data.logoUrl = body.logoUrl?.trim() || null;
   if (body.waterSources !== undefined) {
     data.waterSources = body.waterSources?.trim() || null;

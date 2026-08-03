@@ -84,32 +84,7 @@ export default async function CampsPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <p className="text-2xl font-bold">
-                    {camp._count.animals}{" "}
-                    {(camp.estimatedLive != null
-                      ? t("taggedAnimals")
-                      : t("animalsTitle")
-                    ).toLowerCase()}
-                  </p>
-                  {camp.estimatedLive != null &&
-                    camp.estimatedLive > camp._count.animals && (
-                      <p className="text-sm text-muted-foreground tabular-nums">
-                        {t("campHerdSummary", {
-                          tagged: camp._count.animals,
-                          untagged: Math.max(
-                            0,
-                            camp.estimatedLive - camp._count.animals
-                          ),
-                          estimated: camp.estimatedLive,
-                        })}
-                      </p>
-                    )}
-                  {camp.estimatedLive != null &&
-                    camp.estimatedLive <= camp._count.animals && (
-                      <p className="text-sm text-muted-foreground tabular-nums">
-                        {t("estimatedLiveShort", { n: camp.estimatedLive })}
-                      </p>
-                    )}
+                  <p className="text-2xl font-bold">{camp._count.animals} {t("animalsTitle").toLowerCase()}</p>
                   {camp.tagColor && (
                     <TagColorSwatch color={camp.tagColor} locale={locale} />
                   )}

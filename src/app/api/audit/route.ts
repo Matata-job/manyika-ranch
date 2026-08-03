@@ -29,7 +29,6 @@ const FIELD_LABELS: Record<string, string> = {
   code: "Camp ID",
   logoUrl: "Logo",
   sizeAcres: "Acres",
-  estimatedLive: "Estimated live",
   latitude: "Latitude",
   longitude: "Longitude",
   waterSources: "Water sources",
