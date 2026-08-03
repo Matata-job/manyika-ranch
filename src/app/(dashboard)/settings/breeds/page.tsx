@@ -204,15 +204,15 @@ export default function BreedsPage() {
       {breeds.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t("noBreeds")}</p>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-4">
           {breeds.map((b) => (
             <div
               key={b.id}
-              className="flex flex-col items-center gap-2 rounded-xl border bg-card p-3 text-center"
+              className="flex flex-col gap-2 rounded-xl border bg-card overflow-hidden"
             >
               <div className="relative">
                 <label
-                  className={`relative block h-20 w-20 overflow-hidden rounded-full border bg-muted ${
+                  className={`relative block aspect-square w-full overflow-hidden bg-muted ${
                     updatingId === b.id
                       ? "pointer-events-none opacity-60"
                       : "cursor-pointer"
@@ -226,7 +226,7 @@ export default function BreedsPage() {
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <span className="flex h-full w-full items-center justify-center text-lg font-semibold text-muted-foreground">
+                    <span className="flex h-full w-full items-center justify-center text-3xl font-semibold text-muted-foreground">
                       {b.name.slice(0, 2).toUpperCase()}
                     </span>
                   )}
@@ -247,14 +247,14 @@ export default function BreedsPage() {
                     type="button"
                     disabled={updatingId === b.id}
                     onClick={() => void removeBreedPhoto(b.id)}
-                    className="absolute -right-1 -top-1 rounded-full bg-black/60 p-0.5 text-white"
+                    className="absolute right-2 top-2 rounded-md bg-black/60 p-1 text-white"
                     aria-label={t("removeBreedPhoto")}
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>
-              <p className="text-sm font-medium leading-tight line-clamp-2 w-full">
+              <p className="px-3 pb-3 text-base font-semibold leading-tight line-clamp-2">
                 {b.name}
               </p>
             </div>
