@@ -213,7 +213,7 @@ const en = {
   addAnimal: "Add Animal",
   addCamp: "Add Camp",
   registerAnimal: "Register animal",
-  registerAnimalSubtitle: "Choose sex and source for each animal. Camp and breed are remembered when adding another.",
+  registerAnimalSubtitle: "Choose sex and source for each animal. From a camp page, camp, breed, and next eartag are filled for you.",
   animalAddedTitle: "Animal added successfully",
   animalAddedMessage:
     "{eartag} has been registered. Would you like to add another animal?",
@@ -232,6 +232,7 @@ const en = {
   sectionParentsHelp: "Sire and dam for pedigree. Useful for calves born on the farm.",
   sectionPhotosNotes: "Photos & notes (optional)",
   sectionPhotosNotesHelp: "Pictures, markings, and any extra detail.",
+  sectionNotesOptional: "Notes & markings (optional)",
   lifecycleCalf: "Calf",
   lifecycleHeifer: "Heifer",
   lifecycleCow: "Cow",
@@ -1229,7 +1230,7 @@ const sw: Dict = {
   addAnimal: "Ongeza mnyama",
   addCamp: "Ongeza kambi",
   registerAnimal: "Sajili mnyama",
-  registerAnimalSubtitle: "Chagua jinsia na chanzo kwa kila mnyama. Kambi na aina hukumbukwa unapoongeza mwingine.",
+  registerAnimalSubtitle: "Chagua jinsia na chanzo kwa kila mnyama. Kutoka ukurasa wa kambi, kambi, aina, na eartag inayofuata hujazwa.",
   animalAddedTitle: "Mnyama amesajiliwa",
   animalAddedMessage:
     "{eartag} amesajiliwa. Ungependa kuongeza mnyama mwingine?",
@@ -1248,6 +1249,7 @@ const sw: Dict = {
   sectionParentsHelp: "Baba na mama kwa nasaba. Muhimu kwa ndama waliozaliwa shambani.",
   sectionPhotosNotes: "Picha na maelezo (si lazima)",
   sectionPhotosNotesHelp: "Picha, alama, na maelezo mengine.",
+  sectionNotesOptional: "Maelezo na alama (si lazima)",
   lifecycleCalf: "Ndama",
   lifecycleHeifer: "Ndama jike",
   lifecycleCow: "Ng'ombe",

@@ -254,15 +254,14 @@ function NewAnimalPageContent() {
 
     if (!defaultsApplied.current) {
       defaultsApplied.current = true;
-      const remembered = loadRememberedDefaults();
-      setForm((prev) => ({
-        ...prev,
-        breed: remembered?.breed || prev.breed,
-        // Camp from URL always wins when registering from a camp page
-        campId: campFromQuery || remembered?.campId || prev.campId,
-      }));
-      // Remember this camp immediately when opened from a camp page
+      // Prefill camp / breed / next eartag only when opened from a camp page
       if (campFromQuery) {
+        const remembered = loadRememberedDefaults();
+        setForm((prev) => ({
+          ...prev,
+          breed: remembered?.breed || prev.breed,
+          campId: campFromQuery,
+        }));
         saveRememberedDefaults({
           campId: campFromQuery,
           breed: remembered?.breed || "",
@@ -296,14 +295,15 @@ function NewAnimalPageContent() {
 
   useEffect(() => {
     if (campPrefillDone.current || camps.length === 0) return;
-    const campId = campFromQuery || form.campId;
-    if (!campId || !camps.some((c) => c.id === campId)) return;
+    // Auto-suggest next eartag only when registering from a camp page
+    if (!campFromQuery) return;
+    if (!camps.some((c) => c.id === campFromQuery)) return;
     campPrefillDone.current = true;
-    void applyCampEartagSuggestion(campId, {
-      forceEartag: !form.eartag.trim(),
+    void applyCampEartagSuggestion(campFromQuery, {
+      forceEartag: true,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once lookups ready
-  }, [campFromQuery, camps, form.campId]);
+  }, [campFromQuery, camps]);
 
   // Ensure camp from URL is available for the locked name label even if not in list yet
   useEffect(() => {
@@ -348,6 +348,8 @@ function NewAnimalPageContent() {
   }
 
   function persistDefaultsFromForm() {
+    // Only remember camp/breed for camp-page registration flows
+    if (!campFromQuery) return;
     saveRememberedDefaults({
       breed: form.breed,
       campId: form.campId,
@@ -355,8 +357,9 @@ function NewAnimalPageContent() {
   }
 
   async function prepareNextAnimal(justSavedEartag: string) {
-    const campId = form.campId;
-    const breed = form.breed;
+    const fromCamp = Boolean(campFromQuery);
+    const campId = fromCamp ? form.campId : "";
+    const breed = fromCamp ? form.breed : "";
     setPhotoFiles([]);
     setShowMore(false);
     setEartagManual(false);
@@ -383,8 +386,8 @@ function NewAnimalPageContent() {
     if (ranchOwner) {
       setForm((prev) => ({ ...prev, ownerId: ranchOwner.id }));
     }
-    setLastEartag(justSavedEartag);
-    if (campId) {
+    setLastEartag(fromCamp ? justSavedEartag : null);
+    if (fromCamp && campId) {
       await applyCampEartagSuggestion(campId, {
         forceEartag: true,
         extraEartags: [justSavedEartag],
@@ -958,6 +961,44 @@ function NewAnimalPageContent() {
                 </SelectContent>
               </Select>
             </Field>
+
+            <Field
+              label={t("photos")}
+              hint={t("photosHelperText")}
+              className="sm:col-span-2"
+            >
+              <PhotoSourcePicker
+                size="default"
+                onFiles={(files) =>
+                  setPhotoFiles((prev) => [...prev, ...files])
+                }
+              />
+              {photoFiles.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {photoFiles.map((file, i) => (
+                    <div
+                      key={`${file.name}-${file.size}-${file.lastModified}`}
+                      className="group relative h-24 w-24 overflow-hidden rounded-lg border bg-muted"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={photoPreviewUrls[i]}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(i)}
+                        className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white sm:opacity-0 sm:group-hover:opacity-100"
+                        aria-label={t("cancel")}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Field>
           </CardContent>
         </Card>
 
@@ -968,7 +1009,7 @@ function NewAnimalPageContent() {
               className="flex w-full items-center justify-between py-1 text-left"
               onClick={() => setShowMore(!showMore)}
             >
-              <span className="text-sm font-medium">{t("sectionPhotosNotes")}</span>
+              <span className="text-sm font-medium">{t("sectionNotesOptional")}</span>
               {showMore ? (
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               ) : (
@@ -977,37 +1018,6 @@ function NewAnimalPageContent() {
             </button>
             {showMore && (
               <div className="mt-4 space-y-4 border-t pt-4">
-                <Field label={t("photos")} hint={t("photosHelperText")}>
-                  <PhotoSourcePicker
-                    onFiles={(files) =>
-                      setPhotoFiles((prev) => [...prev, ...files])
-                    }
-                  />
-                  {photoFiles.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {photoFiles.map((file, i) => (
-                        <div
-                          key={`${file.name}-${file.size}-${file.lastModified}`}
-                          className="group relative h-20 w-20 overflow-hidden rounded-lg bg-muted"
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={photoPreviewUrls[i]}
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removePhoto(i)}
-                            className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white opacity-0 group-hover:opacity-100"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </Field>
                 <Field label={t("colorMarkings")}>
                   <Input
                     value={form.colorMarkings}
