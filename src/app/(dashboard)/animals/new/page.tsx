@@ -27,20 +27,11 @@ import { rememberCampEartag, suggestNextEartag } from "@/lib/eartag";
 import { uploadPhotoFile } from "@/lib/client/upload-photo";
 
 const LOOKUPS_CACHE_KEY = "register-lookups-v1";
-const DEFAULTS_CACHE_KEY = "register-animal-defaults-v1";
+const DEFAULTS_CACHE_KEY = "register-animal-defaults-v2";
 
 type RememberedDefaults = {
   breed: string;
-  sex: string;
-  isCastrated: boolean;
-  isPregnant: boolean;
   campId: string;
-  ownerId: string;
-  sireId: string;
-  damId: string;
-  colorMarkings: string;
-  acquisitionType: string;
-  acquisitionDate: string;
 };
 
 function loadRememberedDefaults(): Partial<RememberedDefaults> | null {
@@ -261,16 +252,7 @@ function NewAnimalPageContent() {
         setForm((prev) => ({
           ...prev,
           breed: remembered.breed || prev.breed,
-          sex: remembered.sex || prev.sex,
-          isCastrated: Boolean(remembered.isCastrated),
-          isPregnant: Boolean(remembered.isPregnant),
           campId: campFromQuery || remembered.campId || prev.campId,
-          ownerId: remembered.ownerId || prev.ownerId,
-          sireId: remembered.sireId || prev.sireId,
-          damId: remembered.damId || prev.damId,
-          colorMarkings: remembered.colorMarkings || prev.colorMarkings,
-          acquisitionType: remembered.acquisitionType || prev.acquisitionType,
-          acquisitionDate: remembered.acquisitionDate || prev.acquisitionDate,
         }));
       }
     }
@@ -328,33 +310,39 @@ function NewAnimalPageContent() {
   function persistDefaultsFromForm() {
     saveRememberedDefaults({
       breed: form.breed,
-      sex: form.sex,
-      isCastrated: form.isCastrated,
-      isPregnant: form.isPregnant,
       campId: form.campId,
-      ownerId: form.ownerId,
-      sireId: form.sireId,
-      damId: form.damId,
-      colorMarkings: form.colorMarkings,
-      acquisitionType: form.acquisitionType,
-      acquisitionDate: form.acquisitionDate,
     });
   }
 
   async function prepareNextAnimal(justSavedEartag: string) {
     const campId = form.campId;
+    const breed = form.breed;
     setPhotoFiles([]);
     setShowMore(false);
     setEartagManual(false);
-    setForm((prev) => ({
-      ...prev,
+    setForm({
       eartag: "",
+      breed,
+      sex: "FEMALE",
+      isCastrated: false,
+      isPregnant: false,
       dob: "",
       ageYears: "",
       ageMonthsPart: "",
+      campId,
+      ownerId: "",
+      sireId: "",
+      damId: "",
+      colorMarkings: "",
       notes: "",
-      // Keep batch fields: camp, breed, sex, source, owner, parents, markings, acquisition date
-    }));
+      acquisitionType: "BORN_ON_FARM",
+      acquisitionDate: "",
+    });
+    // Re-apply ranch owner default if available
+    const ranchOwner = owners.find((u) => u.role === "OWNER");
+    if (ranchOwner) {
+      setForm((prev) => ({ ...prev, ownerId: ranchOwner.id }));
+    }
     setLastEartag(justSavedEartag);
     if (campId) {
       await applyCampEartagSuggestion(campId, {
@@ -478,7 +466,13 @@ function NewAnimalPageContent() {
 
   function onBackToListing() {
     setSuccess(null);
-    router.push("/animals");
+    // Came from a camp page → return to that camp’s animal list.
+    // Otherwise (home / animals / activities) → dashboard home.
+    if (campFromQuery) {
+      router.push(`/camps/${campFromQuery}`);
+      return;
+    }
+    router.push("/");
   }
 
   const males = animals.filter((a) => a.sex === "MALE");
@@ -505,11 +499,11 @@ function NewAnimalPageContent() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <Link
-            href="/animals"
+            href={campFromQuery ? `/camps/${campFromQuery}` : "/"}
             className="mb-3 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="mr-1 h-4 w-4" />
-            {t("navAnimals")}
+            {campFromQuery ? t("backToCampAnimals") : t("backToHome")}
           </Link>
           <h1 className="text-2xl font-bold tracking-tight text-primary">
             {t("registerAnimal")}
@@ -1003,7 +997,9 @@ function NewAnimalPageContent() {
                   onClick={onBackToListing}
                 >
                   <ArrowLeft className="mr-2 h-4 w-4" />
-                  {t("backToAnimalsListing")}
+                  {campFromQuery
+                    ? t("backToCampAnimals")
+                    : t("backToHome")}
                 </Button>
                 <Button
                   type="button"
