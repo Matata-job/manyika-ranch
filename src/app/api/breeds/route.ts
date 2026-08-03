@@ -40,6 +40,10 @@ export async function POST(req: NextRequest) {
       ranchId: result.user.ranchId,
       name: body.name.trim(),
       description: body.description?.trim() || null,
+      photoUrl:
+        typeof body.photoUrl === "string" && body.photoUrl.trim()
+          ? body.photoUrl.trim()
+          : null,
     },
   });
 

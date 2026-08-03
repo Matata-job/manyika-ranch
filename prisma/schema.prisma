@@ -387,6 +387,8 @@ model BreedCatalog {
   ranch       Ranch    @relation(fields: [ranchId], references: [id])
   name        String
   description String?
+  /** Optional reference photo for the breed. */
+  photoUrl    String?
   createdAt   DateTime @default(now())
 
   @@unique([ranchId, name])
