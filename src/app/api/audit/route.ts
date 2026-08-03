@@ -5,11 +5,14 @@ import type { Role } from "@prisma/client";
 
 const FIELD_LABELS: Record<string, string> = {
   eartag: "Eartag",
+  eartags: "Eartags",
   breed: "Breed",
   sex: "Sex",
   status: "Status",
   dob: "Date of birth",
   campId: "Camp",
+  campName: "Camp",
+  campCode: "Camp ID",
   ownerId: "Owner",
   sireId: "Sire",
   damId: "Dam",
@@ -23,6 +26,7 @@ const FIELD_LABELS: Record<string, string> = {
   isCastrated: "Castrated",
   isPregnant: "Pregnant",
   name: "Name",
+  code: "Camp ID",
   logoUrl: "Logo",
   sizeAcres: "Acres",
   latitude: "Latitude",
@@ -33,6 +37,10 @@ const FIELD_LABELS: Record<string, string> = {
   email: "Email",
   phone: "Phone",
   grazingFeePerAnimal: "Grazing fee / animal",
+  cause: "Cause",
+  isCulling: "Is culling",
+  disposalMethod: "Disposal",
+  count: "Count",
 };
 
 const ACQUISITION_LABELS: Record<string, string> = {
@@ -44,6 +52,14 @@ const ACQUISITION_LABELS: Record<string, string> = {
 const SEX_LABELS: Record<string, string> = {
   MALE: "Male",
   FEMALE: "Female",
+};
+
+/** Flags stored on delete/restore/death audits — rendered as clear phrases. */
+const FLAG_SUMMARIES: Record<string, string> = {
+  soft: "Soft deleted",
+  permanent: "Permanently deleted",
+  restore: "Restored from trash",
+  undoDeath: "Death record undone",
 };
 
 function isIdLike(value: unknown): value is string {
@@ -66,8 +82,23 @@ function formatScalar(key: string, value: unknown): string | null {
     const day = value.slice(0, 10);
     if (/^\d{4}-\d{2}-\d{2}$/.test(day)) return day;
   }
+  if (Array.isArray(value)) {
+    const items = value.map((v) => String(v)).filter(Boolean);
+    if (items.length === 0) return null;
+    if (items.length <= 8) return items.join(", ");
+    return `${items.slice(0, 8).join(", ")} (+${items.length - 8} more)`;
+  }
   if (typeof value === "object") return null;
   return String(value);
+}
+
+function campLabel(name?: string | null, code?: string | null): string | null {
+  const n = typeof name === "string" ? name.trim() : "";
+  const c = typeof code === "string" ? code.trim() : "";
+  if (n && c) return `${n} (${c})`;
+  if (n) return n;
+  if (c) return c;
+  return null;
 }
 
 function summarizeChanges(
@@ -81,25 +112,45 @@ function summarizeChanges(
   if (!changes || typeof changes !== "object") return "—";
 
   const parts: string[] = [];
+
+  for (const [flag, phrase] of Object.entries(FLAG_SUMMARIES)) {
+    if (changes[flag] === true) parts.push(phrase);
+  }
+
   for (const [key, raw] of Object.entries(changes)) {
     if (raw == null || raw === "") continue;
-    // Skip noisy / technical blobs
+    if (key in FLAG_SUMMARIES) continue;
+    // Skip noisy / technical blobs and identity fields shown in What column
     if (
-      ["photoUrls", "password", "passwordHash", "id", "createdAt", "updatedAt"].includes(
-        key
-      )
+      [
+        "photoUrls",
+        "password",
+        "passwordHash",
+        "id",
+        "createdAt",
+        "updatedAt",
+        "animalIds",
+        "eartag",
+        "name",
+        "code",
+      ].includes(key)
     ) {
       continue;
     }
 
-    const label = FIELD_LABELS[key] || key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
+    const label =
+      FIELD_LABELS[key] ||
+      key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
 
     let display: string | null = null;
     if (key === "campId" && typeof raw === "string") {
       display = lookups.camps.get(raw) || null;
     } else if ((key === "ownerId" || key === "userId") && typeof raw === "string") {
       display = lookups.users.get(raw) || null;
-    } else if ((key === "sireId" || key === "damId" || key === "animalId") && typeof raw === "string") {
+    } else if (
+      (key === "sireId" || key === "damId" || key === "animalId") &&
+      typeof raw === "string"
+    ) {
       display = lookups.animals.get(raw) || null;
     } else if (key === "logoUrl" || key === "photoUrl") {
       display = "Updated";
@@ -115,10 +166,59 @@ function summarizeChanges(
 
     if (!display) continue;
     parts.push(`${label}: ${display}`);
-    if (parts.length >= 6) break;
+    if (parts.length >= 8) break;
   }
 
   return parts.length > 0 ? parts.join(" · ") : "—";
+}
+
+function resolveEntityLabel(
+  type: string,
+  entityId: string,
+  changes: Record<string, unknown> | null,
+  animalMap: Map<string, string>,
+  campMap: Map<string, string>,
+  userMap: Map<string, string>
+): string {
+  const t = type.toLowerCase();
+
+  if (t.includes("animal")) {
+    if (changes?.eartag && typeof changes.eartag === "string" && changes.eartag.trim()) {
+      return changes.eartag.trim();
+    }
+    if (Array.isArray(changes?.eartags) && changes.eartags.length > 0) {
+      const tags = changes.eartags.map((v) => String(v)).filter(Boolean);
+      if (tags.length === 1) return tags[0];
+      if (tags.length > 1) return `${tags[0]} (+${tags.length - 1})`;
+    }
+    return animalMap.get(entityId) || "Deleted animal";
+  }
+
+  if (t.includes("camp")) {
+    const fromChanges = campLabel(
+      typeof changes?.name === "string" ? changes.name : null,
+      typeof changes?.code === "string" ? changes.code : null
+    );
+    if (fromChanges) return fromChanges;
+    return campMap.get(entityId) || "Deleted camp";
+  }
+
+  if (t.includes("user") || t.includes("owner")) {
+    if (changes?.name && typeof changes.name === "string") return changes.name;
+    return userMap.get(entityId) || "User";
+  }
+
+  if (t.includes("buyer")) {
+    if (changes?.name && typeof changes.name === "string") return changes.name;
+    return "Buyer";
+  }
+
+  if (t.includes("bulkmortality") && Array.isArray(changes?.eartags)) {
+    const tags = changes.eartags.map((v) => String(v)).filter(Boolean);
+    if (tags.length) return `${tags.length} animal${tags.length === 1 ? "" : "s"}`;
+  }
+
+  return entityId;
 }
 
 export async function GET(req: NextRequest) {
@@ -194,9 +294,9 @@ export async function GET(req: NextRequest) {
     campIds.size
       ? prisma.camp.findMany({
           where: { id: { in: [...campIds] } },
-          select: { id: true, name: true },
+          select: { id: true, name: true, code: true },
         })
-      : Promise.resolve([] as { id: string; name: string }[]),
+      : Promise.resolve([] as { id: string; name: string; code: string | null }[]),
     userIds.size
       ? prisma.user.findMany({
           where: { id: { in: [...userIds] } },
@@ -206,39 +306,31 @@ export async function GET(req: NextRequest) {
   ]);
 
   const animalMap = new Map(animals.map((a) => [a.id, a.eartag]));
-  const campMap = new Map(camps.map((c) => [c.id, c.name]));
+  const campMap = new Map(
+    camps.map((c) => [c.id, campLabel(c.name, c.code) || c.name])
+  );
   const userMap = new Map(users.map((u) => [u.id, u.name]));
   const lookups = { camps: campMap, users: userMap, animals: animalMap };
 
   const enriched = logs.map((log) => {
-    const type = log.entityType;
-    let entityLabel = log.entityId;
-    const t = type.toLowerCase();
-    if (t.includes("animal")) entityLabel = animalMap.get(log.entityId) || "Animal";
-    else if (t.includes("camp")) entityLabel = campMap.get(log.entityId) || "Camp";
-    else if (t.includes("user") || t.includes("owner"))
-      entityLabel = userMap.get(log.entityId) || "User";
-    else if (t.includes("buyer")) entityLabel = "Buyer";
-
     const changes =
       log.changes && typeof log.changes === "object"
         ? (log.changes as Record<string, unknown>)
         : null;
-
-    // Prefer eartag from changes when entity was just created/updated
-    if (t.includes("animal") && changes?.eartag && typeof changes.eartag === "string") {
-      entityLabel = changes.eartag;
-    }
-    if (t.includes("camp") && changes?.name && typeof changes.name === "string") {
-      entityLabel = changes.name;
-    }
 
     return {
       id: log.id,
       action: log.action,
       entityType: log.entityType,
       entityId: log.entityId,
-      entityLabel,
+      entityLabel: resolveEntityLabel(
+        log.entityType,
+        log.entityId,
+        changes,
+        animalMap,
+        campMap,
+        userMap
+      ),
       summary: summarizeChanges(changes, lookups),
       createdAt: log.createdAt,
       user: log.user,

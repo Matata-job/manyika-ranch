@@ -51,6 +51,7 @@ export async function POST(
 
   await createAuditLog(result.user.id, "UPDATE", "Animal", id, {
     undoDeath: true,
+    eartag: animal.eartag,
   });
 
   return NextResponse.json({ success: true, status: "ACTIVE" });

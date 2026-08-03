@@ -195,6 +195,7 @@ export async function POST(req: NextRequest) {
       isCulling,
       disposalMethod,
       count: animals.length,
+      eartags: animals.map((a) => a.eartag),
       animalIds: animals.map((a) => a.id),
       skipped: animalIds.length - animals.length,
     }

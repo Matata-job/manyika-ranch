@@ -399,6 +399,14 @@ export async function DELETE(
   const result = await requirePermission("deleteAnimal");
   if (!result.ok) return result.error;
 
+  const animal = await prisma.animal.findUnique({
+    where: { id },
+    select: { eartag: true, status: true, camp: { select: { name: true, code: true } } },
+  });
+  if (!animal) {
+    return NextResponse.json({ error: "Animal not found" }, { status: 404 });
+  }
+
   await prisma.animal.update({
     where: { id },
     data: {
@@ -407,6 +415,12 @@ export async function DELETE(
     },
   });
 
-  await createAuditLog(result.user.id, "DELETE", "Animal", id, { soft: true });
+  await createAuditLog(result.user.id, "DELETE", "Animal", id, {
+    soft: true,
+    eartag: animal.eartag,
+    status: animal.status,
+    campName: animal.camp?.name ?? null,
+    campCode: animal.camp?.code ?? null,
+  });
   return NextResponse.json({ success: true, softDeleted: true });
 }

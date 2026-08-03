@@ -142,6 +142,8 @@ export async function DELETE(req: NextRequest) {
     await prisma.animal.delete({ where: { id } });
     await createAuditLog(result.user.id, "DELETE", "Animal", id, {
       permanent: true,
+      eartag: animal.eartag,
+      status: animal.status,
     });
     return NextResponse.json({ success: true });
   }
@@ -162,6 +164,8 @@ export async function DELETE(req: NextRequest) {
   await prisma.camp.delete({ where: { id } });
   await createAuditLog(result.user.id, "DELETE", "Camp", id, {
     permanent: true,
+    name: camp.name,
+    code: camp.code,
   });
   return NextResponse.json({ success: true });
 }

@@ -136,6 +136,7 @@ export async function POST(
   });
 
   await createAuditLog(result.user.id, "DEATH", "Animal", id, {
+    eartag: animal.eartag,
     cause: record.cause,
     isCulling,
     photoUrl,

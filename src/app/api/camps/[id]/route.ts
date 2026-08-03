@@ -191,6 +191,8 @@ export async function DELETE(
   });
   await createAuditLog(result.user.id, "DELETE", "Camp", id, {
     soft: true,
+    name: existing.name,
+    code: existing.code,
   });
   return NextResponse.json({ success: true, softDeleted: true });
 }

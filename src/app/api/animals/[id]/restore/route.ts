@@ -45,6 +45,7 @@ export async function POST(
 
   await createAuditLog(result.user.id, "UPDATE", "Animal", id, {
     restore: true,
+    eartag: animal.eartag,
   });
   return NextResponse.json(restored);
 }
