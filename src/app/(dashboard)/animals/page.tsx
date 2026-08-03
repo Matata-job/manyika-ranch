@@ -17,6 +17,10 @@ import { parseAnimalsPage } from "@/lib/animals-api";
 import { EartagBadge } from "@/components/eartag-badge";
 import { useLocale, useT } from "@/components/providers/locale-provider";
 import {
+  lifecycleKind,
+  lifecycleLabelKey,
+} from "@/lib/lifecycle";
+import {
   DEFAULT_PAGE_SIZE,
   ListPagination,
 } from "@/components/list-pagination";
@@ -122,10 +126,18 @@ function AnimalStatusBadges({
   t,
 }: {
   animal: Animal;
-  t: (key: "castrated" | "pregnant") => string;
+  t: ReturnType<typeof useT>;
 }) {
+  const life = lifecycleKind({
+    sex: animal.sex,
+    ageMonths: animal.ageMonths,
+    isCastrated: animal.isCastrated,
+  });
   return (
     <>
+      <Badge variant="outline" className="font-normal text-[10px] px-1.5 py-0 h-5">
+        {t(lifecycleLabelKey(life))}
+      </Badge>
       {animal.sex === "MALE" && animal.isCastrated && (
         <Badge variant="outline" className="font-normal text-[10px] px-1.5 py-0 h-5">
           {t("castrated")}

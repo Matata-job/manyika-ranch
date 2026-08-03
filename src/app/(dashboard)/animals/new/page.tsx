@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { enqueueSync } from "@/lib/sync/offline-db";
+import { ChoicePills } from "@/components/choice-pills";
 import { ArrowLeft, ChevronDown, ChevronRight, X } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 import { parseAnimalsList } from "@/lib/animals-api";
@@ -344,24 +345,52 @@ function NewAnimalPageContent() {
   const dams = parentsForSelect(females);
 
   return (
-    <div className="mx-auto max-w-xl space-y-5 pb-8">
-      <div>
-        <Link
-          href="/animals"
-          className="mb-3 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="mr-1 h-4 w-4" />
-          {t("navAnimals")}
-        </Link>
-        <h1 className="text-2xl font-bold tracking-tight">{t("registerAnimal")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t("registerAnimalSubtitle")}
-        </p>
+    <div className="mx-auto max-w-2xl space-y-5 pb-24">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <Link
+            href="/animals"
+            className="mb-3 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="mr-1 h-4 w-4" />
+            {t("navAnimals")}
+          </Link>
+          <h1 className="text-2xl font-bold tracking-tight text-primary">
+            {t("registerAnimal")}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground max-w-lg">
+            {t("registerAnimalSubtitle")}
+          </p>
+        </div>
+        <div className="flex gap-2 shrink-0">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.back()}
+          >
+            {t("cancel")}
+          </Button>
+          <Button
+            type="submit"
+            form="register-animal-form"
+            disabled={loading || !form.breed || !form.campId || !form.eartag}
+            className="bg-foreground text-background hover:bg-foreground/90 min-w-[7rem]"
+          >
+            {loading ? t("saving") : t("save")}
+          </Button>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <Card>
-          <CardContent className="grid gap-4 pt-6 sm:grid-cols-2">
+      <form
+        id="register-animal-form"
+        onSubmit={handleSubmit}
+        className="space-y-4"
+      >
+        <Card className="rounded-xl shadow-sm">
+          <CardContent className="grid gap-5 pt-6 sm:grid-cols-2">
+            <p className="sm:col-span-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {t("sectionIdentity")}
+            </p>
             <Field
               label={t("camp")}
               required
@@ -422,6 +451,7 @@ function NewAnimalPageContent() {
             <Field
               label={t("breed")}
               required
+              className="sm:col-span-2"
               hint={
                 <Link
                   href="/settings/breeds"
@@ -449,10 +479,10 @@ function NewAnimalPageContent() {
               </Select>
             </Field>
 
-            <Field label={t("sex")} required>
-              <Select
-                value={form.sex}
-                onValueChange={(v) =>
+            <Field label={t("sex")} required className="sm:col-span-2">
+              <ChoicePills
+                value={form.sex as "MALE" | "FEMALE" | "UNKNOWN"}
+                onChange={(v) =>
                   setForm({
                     ...form,
                     sex: v,
@@ -460,22 +490,45 @@ function NewAnimalPageContent() {
                     isPregnant: v === "FEMALE" ? form.isPregnant : false,
                   })
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="MALE">{t("male")}</SelectItem>
-                  <SelectItem value="FEMALE">{t("female")}</SelectItem>
-                  <SelectItem value="UNKNOWN">{t("unknownSex")}</SelectItem>
-                </SelectContent>
-              </Select>
+                options={[
+                  { value: "MALE", label: t("male") },
+                  { value: "FEMALE", label: t("female") },
+                  { value: "UNKNOWN", label: t("unknownSex") },
+                ]}
+              />
             </Field>
 
+            {form.sex === "MALE" && (
+              <label className="flex items-center gap-2 text-sm sm:col-span-2">
+                <input
+                  type="checkbox"
+                  checked={form.isCastrated}
+                  onChange={(e) =>
+                    setForm({ ...form, isCastrated: e.target.checked })
+                  }
+                />
+                {t("castrated")}
+              </label>
+            )}
+            {form.sex === "FEMALE" && (
+              <label className="flex items-center gap-2 text-sm sm:col-span-2">
+                <input
+                  type="checkbox"
+                  checked={form.isPregnant}
+                  onChange={(e) =>
+                    setForm({ ...form, isPregnant: e.target.checked })
+                  }
+                />
+                {t("pregnant")}
+              </label>
+            )}
+
             <Field label={t("source")} className="sm:col-span-2">
-              <Select
-                value={form.acquisitionType}
-                onValueChange={(v) =>
+              <ChoicePills
+                value={
+                  form.acquisitionType as "BORN_ON_FARM" | "PURCHASED" | "GIFT"
+                }
+                onChange={(v) =>
                   setForm({
                     ...form,
                     acquisitionType: v,
@@ -483,16 +536,12 @@ function NewAnimalPageContent() {
                       v === "BORN_ON_FARM" ? "" : form.acquisitionDate,
                   })
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="BORN_ON_FARM">{t("bornOnFarm")}</SelectItem>
-                  <SelectItem value="PURCHASED">{t("purchased")}</SelectItem>
-                  <SelectItem value="GIFT">{t("gift")}</SelectItem>
-                </SelectContent>
-              </Select>
+                options={[
+                  { value: "BORN_ON_FARM", label: t("bornOnFarm") },
+                  { value: "PURCHASED", label: t("purchased") },
+                  { value: "GIFT", label: t("gift") },
+                ]}
+              />
             </Field>
 
             {isBornOnFarm && (
@@ -675,33 +724,6 @@ function NewAnimalPageContent() {
                 </SelectContent>
               </Select>
             </Field>
-
-            {form.sex === "MALE" && (
-              <label className="flex items-center gap-2 text-sm text-muted-foreground sm:col-span-2">
-                <input
-                  type="checkbox"
-                  className="rounded border"
-                  checked={form.isCastrated}
-                  onChange={(e) =>
-                    setForm({ ...form, isCastrated: e.target.checked })
-                  }
-                />
-                {t("castrated")}
-              </label>
-            )}
-            {form.sex === "FEMALE" && (
-              <label className="flex items-center gap-2 text-sm text-muted-foreground sm:col-span-2">
-                <input
-                  type="checkbox"
-                  className="rounded border"
-                  checked={form.isPregnant}
-                  onChange={(e) =>
-                    setForm({ ...form, isPregnant: e.target.checked })
-                  }
-                />
-                {t("pregnant")}
-              </label>
-            )}
           </CardContent>
         </Card>
 
@@ -779,7 +801,7 @@ function NewAnimalPageContent() {
           <Button
             type="submit"
             disabled={loading || !form.breed || !form.campId || !form.eartag}
-            className="min-w-[10rem]"
+            className="min-w-[10rem] bg-foreground text-background hover:bg-foreground/90"
           >
             {loading ? t("saving") : t("registerAnimal")}
           </Button>

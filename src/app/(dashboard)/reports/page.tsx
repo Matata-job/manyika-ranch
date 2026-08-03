@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDate, formatCurrency } from "@/lib/utils";
-import { Download, Upload } from "lucide-react";
+import { Download, Upload, Beef, HeartPulse, CircleDollarSign, Wallet } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 import { useT } from "@/components/providers/locale-provider";
@@ -484,36 +485,113 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">{t("reportsTitle")}</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-primary">
+            {t("reportsTitle")}
+          </h1>
           <p className="text-muted-foreground">{t("reportsSubtitle")}</p>
-          <p className="text-sm text-muted-foreground mt-1 flex flex-wrap gap-x-2">
-            {canViewBuyers && (
-              <Link href="/buyers" className="text-primary hover:underline">
-                {t("buyersTitle")}
-              </Link>
-            )}
-            <Link href="/mortality" className="text-primary hover:underline">
-              {t("mortalityReport")}
-            </Link>
-            <Link href="/events" className="text-primary hover:underline">
-              {t("navEvents")}
-            </Link>
-            {canViewSales && (
-              <Link href="/sales" className="text-primary hover:underline">
-                {t("salesReport")}
-              </Link>
-            )}
-            {canViewFinance && (
-              <Link href="/finance/pnl" className="text-primary hover:underline">
-                {t("pnl")}
-              </Link>
-            )}
+          <p className="text-sm text-muted-foreground mt-1">
+            {t("reportsSelectHelp")}
           </p>
         </div>
-        <Button variant="outline" onClick={exportCurrent} disabled={!canExport}>
+        <Button
+          variant="outline"
+          onClick={exportCurrent}
+          disabled={!canExport}
+          className="shrink-0"
+        >
           <Download className="h-4 w-4 mr-2" /> {t("exportCsv")}
         </Button>
       </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {(
+          [
+            {
+              id: "herd" as const,
+              titleKey: "reportHerd" as const,
+              helpKey: "reportHerdHelp" as const,
+              icon: Beef,
+              show: true,
+            },
+            {
+              id: "health" as const,
+              titleKey: "reportHealth" as const,
+              helpKey: "reportHealthHelp" as const,
+              icon: HeartPulse,
+              show: true,
+            },
+            {
+              id: "sales" as const,
+              titleKey: "reportSales" as const,
+              helpKey: "reportSalesHelp" as const,
+              icon: CircleDollarSign,
+              show: canViewSales,
+            },
+            {
+              id: "finance" as const,
+              titleKey: "reportFinance" as const,
+              helpKey: "reportFinanceHelp" as const,
+              icon: Wallet,
+              show: canViewFinance,
+            },
+          ] as const
+        )
+          .filter((c) => c.show)
+          .map((c) => {
+            const Icon = c.icon;
+            const selected = tab === c.id;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => {
+                  setTab(c.id);
+                  setTableOffset(0);
+                }}
+                className={cn(
+                  "activity-card text-left",
+                  selected && "ring-2 ring-foreground border-foreground"
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-muted/40">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <p className="font-semibold">{t(c.titleKey)}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                      {t(c.helpKey)}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+      </div>
+
+      <p className="text-sm text-muted-foreground flex flex-wrap gap-x-3 gap-y-1">
+        {canViewBuyers && (
+          <Link href="/buyers" className="text-primary hover:underline">
+            {t("buyersTitle")}
+          </Link>
+        )}
+        <Link href="/mortality" className="text-primary hover:underline">
+          {t("mortalityReport")}
+        </Link>
+        <Link href="/events" className="text-primary hover:underline">
+          {t("navEvents")}
+        </Link>
+        {canViewSales && (
+          <Link href="/sales" className="text-primary hover:underline">
+            {t("salesReport")}
+          </Link>
+        )}
+        {canViewFinance && (
+          <Link href="/finance/pnl" className="text-primary hover:underline">
+            {t("pnl")}
+          </Link>
+        )}
+      </p>
 
       <Card>
         <CardContent className="pt-6 space-y-4">
@@ -637,7 +715,7 @@ export default function ReportsPage() {
         }}
         className="space-y-4"
       >
-        <TabsList className="flex flex-wrap h-auto gap-1">
+        <TabsList className="sr-only">
           <TabsTrigger value="herd">{t("reportHerd")}</TabsTrigger>
           <TabsTrigger value="health">{t("reportHealth")}</TabsTrigger>
           {canViewSales && (

@@ -3,12 +3,18 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
-import { ArrowRight, HandCoins, Receipt, TrendingUp, Wallet } from "lucide-react";
+import {
+  ArrowRight,
+  CircleDollarSign,
+  Contact,
+  HandCoins,
+  Receipt,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 
 interface PnLSummary {
@@ -23,6 +29,8 @@ export default function FinanceHubPage() {
   const { data: session } = useSession();
   const role = session?.user?.role as Role | undefined;
   const canManage = role ? hasPermission(role, "manageFinance") : false;
+  const canViewBuyers = role ? hasPermission(role, "viewBuyers") : false;
+  const canViewSales = role ? hasPermission(role, "viewSales") : false;
   const [summary, setSummary] = useState<PnLSummary | null>(null);
 
   useEffect(() => {
@@ -36,128 +44,114 @@ export default function FinanceHubPage() {
       .then((d) => d && setSummary(d.summary));
   }, []);
 
+  const links = [
+    {
+      href: "/owners",
+      title: t("navOwnersBilling"),
+      help: t("ownersBillingSubtitle"),
+      icon: HandCoins,
+      show: true,
+    },
+    {
+      href: "/buyers",
+      title: t("navBuyers"),
+      help: t("financeBuyersHelp"),
+      icon: Contact,
+      show: canViewBuyers,
+    },
+    {
+      href: "/sales",
+      title: t("navSales"),
+      help: t("financeSalesHelp"),
+      icon: CircleDollarSign,
+      show: canViewSales,
+    },
+    {
+      href: "/finance/expenses",
+      title: t("expenses"),
+      help: t("financeExpensesHelp"),
+      icon: Receipt,
+      show: true,
+    },
+    {
+      href: "/finance/income",
+      title: t("otherIncome"),
+      help: t("financeIncomeHelp"),
+      icon: Wallet,
+      show: true,
+    },
+    {
+      href: "/finance/pnl",
+      title: t("pnl"),
+      help: t("financePnlHelp"),
+      icon: TrendingUp,
+      show: true,
+    },
+  ].filter((l) => l.show);
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">{t("financeTitle")}</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-primary">
+          {t("financeTitle")}
+        </h1>
         <p className="text-muted-foreground">
           {t("financeSubtitle")}
-          {!canManage && " · view only"}
+          {!canManage && ` · ${t("viewOnly")}`}
         </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Sales revenue</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
-              {summary ? formatCurrency(summary.salesRevenue) : "—"}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Other income</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
-              {summary ? formatCurrency(summary.otherIncome) : "—"}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">{t("expenses")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
-              {summary ? formatCurrency(summary.totalExpenses) : "—"}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Net</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
-              {summary ? formatCurrency(summary.net) : "—"}
-            </p>
-          </CardContent>
-        </Card>
+        <div className="activity-card">
+          <p className="text-sm text-muted-foreground">{t("salesRevenue")}</p>
+          <p className="text-2xl font-bold mt-1">
+            {summary ? formatCurrency(summary.salesRevenue) : "—"}
+          </p>
+        </div>
+        <div className="activity-card">
+          <p className="text-sm text-muted-foreground">{t("otherIncome")}</p>
+          <p className="text-2xl font-bold mt-1">
+            {summary ? formatCurrency(summary.otherIncome) : "—"}
+          </p>
+        </div>
+        <div className="activity-card">
+          <p className="text-sm text-muted-foreground">{t("expenses")}</p>
+          <p className="text-2xl font-bold mt-1">
+            {summary ? formatCurrency(summary.totalExpenses) : "—"}
+          </p>
+        </div>
+        <div className="activity-card">
+          <p className="text-sm text-muted-foreground">{t("net")}</p>
+          <p className="text-2xl font-bold mt-1">
+            {summary ? formatCurrency(summary.net) : "—"}
+          </p>
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <HandCoins className="h-4 w-4" /> {t("navOwnersBilling")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              {t("ownersBillingSubtitle")}
-            </p>
-            <Button asChild variant="outline">
-              <Link href="/owners">
-                {t("navOwnersBilling")} <ArrowRight className="h-4 w-4 ml-2" />
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Receipt className="h-4 w-4" /> {t("expenses")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              Feed, vet, wages, transport, and more
-            </p>
-            <Button asChild variant="outline">
-              <Link href="/finance/expenses">
-                Open expenses <ArrowRight className="h-4 w-4 ml-2" />
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Wallet className="h-4 w-4" /> Other income
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              Grazing fees, manure, services (not animal sales)
-            </p>
-            <Button asChild variant="outline">
-              <Link href="/finance/income">
-                Open income <ArrowRight className="h-4 w-4 ml-2" />
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <TrendingUp className="h-4 w-4" /> {t("pnl")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              Sales + other income − expenses by month and camp
-            </p>
-            <Button asChild variant="outline">
-              <Link href="/finance/pnl">
-                Open P&amp;L <ArrowRight className="h-4 w-4 ml-2" />
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {links.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Link key={item.href} href={item.href} className="activity-card group block">
+              <div className="flex items-start gap-3">
+                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border bg-muted/40">
+                  <Icon className="h-5 w-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold group-hover:text-primary transition-colors">
+                    {item.title}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                    {item.help}
+                  </p>
+                  <span className="inline-flex items-center text-xs font-medium text-primary mt-2">
+                    {t("open")} <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                  </span>
+                </div>
+              </div>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

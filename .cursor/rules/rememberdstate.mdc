@@ -20,8 +20,16 @@ When the user types **`REMEMBERDSTATE`**, **`REMEMBEREDSTATE`**, or **“remembe
 
 ## Locked product decisions
 
-- **1C**: Phase A first (shell + Activities hub + light entry chrome); Phase B = deeper page redesigns later.
+- **1C**: Phase A first (shell + Activities hub + light entry chrome); **Phase B** = animals form pills, reports card gallery, inventory cards, finance hub consolidation, lifecycle labels from sex/age.
 - **2A**: Keep **Manyika Ranch** brand (name + existing palette in `globals.css`). Borrow structure/flow only.
+
+## Phase B shipped surfaces
+
+- Register animal: choice pills for sex/source; clearer header CTAs  
+- Reports: typed card gallery (Herd / Health / Sales / Finance)  
+- Medicine inventory: card grid + add section  
+- Finance: activity-style hub including Buyers + Sales links  
+- Animals list: lifecycle badges (calf/heifer/cow/bull/steer) via `src/lib/lifecycle.ts`  
 
 ## Target primary sidebar
 
