@@ -213,7 +213,7 @@ const en = {
   addAnimal: "Add Animal",
   addCamp: "Add Camp",
   registerAnimal: "Register animal",
-  registerAnimalSubtitle: "Defaults to born on farm. Switch source only for purchased or gift animals.",
+  registerAnimalSubtitle: "Choose sex and source for each animal. Camp and breed are remembered when adding another.",
   animalAddedTitle: "Animal added successfully",
   animalAddedMessage:
     "{eartag} has been registered. Would you like to add another animal?",
@@ -862,6 +862,8 @@ const en = {
   noOffspring: "No calves recorded for this animal yet.",
   acquisitionDate: "Acquisition / purchase date",
   eartagBreedRequired: "Eartag and breed are required",
+  sexRequired: "Select sex",
+  sourceRequired: "Select source",
   selectVaccineOrName: "Select a vaccine or enter a name",
   selectScheduleOrProduct: "Select a schedule or enter a product",
   confirmMarkDeceased:
@@ -1203,7 +1205,7 @@ const sw: Dict = {
   addAnimal: "Ongeza mnyama",
   addCamp: "Ongeza kambi",
   registerAnimal: "Sajili mnyama",
-  registerAnimalSubtitle: "Kwa kawaida ni amezalishwa shambani. Badilisha chanzo tu kwa mnyama aliye nunuliwa au zawadi.",
+  registerAnimalSubtitle: "Chagua jinsia na chanzo kwa kila mnyama. Kambi na aina hukumbukwa unapoongeza mwingine.",
   animalAddedTitle: "Mnyama amesajiliwa",
   animalAddedMessage:
     "{eartag} amesajiliwa. Ungependa kuongeza mnyama mwingine?",
@@ -1835,6 +1837,8 @@ const sw: Dict = {
   noOffspring: "Hakuna ndama walioandikishwa kwa mnyama huyu bado.",
   acquisitionDate: "Tarehe ya kupata / kununua",
   eartagBreedRequired: "Lebo ya sikio na aina zinahitajika",
+  sexRequired: "Chagua jinsia",
+  sourceRequired: "Chagua chanzo",
   selectVaccineOrName: "Chagua chanjo au weka jina",
   selectScheduleOrProduct: "Chagua ratiba au weka bidhaa",
   confirmMarkDeceased:

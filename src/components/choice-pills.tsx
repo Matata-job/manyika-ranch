@@ -16,7 +16,7 @@ export function ChoicePills<T extends string>({
   className,
 }: {
   options: ChoiceOption<T>[];
-  value: T;
+  value: T | "";
   onChange: (value: T) => void;
   className?: string;
 }) {

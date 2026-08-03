@@ -119,7 +119,7 @@ function NewAnimalPageContent() {
   const [form, setForm] = useState({
     eartag: "",
     breed: "",
-    sex: "FEMALE",
+    sex: "",
     isCastrated: false,
     isPregnant: false,
     dob: "",
@@ -131,13 +131,19 @@ function NewAnimalPageContent() {
     damId: "",
     colorMarkings: "",
     notes: "",
-    acquisitionType: "BORN_ON_FARM",
+    acquisitionType: "",
     acquisitionDate: "",
   });
 
   const isBornOnFarm = form.acquisitionType === "BORN_ON_FARM";
   const isExternal =
     form.acquisitionType === "PURCHASED" || form.acquisitionType === "GIFT";
+  const canSubmit =
+    Boolean(form.eartag.trim()) &&
+    Boolean(form.breed) &&
+    Boolean(form.campId) &&
+    Boolean(form.sex) &&
+    Boolean(form.acquisitionType);
 
   async function applyCampEartagSuggestion(
     campId: string,
@@ -357,7 +363,7 @@ function NewAnimalPageContent() {
     setForm({
       eartag: "",
       breed,
-      sex: "FEMALE",
+      sex: "",
       isCastrated: false,
       isPregnant: false,
       dob: "",
@@ -369,7 +375,7 @@ function NewAnimalPageContent() {
       damId: "",
       colorMarkings: "",
       notes: "",
-      acquisitionType: "BORN_ON_FARM",
+      acquisitionType: "",
       acquisitionDate: "",
     });
     // Re-apply ranch owner default if available
@@ -390,6 +396,14 @@ function NewAnimalPageContent() {
     e.preventDefault();
     if (!form.eartag.trim() || !form.breed || !form.campId) {
       alert(t("eartagBreedRequired"));
+      return;
+    }
+    if (!form.sex) {
+      alert(t("sexRequired"));
+      return;
+    }
+    if (!form.acquisitionType) {
+      alert(t("sourceRequired"));
       return;
     }
     const taken = animals.some(
@@ -568,7 +582,7 @@ function NewAnimalPageContent() {
           <Button
             type="submit"
             form="register-animal-form"
-            disabled={loading || !form.breed || !form.campId || !form.eartag}
+            disabled={loading || !canSubmit}
             className="bg-foreground text-background hover:bg-foreground/90 min-w-[7rem]"
           >
             {loading ? t("saving") : t("save")}
@@ -690,13 +704,15 @@ function NewAnimalPageContent() {
 
             <Field label={t("sex")} required className="sm:col-span-2">
               <ChoicePills
-                value={form.sex as "MALE" | "FEMALE" | "UNKNOWN"}
+                value={
+                  (form.sex as "MALE" | "FEMALE" | "UNKNOWN" | "") || ""
+                }
                 onChange={(v) =>
                   setForm({
                     ...form,
                     sex: v,
                     isCastrated: v === "MALE" ? form.isCastrated : false,
-                    isPregnant: v === "FEMALE" ? form.isPregnant : false,
+                    isPregnant: false,
                   })
                 }
                 options={[
@@ -732,10 +748,14 @@ function NewAnimalPageContent() {
               </label>
             )}
 
-            <Field label={t("source")} className="sm:col-span-2">
+            <Field label={t("source")} required className="sm:col-span-2">
               <ChoicePills
                 value={
-                  form.acquisitionType as "BORN_ON_FARM" | "PURCHASED" | "GIFT"
+                  (form.acquisitionType as
+                    | "BORN_ON_FARM"
+                    | "PURCHASED"
+                    | "GIFT"
+                    | "") || ""
                 }
                 onChange={(v) =>
                   setForm({
@@ -743,6 +763,11 @@ function NewAnimalPageContent() {
                     acquisitionType: v,
                     acquisitionDate:
                       v === "BORN_ON_FARM" ? "" : form.acquisitionDate,
+                    sireId: v === "BORN_ON_FARM" ? form.sireId : "",
+                    damId: v === "BORN_ON_FARM" ? form.damId : "",
+                    dob: "",
+                    ageYears: "",
+                    ageMonthsPart: "",
                   })
                 }
                 options={[
@@ -1009,7 +1034,7 @@ function NewAnimalPageContent() {
         <div className="flex sticky bottom-0 z-10 items-center gap-3 border-t bg-background/95 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
           <Button
             type="submit"
-            disabled={loading || !form.breed || !form.campId || !form.eartag}
+            disabled={loading || !canSubmit}
             className="min-w-[10rem] bg-foreground text-background hover:bg-foreground/90"
           >
             {loading ? t("saving") : t("registerAnimal")}
