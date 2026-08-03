@@ -26,6 +26,7 @@ import {
   DEFAULT_PAGE_SIZE,
   ListPagination,
 } from "@/components/list-pagination";
+import { ChoicePills } from "@/components/choice-pills";
 
 interface Animal {
   id: string;
@@ -85,21 +86,49 @@ const DEFAULTS: Filters = {
   sort: "eartag_asc",
 };
 
+type AgeMode =
+  | "all"
+  | "calf"
+  | "yearling"
+  | "adult"
+  | "mature"
+  | "months"
+  | "born";
+
 const ADVANCED_KEYS: (keyof Filters)[] = [
   "sex",
   "breed",
   "camp",
-  "ageGroup",
-  "ageMinMonths",
-  "ageMaxMonths",
-  "dobFrom",
-  "dobTo",
   "status",
   "owner",
   "castrated",
   "pregnant",
   "tagColor",
 ];
+
+function deriveAgeMode(f: Filters): AgeMode {
+  if (f.dobFrom || f.dobTo) return "born";
+  if (f.ageMinMonths || f.ageMaxMonths) return "months";
+  if (
+    f.ageGroup === "calf" ||
+    f.ageGroup === "yearling" ||
+    f.ageGroup === "adult" ||
+    f.ageGroup === "mature"
+  ) {
+    return f.ageGroup;
+  }
+  return "all";
+}
+
+function ageFilterActive(f: Filters): boolean {
+  return (
+    f.ageGroup !== "all" ||
+    !!f.ageMinMonths ||
+    !!f.ageMaxMonths ||
+    !!f.dobFrom ||
+    !!f.dobTo
+  );
+}
 
 function filtersFromParams(params: URLSearchParams): Filters {
   return {
@@ -185,6 +214,9 @@ function AnimalsPageContent() {
   const [yearColors, setYearColors] = useState<Record<string, string>>({});
   const [defaultTagColor, setDefaultTagColor] = useState<string | null>(null);
   const [filters, setFilters] = useState<Filters>(() => filtersFromParams(searchParams));
+  const [ageFilterMode, setAgeFilterMode] = useState<AgeMode>(() =>
+    deriveAgeMode(filtersFromParams(searchParams))
+  );
   const [searchInput, setSearchInput] = useState(filters.search);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
@@ -211,7 +243,9 @@ function AnimalsPageContent() {
     const next = filtersFromParams(searchParams);
     setFilters(next);
     setSearchInput(searchParams.get("search") || "");
-    const hasAdvanced = ADVANCED_KEYS.some((k) => next[k] !== DEFAULTS[k]);
+    setAgeFilterMode(deriveAgeMode(next));
+    const hasAdvanced =
+      ADVANCED_KEYS.some((k) => next[k] !== DEFAULTS[k]) || ageFilterActive(next);
     if (hasAdvanced) setFiltersOpen(true);
   }, [searchParams]);
 
@@ -260,22 +294,44 @@ function AnimalsPageContent() {
       if (value !== "MALE") next.castrated = "all";
       if (value !== "FEMALE") next.pregnant = "all";
     }
-    // Preset age group clears custom month / DOB filters
-    if (key === "ageGroup" && value !== "all") {
-      next.ageMinMonths = "";
-      next.ageMaxMonths = "";
-      next.dobFrom = "";
-      next.dobTo = "";
-    }
-    // Custom age/DOB clears preset group
     if (
       key === "ageMinMonths" ||
-      key === "ageMaxMonths" ||
-      key === "dobFrom" ||
-      key === "dobTo"
+      key === "ageMaxMonths"
     ) {
-      if (value) next.ageGroup = "all";
+      next.ageGroup = "all";
+      next.dobFrom = "";
+      next.dobTo = "";
+      setAgeFilterMode("months");
     }
+    if (key === "dobFrom" || key === "dobTo") {
+      next.ageGroup = "all";
+      next.ageMinMonths = "";
+      next.ageMaxMonths = "";
+      setAgeFilterMode("born");
+    }
+    setFilters(next);
+    syncUrl(next);
+  }
+
+  function applyAgeFilterMode(mode: AgeMode) {
+    const next: Filters = {
+      ...filters,
+      ageGroup: "all",
+      ageMinMonths: "",
+      ageMaxMonths: "",
+      dobFrom: "",
+      dobTo: "",
+    };
+    if (
+      mode === "calf" ||
+      mode === "yearling" ||
+      mode === "adult" ||
+      mode === "mature"
+    ) {
+      next.ageGroup = mode;
+    }
+    // months / born / all: leave custom fields empty until user fills them
+    setAgeFilterMode(mode);
     setFilters(next);
     syncUrl(next);
   }
@@ -297,6 +353,7 @@ function AnimalsPageContent() {
     } else {
       setFiltersOpen(false);
     }
+    setAgeFilterMode(deriveAgeMode(next));
     setFilters(next);
     setSearchInput("");
     syncUrl(next);
@@ -304,6 +361,7 @@ function AnimalsPageContent() {
 
   function clearAll() {
     setFilters(DEFAULTS);
+    setAgeFilterMode("all");
     setSearchInput("");
     setFiltersOpen(false);
     syncUrl(DEFAULTS);
@@ -367,10 +425,10 @@ function AnimalsPageContent() {
     loadPage(0);
   }, [loadPage]);
 
-  const advancedCount = useMemo(
-    () => ADVANCED_KEYS.filter((k) => filters[k] !== DEFAULTS[k]).length,
-    [filters]
-  );
+  const advancedCount = useMemo(() => {
+    const other = ADVANCED_KEYS.filter((k) => filters[k] !== DEFAULTS[k]).length;
+    return other + (ageFilterActive(filters) ? 1 : 0);
+  }, [filters]);
 
   const hasActiveFilters = useMemo(() => {
     return (Object.keys(DEFAULTS) as (keyof Filters)[]).some(
@@ -627,65 +685,6 @@ function AnimalsPageContent() {
                 </SelectContent>
               </Select>
 
-              <Select value={filters.ageGroup} onValueChange={(v) => updateFilter("ageGroup", v)}>
-                <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
-                  <SelectValue placeholder={t("ageGroup")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t("allAges")}</SelectItem>
-                  <SelectItem value="calf">{t("calves")}</SelectItem>
-                  <SelectItem value="yearling">{t("weaners")}</SelectItem>
-                  <SelectItem value="adult">{t("adults")}</SelectItem>
-                  <SelectItem value="mature">{t("ageMature")}</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <div className="sm:col-span-2 grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">{t("ageMinMonths")}</p>
-                  <Input
-                    type="number"
-                    min={0}
-                    className="h-9 bg-background border-muted-foreground/15 shadow-none"
-                    placeholder="0"
-                    value={filters.ageMinMonths}
-                    onChange={(e) => updateFilter("ageMinMonths", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">{t("ageMaxMonths")}</p>
-                  <Input
-                    type="number"
-                    min={0}
-                    className="h-9 bg-background border-muted-foreground/15 shadow-none"
-                    placeholder="e.g. 24"
-                    value={filters.ageMaxMonths}
-                    onChange={(e) => updateFilter("ageMaxMonths", e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="sm:col-span-2 grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">{t("bornFrom")}</p>
-                  <Input
-                    type="date"
-                    className="h-9 bg-background border-muted-foreground/15 shadow-none"
-                    value={filters.dobFrom}
-                    onChange={(e) => updateFilter("dobFrom", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">{t("bornTo")}</p>
-                  <Input
-                    type="date"
-                    className="h-9 bg-background border-muted-foreground/15 shadow-none"
-                    value={filters.dobTo}
-                    onChange={(e) => updateFilter("dobTo", e.target.value)}
-                  />
-                </div>
-              </div>
-
               <Select value={filters.status} onValueChange={(v) => updateFilter("status", v)}>
                 <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
                   <SelectValue placeholder={t("status")} />
@@ -713,6 +712,75 @@ function AnimalsPageContent() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2 pt-1 border-t border-muted-foreground/10">
+              <Label className="text-xs text-muted-foreground">{t("ageFilter")}</Label>
+              <ChoicePills
+                options={[
+                  { value: "all", label: t("allAges") },
+                  { value: "calf", label: t("calves") },
+                  { value: "yearling", label: t("weaners") },
+                  { value: "adult", label: t("adults") },
+                  { value: "mature", label: t("ageMature") },
+                  { value: "months", label: t("ageModeMonths") },
+                  { value: "born", label: t("ageModeBorn") },
+                ]}
+                value={ageFilterMode}
+                onChange={applyAgeFilterMode}
+              />
+              {ageFilterMode === "months" && (
+                <div className="grid grid-cols-2 gap-2 max-w-md pt-1">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">{t("ageMinMonths")}</p>
+                    <Input
+                      type="number"
+                      min={0}
+                      className="h-9 bg-background border-muted-foreground/15 shadow-none"
+                      placeholder="0"
+                      value={filters.ageMinMonths}
+                      onChange={(e) =>
+                        updateFilter("ageMinMonths", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">{t("ageMaxMonths")}</p>
+                    <Input
+                      type="number"
+                      min={0}
+                      className="h-9 bg-background border-muted-foreground/15 shadow-none"
+                      placeholder="e.g. 24"
+                      value={filters.ageMaxMonths}
+                      onChange={(e) =>
+                        updateFilter("ageMaxMonths", e.target.value)
+                      }
+                    />
+                  </div>
+                </div>
+              )}
+              {ageFilterMode === "born" && (
+                <div className="grid grid-cols-2 gap-2 max-w-md pt-1">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">{t("bornFrom")}</p>
+                    <Input
+                      type="date"
+                      className="h-9 bg-background border-muted-foreground/15 shadow-none"
+                      value={filters.dobFrom}
+                      onChange={(e) => updateFilter("dobFrom", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">{t("bornTo")}</p>
+                    <Input
+                      type="date"
+                      className="h-9 bg-background border-muted-foreground/15 shadow-none"
+                      value={filters.dobTo}
+                      onChange={(e) => updateFilter("dobTo", e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
