@@ -309,7 +309,8 @@ model PastureBlock {
 model Animal {
   id               String          @id @default(cuid())
   eartag           String          @unique
-  rfidChip         String?
+  /** ISO livestock RFID / electronic ear button ID (unique when set). */
+  rfidChip         String?         @unique
   photoUrl         String?
   breed            String
   sex              Sex

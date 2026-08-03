@@ -88,6 +88,7 @@ interface SaleRecord {
 interface AnimalDetail {
   id: string;
   eartag: string;
+  rfidChip: string | null;
   breed: string;
   sex: string;
   isCastrated?: boolean;
@@ -209,6 +210,7 @@ export default function AnimalDetailPage() {
   const [savingDetails, setSavingDetails] = useState(false);
   const [editForm, setEditForm] = useState({
     eartag: "",
+    rfidChip: "",
     breed: "",
     sex: "FEMALE",
     isCastrated: false,
@@ -368,6 +370,7 @@ export default function AnimalDetailPage() {
     const months = a.ageMonths != null ? a.ageMonths % 12 : "";
     setEditForm({
       eartag: a.eartag,
+      rfidChip: a.rfidChip || "",
       breed: a.breed,
       sex: a.sex,
       isCastrated: !!a.isCastrated,
@@ -398,6 +401,7 @@ export default function AnimalDetailPage() {
     setSavingDetails(true);
     const payload: Record<string, unknown> = {
       eartag: editForm.eartag.trim(),
+      rfidChip: editForm.rfidChip.trim() || null,
       breed: editForm.breed,
       sex: editForm.sex,
       isCastrated: editForm.sex === "MALE" ? editForm.isCastrated : false,
@@ -850,6 +854,19 @@ export default function AnimalDetailPage() {
                 />
               </div>
               <div className="space-y-2">
+                <Label>{t("rfidChip")}</Label>
+                <Input
+                  value={editForm.rfidChip}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, rfidChip: e.target.value })
+                  }
+                  placeholder={t("rfidChipPlaceholder")}
+                  className="font-mono"
+                  autoComplete="off"
+                />
+                <p className="text-xs text-muted-foreground">{t("rfidChipHelp")}</p>
+              </div>
+              <div className="space-y-2">
                 <Label>{t("breed")} *</Label>
                 <Select value={editForm.breed} onValueChange={(v) => setEditForm({ ...editForm, breed: v })}>
                   <SelectTrigger><SelectValue placeholder={t("breed")} /></SelectTrigger>
@@ -1212,6 +1229,11 @@ export default function AnimalDetailPage() {
                       size="lg"
                       showLabel
                     />
+                    {animal.rfidChip && (
+                      <Badge variant="outline" className="font-mono font-normal">
+                        RFID {animal.rfidChip}
+                      </Badge>
+                    )}
                     <Badge variant="outline">
                       {animal.sex === "MALE"
                         ? t("male")

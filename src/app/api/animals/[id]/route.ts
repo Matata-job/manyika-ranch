@@ -116,6 +116,26 @@ export async function PATCH(
     }
   }
 
+  if (body.rfidChip !== undefined) {
+    const rfidChip =
+      body.rfidChip === null || body.rfidChip === ""
+        ? null
+        : String(body.rfidChip).trim() || null;
+    body.rfidChip = rfidChip;
+    if (rfidChip) {
+      const rfidTaken = await prisma.animal.findFirst({
+        where: { rfidChip, NOT: { id } },
+        select: { id: true },
+      });
+      if (rfidTaken) {
+        return NextResponse.json(
+          { error: "RFID chip already registered to another animal" },
+          { status: 409 }
+        );
+      }
+    }
+  }
+
   if (body.sireId !== undefined && body.sireId !== null && body.sireId !== "") {
     const sire = await prisma.animal.findFirst({
       where: { id: body.sireId, sex: "MALE" },

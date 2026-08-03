@@ -36,6 +36,7 @@ import { ChoicePills } from "@/components/choice-pills";
 interface Animal {
   id: string;
   eartag: string;
+  rfidChip?: string | null;
   breed: string;
   sex: string;
   isCastrated?: boolean;
@@ -941,6 +942,11 @@ function AnimalsPageContent() {
                         locale={locale}
                         className="group-hover:text-primary transition-colors"
                       />
+                      {animal.rfidChip && (
+                        <span className="text-[11px] font-mono text-muted-foreground">
+                          RFID {animal.rfidChip}
+                        </span>
+                      )}
                       {animal.hasNotes && (
                         <StickyNote
                           className="h-3.5 w-3.5 text-muted-foreground shrink-0"
@@ -1015,6 +1021,11 @@ function AnimalsPageContent() {
                       <AnimalStatusBadges animal={animal} t={t} />
                     </div>
                   </div>
+                  {animal.rfidChip && (
+                    <p className="text-[11px] font-mono text-muted-foreground">
+                      RFID {animal.rfidChip}
+                    </p>
+                  )}
                   <p className="text-sm text-muted-foreground">{animal.breed}</p>
                   <p className="text-xs text-muted-foreground/80">
                     {animal.camp.name} · {formatAge(animal.ageMonths, ageMode)}

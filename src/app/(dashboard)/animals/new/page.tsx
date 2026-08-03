@@ -120,6 +120,7 @@ function NewAnimalPageContent() {
   } | null>(null);
   const [form, setForm] = useState({
     eartag: "",
+    rfidChip: "",
     breed: "",
     sex: "",
     isCastrated: false,
@@ -368,6 +369,7 @@ function NewAnimalPageContent() {
     setAgeEntryMode("approx");
     setForm({
       eartag: "",
+      rfidChip: "",
       breed,
       sex: "",
       isCastrated: false,
@@ -435,6 +437,8 @@ function NewAnimalPageContent() {
       isBornOnFarm || (isExternal && ageEntryMode === "dob" && form.dob);
     const payload = {
       ...form,
+      eartag: form.eartag.trim(),
+      rfidChip: form.rfidChip.trim() || null,
       sireId: form.sireId || null,
       damId: form.damId || null,
       ownerId: form.ownerId || undefined,
@@ -690,6 +694,24 @@ function NewAnimalPageContent() {
                 }}
                 placeholder="e.g. MR-01-042"
                 required
+              />
+            </Field>
+
+            <Field
+              label={t("rfidChip")}
+              hint={t("rfidChipHelp")}
+              className="sm:col-span-2"
+            >
+              <Input
+                id="rfidChip"
+                value={form.rfidChip}
+                onChange={(e) =>
+                  setForm({ ...form, rfidChip: e.target.value })
+                }
+                placeholder={t("rfidChipPlaceholder")}
+                autoComplete="off"
+                inputMode="text"
+                className="font-mono"
               />
             </Field>
 

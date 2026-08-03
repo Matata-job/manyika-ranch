@@ -88,10 +88,28 @@ export async function POST(req: NextRequest) {
               ? new Date(payload.recordedOfflineAt as string)
               : new Date();
 
+        const rfidChip =
+          typeof payload.rfidChip === "string" && payload.rfidChip.trim()
+            ? payload.rfidChip.trim()
+            : null;
+        if (rfidChip) {
+          const rfidTaken = await prisma.animal.findFirst({
+            where: { rfidChip },
+            select: { id: true },
+          });
+          if (rfidTaken) {
+            results.push({
+              success: false,
+              error: "RFID chip already registered to another animal",
+            });
+            continue;
+          }
+        }
+
         const animal = await prisma.animal.create({
           data: {
             eartag: payload.eartag as string,
-            rfidChip: (payload.rfidChip as string) || null,
+            rfidChip,
             photoUrl: primaryPhoto,
             breed: payload.breed as string,
             sex,

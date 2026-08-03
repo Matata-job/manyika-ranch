@@ -6,6 +6,7 @@ import type { Role } from "@prisma/client";
 const FIELD_LABELS: Record<string, string> = {
   eartag: "Eartag",
   eartags: "Eartags",
+  rfidChip: "RFID",
   breed: "Breed",
   sex: "Sex",
   status: "Status",

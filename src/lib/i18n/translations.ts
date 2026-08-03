@@ -187,6 +187,11 @@ const en = {
 
   // Animal fields
   eartag: "Eartag",
+  rfidChip: "RFID chip",
+  rfidChipHelp:
+    "Electronic ear button ID from the reader. Unique backup if the plastic tag is lost.",
+  rfidChipPlaceholder: "Scan or type chip number",
+  rfidTaken: "That RFID chip is already on another animal",
   breed: "Breed",
   sex: "Sex",
   male: "Male",
@@ -287,7 +292,7 @@ const en = {
   // Animals list
   animalsTitle: "Animals",
   animalsSubtitle: "Herd inventory and filters",
-  searchEartagBreed: "Search eartag, breed…",
+  searchEartagBreed: "Search eartag, RFID, breed…",
   advancedFilters: "Filters",
   ageGroup: "Age group",
   ageFilter: "Age",
@@ -551,7 +556,7 @@ const en = {
   availableColumns: "Available columns",
   columnsCount: "Columns ({n})",
   lifecycleType: "Type",
-  searchAnimalsByEartag: "Search animals by ear tag",
+  searchAnimalsByEartag: "Search animals by ear tag or RFID",
   filters: "Filters",
   eartagColor: "Ear tag colour",
   eartagColorFilterHelp:
@@ -1223,6 +1228,11 @@ const sw: Dict = {
   pendingCount: "{n} inasubiri",
 
   eartag: "Lebo ya sikio",
+  rfidChip: "Chip ya RFID",
+  rfidChipHelp:
+    "Nambari ya kitufe cha sikio cha kielektroniki kutoka kwa reader. Hifadhi ya ziada ikiwa lebo ya plastiki imepotea.",
+  rfidChipPlaceholder: "Skani au andika nambari ya chip",
+  rfidTaken: "Chip hiyo ya RFID tayari iko kwa mnyama mwingine",
   breed: "Aina",
   sex: "Jinsia",
   male: "Dume",
@@ -1319,7 +1329,7 @@ const sw: Dict = {
 
   animalsTitle: "Wanyama",
   animalsSubtitle: "Orodha ya mifugo na vichujio",
-  searchEartagBreed: "Tafuta lebo, aina…",
+  searchEartagBreed: "Tafuta lebo, RFID, aina…",
   advancedFilters: "Vichujio",
   ageGroup: "Kundi la umri",
   ageFilter: "Umri",
@@ -1580,7 +1590,7 @@ const sw: Dict = {
   availableColumns: "Safu zinazopatikana",
   columnsCount: "Safu ({n})",
   lifecycleType: "Aina",
-  searchAnimalsByEartag: "Tafuta wanyama kwa lebo ya sikio",
+  searchAnimalsByEartag: "Tafuta wanyama kwa lebo ya sikio au RFID",
   filters: "Vichungi",
   eartagColor: "Rangi ya lebo",
   eartagColorFilterHelp:

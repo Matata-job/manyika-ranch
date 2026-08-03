@@ -114,6 +114,7 @@ export async function GET(req: NextRequest) {
               OR: [
                 { eartag: { contains: search, mode: "insensitive" as const } },
                 { breed: { contains: search, mode: "insensitive" as const } },
+                { rfidChip: { contains: search, mode: "insensitive" as const } },
               ],
             },
           ]
@@ -212,6 +213,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Eartag already exists" }, { status: 409 });
   }
 
+  const rfidChip =
+    typeof body.rfidChip === "string" && body.rfidChip.trim()
+      ? body.rfidChip.trim()
+      : null;
+  if (rfidChip) {
+    const rfidTaken = await prisma.animal.findFirst({
+      where: { rfidChip },
+      select: { id: true },
+    });
+    if (rfidTaken) {
+      return NextResponse.json(
+        { error: "RFID chip already registered to another animal" },
+        { status: 409 }
+      );
+    }
+  }
+
   const photoUrls: string[] = Array.isArray(body.photoUrls)
     ? body.photoUrls
     : body.photoUrl
@@ -287,7 +305,7 @@ export async function POST(req: NextRequest) {
   const animal = await prisma.animal.create({
     data: {
       eartag: body.eartag,
-      rfidChip: body.rfidChip,
+      rfidChip,
       photoUrl: primaryPhoto,
       breed: body.breed,
       sex: body.sex,
