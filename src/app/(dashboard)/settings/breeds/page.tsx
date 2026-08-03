@@ -195,72 +195,72 @@ export default function BreedsPage() {
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("breedsCount", { n: breeds.length })}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {breeds.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("noBreeds")}</p>
-          ) : (
-            <ul className="divide-y">
-              {breeds.map((b) => (
-                <li
-                  key={b.id}
-                  className="py-3 flex flex-col sm:flex-row sm:items-center gap-3"
+      {!showForm && breeds.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {t("breedsCount", { n: breeds.length })}
+        </p>
+      )}
+
+      {breeds.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t("noBreeds")}</p>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {breeds.map((b) => (
+            <div
+              key={b.id}
+              className="flex flex-col items-center gap-2 rounded-xl border bg-card p-3 text-center"
+            >
+              <div className="relative">
+                <label
+                  className={`relative block h-20 w-20 overflow-hidden rounded-full border bg-muted ${
+                    updatingId === b.id
+                      ? "pointer-events-none opacity-60"
+                      : "cursor-pointer"
+                  }`}
                 >
-                  <div className="flex items-start gap-3 min-w-0 flex-1">
-                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg border bg-muted">
-                      {b.photoUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={b.photoUrl}
-                          alt=""
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-muted-foreground">
-                          {b.name.slice(0, 2).toUpperCase()}
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-medium">{b.name}</p>
-                      {b.description && (
-                        <p className="text-sm text-muted-foreground">
-                          {b.description}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
-                    <PhotoSourcePicker
-                      multiple={false}
-                      size="sm"
-                      disabled={updatingId === b.id}
-                      onFiles={(files) => {
-                        const file = files[0];
-                        if (file) void replaceBreedPhoto(b.id, file);
-                      }}
+                  {b.photoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={b.photoUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
                     />
-                    {b.photoUrl && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        disabled={updatingId === b.id}
-                        onClick={() => void removeBreedPhoto(b.id)}
-                      >
-                        {t("removeBreedPhoto")}
-                      </Button>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center text-lg font-semibold text-muted-foreground">
+                      {b.name.slice(0, 2).toUpperCase()}
+                    </span>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*,image/heic,image/heif,.heic,.heif"
+                    className="sr-only"
+                    disabled={updatingId === b.id}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (file) void replaceBreedPhoto(b.id, file);
+                    }}
+                  />
+                </label>
+                {b.photoUrl && (
+                  <button
+                    type="button"
+                    disabled={updatingId === b.id}
+                    onClick={() => void removeBreedPhoto(b.id)}
+                    className="absolute -right-1 -top-1 rounded-full bg-black/60 p-0.5 text-white"
+                    aria-label={t("removeBreedPhoto")}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+              <p className="text-sm font-medium leading-tight line-clamp-2 w-full">
+                {b.name}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
