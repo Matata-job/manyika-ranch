@@ -207,9 +207,10 @@ export default function ReportsPage() {
   const [camp, setCamp] = useState("all");
   const [ageGroup, setAgeGroup] = useState("all");
   const [status, setStatus] = useState("ACTIVE");
-  const [monthPreset, setMonthPreset] = useState<MonthPreset>("all_time");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const initialRange = rangeForMonthPreset("this_month");
+  const [monthPreset, setMonthPreset] = useState<MonthPreset>("this_month");
+  const [from, setFrom] = useState(initialRange.from);
+  const [to, setTo] = useState(initialRange.to);
   const [loading, setLoading] = useState(false);
 
   const [herd, setHerd] = useState<HerdReport | null>(null);

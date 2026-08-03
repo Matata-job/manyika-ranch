@@ -5,6 +5,7 @@ import {
   buildAnimalScope,
   resolveAccessibleCampIds,
 } from "@/lib/auth/api-guard";
+import { prismaDateRange } from "@/lib/reports/date-range";
 import type { Role } from "@prisma/client";
 
 function monthKey(d: Date): string {
@@ -20,8 +21,7 @@ export async function GET(req: NextRequest) {
   const to = searchParams.get("to");
   const campId = searchParams.get("camp");
 
-  const dateFrom = from ? new Date(from) : null;
-  const dateTo = to ? new Date(`${to}T23:59:59.999Z`) : null;
+  const dateFilter = prismaDateRange(from, to);
 
   const animalScope = await buildAnimalScope(
     result.user.id,
@@ -52,14 +52,6 @@ export async function GET(req: NextRequest) {
       ],
     };
   }
-
-  const dateFilter =
-    dateFrom || dateTo
-      ? {
-          ...(dateFrom ? { gte: dateFrom } : {}),
-          ...(dateTo ? { lte: dateTo } : {}),
-        }
-      : undefined;
 
   const [sales, expenses, incomes] = await Promise.all([
     prisma.sale.findMany({

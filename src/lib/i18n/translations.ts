@@ -491,6 +491,7 @@ const en = {
   financeExpensesHelp: "Feed, vet, wages, transport, and more.",
   financeIncomeHelp: "Grazing fees, manure, services (not animal sales).",
   financePnlHelp: "Sales + other income − expenses by month and camp.",
+  financePeriodThisMonth: "Totals shown for this month",
   viewOnly: "view only",
   open: "Open",
 
@@ -1366,6 +1367,7 @@ const sw: Dict = {
   financeExpensesHelp: "Chakula, daktari, mishahara, usafiri, na zaidi.",
   financeIncomeHelp: "Ada za malisho, samadi, huduma (sio mauzo ya wanyama).",
   financePnlHelp: "Mauzo + mapato mengine − matumizi kwa mwezi na kambi.",
+  financePeriodThisMonth: "Jumla zinaonyeshwa kwa mwezi huu",
   viewOnly: "angalia tu",
   open: "Fungua",
 

@@ -48,7 +48,6 @@ export async function GET(req: NextRequest) {
       buyerContact: { select: { id: true, name: true } },
     },
     orderBy: { saleDate: "desc" },
-    take: 500,
   });
 
   const totalRevenue = sales.reduce((sum, s) => sum + s.priceTzs, 0);

@@ -16,6 +16,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
+import { rangeForMonthPreset } from "@/lib/reports/date-range";
 
 interface PnLSummary {
   salesRevenue: number;
@@ -32,17 +33,16 @@ export default function FinanceHubPage() {
   const canViewBuyers = role ? hasPermission(role, "viewBuyers") : false;
   const canViewSales = role ? hasPermission(role, "viewSales") : false;
   const [summary, setSummary] = useState<PnLSummary | null>(null);
+  const period = rangeForMonthPreset("this_month");
 
   useEffect(() => {
-    const now = new Date();
-    const from = new Date(now.getFullYear(), now.getMonth(), 1)
-      .toISOString()
-      .slice(0, 10);
-    const to = now.toISOString().slice(0, 10);
-    fetch(`/api/reports/pnl?from=${from}&to=${to}`)
+    const params = new URLSearchParams();
+    if (period.from) params.set("from", period.from);
+    if (period.to) params.set("to", period.to);
+    fetch(`/api/reports/pnl?${params}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => d && setSummary(d.summary));
-  }, []);
+  }, [period.from, period.to]);
 
   const links = [
     {
@@ -98,6 +98,12 @@ export default function FinanceHubPage() {
         <p className="text-muted-foreground">
           {t("financeSubtitle")}
           {!canManage && ` · ${t("viewOnly")}`}
+        </p>
+        <p className="text-sm text-muted-foreground mt-1">
+          {t("financePeriodThisMonth")}
+          {period.from && period.to
+            ? ` (${period.from} → ${period.to})`
+            : ""}
         </p>
       </div>
 

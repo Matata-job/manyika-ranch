@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { formatCurrency } from "@/lib/utils";
 import { ArrowLeft, Download } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
+import { rangeForMonthPreset } from "@/lib/reports/date-range";
 
 interface PnLData {
   summary: {
@@ -60,10 +61,11 @@ function labelCat(c: string, t: (key: import("@/lib/i18n/translations").Translat
 
 export default function PnLPage() {
   const t = useT();
+  const initialRange = rangeForMonthPreset("this_month");
   const [data, setData] = useState<PnLData | null>(null);
   const [camps, setCamps] = useState<{ id: string; name: string }[]>([]);
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const [from, setFrom] = useState(initialRange.from);
+  const [to, setTo] = useState(initialRange.to);
   const [camp, setCamp] = useState("all");
   const [loading, setLoading] = useState(true);
 
@@ -83,17 +85,14 @@ export default function PnLPage() {
   }, [from, to, camp]);
 
   useEffect(() => {
-    const now = new Date();
-    setFrom(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10));
-    setTo(now.toISOString().slice(0, 10));
     fetch("/api/camps")
       .then((r) => r.json())
-      .then((d) => setCamps(Array.isArray(d) ? d : []));
+      .then((d) => setCamps(Array.isArray(d) ? d : d.camps || []));
   }, []);
 
   useEffect(() => {
-    if (from && to) load();
-  }, [from, to, load]);
+    load();
+  }, [load]);
 
   function exportCsv() {
     if (!data) return;
