@@ -31,6 +31,10 @@ import {
   herdPlanLabelKey,
   type HerdPlanValue,
 } from "@/lib/herd-plan";
+import {
+  animalStatusBadgeVariant,
+  animalStatusLabelKey,
+} from "@/lib/animal-status";
 import { PhotoSourcePicker } from "@/components/photo-source-picker";
 import { useObjectUrls } from "@/hooks/use-object-urls";
 import { uploadPhotoFile } from "@/lib/client/upload-photo";
@@ -175,6 +179,10 @@ export default function AnimalDetailPage() {
   const [quickNote, setQuickNote] = useState("");
   const [savingQuickNote, setSavingQuickNote] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
+  const [statusReason, setStatusReason] = useState("");
+  const [statusAction, setStatusAction] = useState<
+    "QUARANTINE" | "MISSING" | "ACTIVE" | null
+  >(null);
   const [pedigree, setPedigree] = useState<{
     offspring?: {
       id: string;
@@ -392,9 +400,6 @@ export default function AnimalDetailPage() {
       payload.ageYears = editForm.ageYears || 0;
       payload.ageMonthsPart = editForm.ageMonthsPart || 0;
     }
-    if (!["SOLD", "DECEASED"].includes(animal?.status || "")) {
-      payload.status = editForm.status;
-    }
 
     const res = await fetch(`/api/animals/${id}`, {
       method: "PATCH",
@@ -441,6 +446,35 @@ export default function AnimalDetailPage() {
       body: JSON.stringify({ [field]: value, sex: animal?.sex }),
     });
     setStatusSaving(false);
+    loadAnimal();
+  }
+
+  async function applyHerdStatus(next: "ACTIVE" | "QUARANTINE" | "MISSING") {
+    if (!animal || animal.status === next) return;
+    const confirmKey =
+      next === "QUARANTINE"
+        ? "confirmMarkQuarantine"
+        : next === "MISSING"
+          ? "confirmMarkMissing"
+          : "confirmReturnToActive";
+    if (!window.confirm(t(confirmKey))) return;
+    setStatusSaving(true);
+    const res = await fetch(`/api/animals/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: next,
+        statusReason: statusReason.trim() || null,
+      }),
+    });
+    setStatusSaving(false);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      window.alert(err.error || t("failedToSave"));
+      return;
+    }
+    setStatusReason("");
+    setStatusAction(null);
     loadAnimal();
   }
 
@@ -850,7 +884,9 @@ export default function AnimalDetailPage() {
                 {t(herdPlanLabelKey(animal.herdPlan))}
               </Badge>
             )}
-            <Badge variant={isDeceased ? "destructive" : isSold ? "warning" : "secondary"}>{animal.status}</Badge>
+            <Badge variant={animalStatusBadgeVariant(animal.status)}>
+              {t(animalStatusLabelKey(animal.status))}
+            </Badge>
             {animal.deathRecord?.isCulling && <Badge variant="warning">{t("causeCulling")}</Badge>}
             {canEdit && !editingDetails && (
               <Button variant="outline" size="sm" onClick={() => startEditDetails(animal)}>
@@ -976,6 +1012,135 @@ export default function AnimalDetailPage() {
         </div>
       </div>
 
+      {!isClosed && canEdit && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">{t("herdStatusTitle")}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">{t("herdStatusHelp")}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={animalStatusBadgeVariant(animal.status)} className="text-sm px-2.5 py-1">
+                {t(animalStatusLabelKey(animal.status))}
+              </Badge>
+              <span className="text-sm text-muted-foreground">
+                {animal.status === "QUARANTINE"
+                  ? t("statusQuarantineHelp")
+                  : animal.status === "MISSING"
+                    ? t("statusMissingHelp")
+                    : t("statusActiveHelp")}
+              </span>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <button
+                type="button"
+                disabled={statusSaving || animal.status === "ACTIVE"}
+                onClick={() =>
+                  setStatusAction((a) => (a === "ACTIVE" ? null : "ACTIVE"))
+                }
+                className={`rounded-lg border p-3 text-left transition-colors ${
+                  animal.status === "ACTIVE"
+                    ? "border-foreground/30 bg-muted/40"
+                    : statusAction === "ACTIVE"
+                      ? "border-foreground bg-muted/30"
+                      : "hover:border-foreground/40"
+                }`}
+              >
+                <p className="text-sm font-medium">{t("statusActive")}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t("statusActiveHelp")}
+                </p>
+              </button>
+              <button
+                type="button"
+                disabled={statusSaving || animal.status === "QUARANTINE"}
+                onClick={() =>
+                  setStatusAction((a) =>
+                    a === "QUARANTINE" ? null : "QUARANTINE"
+                  )
+                }
+                className={`rounded-lg border p-3 text-left transition-colors ${
+                  animal.status === "QUARANTINE"
+                    ? "border-amber-500/50 bg-amber-500/10"
+                    : statusAction === "QUARANTINE"
+                      ? "border-amber-600 bg-amber-500/10"
+                      : "hover:border-foreground/40"
+                }`}
+              >
+                <p className="text-sm font-medium">{t("quarantine")}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t("statusQuarantineHelp")}
+                </p>
+              </button>
+              <button
+                type="button"
+                disabled={statusSaving || animal.status === "MISSING"}
+                onClick={() =>
+                  setStatusAction((a) => (a === "MISSING" ? null : "MISSING"))
+                }
+                className={`rounded-lg border p-3 text-left transition-colors ${
+                  animal.status === "MISSING"
+                    ? "border-muted-foreground/40 bg-muted/50"
+                    : statusAction === "MISSING"
+                      ? "border-foreground bg-muted/40"
+                      : "hover:border-foreground/40"
+                }`}
+              >
+                <p className="text-sm font-medium">{t("statusMissing")}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t("statusMissingHelp")}
+                </p>
+              </button>
+            </div>
+
+            {statusAction && statusAction !== animal.status && (
+              <div className="rounded-lg border bg-muted/20 p-3 space-y-3 max-w-lg">
+                <div className="space-y-2">
+                  <Label>{t("statusReasonOptional")}</Label>
+                  <Textarea
+                    value={statusReason}
+                    onChange={(e) => setStatusReason(e.target.value)}
+                    rows={2}
+                    placeholder={
+                      statusAction === "QUARANTINE"
+                        ? t("statusReasonPlaceholderQuarantine")
+                        : statusAction === "MISSING"
+                          ? t("statusReasonPlaceholderMissing")
+                          : t("statusReasonPlaceholderActive")
+                    }
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    disabled={statusSaving}
+                    onClick={() => void applyHerdStatus(statusAction)}
+                  >
+                    {statusAction === "QUARANTINE"
+                      ? t("markQuarantine")
+                      : statusAction === "MISSING"
+                        ? t("markMissing")
+                        : t("returnToActive")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={statusSaving}
+                    onClick={() => {
+                      setStatusAction(null);
+                      setStatusReason("");
+                    }}
+                  >
+                    {t("cancel")}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -1049,19 +1214,6 @@ export default function AnimalDetailPage() {
                   </SelectContent>
                 </Select>
               </div>
-              {!isClosed && (
-                <div className="space-y-2">
-                  <Label>{t("status")}</Label>
-                  <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ACTIVE">{t("active")}</SelectItem>
-                      <SelectItem value="MISSING">{t("statusMissing")}</SelectItem>
-                      <SelectItem value="QUARANTINE">{t("quarantine")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
               <div className="space-y-2">
                 <Label>{t("dob")}</Label>
                 <Input
@@ -1376,7 +1528,6 @@ export default function AnimalDetailPage() {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="NOTE">{t("eventTypeNote")}</SelectItem>
-                      <SelectItem value="QUARANTINE">{t("quarantine")}</SelectItem>
                       <SelectItem value="OTHER">{t("other")}</SelectItem>
                     </SelectContent>
                   </Select>

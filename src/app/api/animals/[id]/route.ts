@@ -310,12 +310,32 @@ export async function PATCH(
   if (dob instanceof Date) await updateAnimalAgeMonths(id, dob);
 
   if (body.status && previous && body.status !== previous.status) {
+    const reason =
+      typeof body.statusReason === "string" && body.statusReason.trim()
+        ? body.statusReason.trim()
+        : null;
+    const to = String(body.status);
+    const from = previous.status;
+    let type: "QUARANTINE" | "STATUS_CHANGE" = "STATUS_CHANGE";
+    let title = `Status: ${from} → ${to}`;
+    if (to === "QUARANTINE") {
+      type = "QUARANTINE";
+      title = "Marked quarantine";
+    } else if (to === "MISSING") {
+      title = "Marked missing";
+    } else if (to === "ACTIVE" && (from === "QUARANTINE" || from === "MISSING")) {
+      title =
+        from === "QUARANTINE"
+          ? "Released from quarantine (active)"
+          : "Found / returned to active";
+    }
     await logAnimalEvent({
       animalId: id,
-      type: body.status === "QUARANTINE" ? "QUARANTINE" : "STATUS_CHANGE",
-      title: `Status: ${previous.status} → ${body.status}`,
+      type,
+      title,
+      description: reason,
       recordedById: result.user.id,
-      metadata: { from: previous.status, to: body.status },
+      metadata: { from, to, reason },
     });
   }
 

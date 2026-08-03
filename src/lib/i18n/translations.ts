@@ -805,6 +805,24 @@ const en = {
   ageYears: "Age — Years",
   ageMonthsPart: "Age — Months",
   statusMissing: "Missing",
+  herdStatusTitle: "Herd status",
+  herdStatusHelp:
+    "Use Quarantine for sick or isolated animals still on the ranch. Use Missing when an animal cannot be found. Return to Active when they are healthy again or found.",
+  statusQuarantineHelp:
+    "Isolated on the ranch (illness, new arrivals, treatment). Still in the herd; can receive health records and movements.",
+  statusMissingHelp:
+    "Not located on the ranch. Stays on record until found, sold, or recorded dead.",
+  statusActiveHelp: "Normal animal in the herd.",
+  markQuarantine: "Mark quarantine",
+  markMissing: "Mark missing",
+  returnToActive: "Return to active",
+  statusReasonOptional: "Reason (optional)",
+  statusReasonPlaceholderQuarantine: "e.g. fever, new purchase isolation, foot rot",
+  statusReasonPlaceholderMissing: "e.g. last seen near river, night of 12 Aug",
+  statusReasonPlaceholderActive: "e.g. cleared by vet, found in Camp 2",
+  confirmMarkQuarantine: "Mark this animal as quarantine?",
+  confirmMarkMissing: "Mark this animal as missing?",
+  confirmReturnToActive: "Return this animal to active?",
   closedAnimalNotice:
     "This animal is {status}. Identity fields can still be corrected; status cannot be changed here.",
   eventTypeNote: "Note",
@@ -1780,6 +1798,24 @@ const sw: Dict = {
   ageYears: "Umri — Miaka",
   ageMonthsPart: "Umri — Miezi",
   statusMissing: "Amepotea",
+  herdStatusTitle: "Hali ya kundi",
+  herdStatusHelp:
+    "Tumia Karantini kwa wagonjwa au waliotengwa bado shambani. Tumia Amepotea wakati mnyama hapatikani. Rudisha Hai anapopona au kupatikana.",
+  statusQuarantineHelp:
+    "Ametengwa shambani (ugonjwa, wageni wapya, matibabu). Bado yuko kwenye kundi; anaweza kupata rekodi za afya na uhamisho.",
+  statusMissingHelp:
+    "Hapatikani shambani. Anabaki kwenye rekodi hadi apatikane, auuzwe, au kifo kirekodiwe.",
+  statusActiveHelp: "Mnyama wa kawaida kwenye kundi.",
+  markQuarantine: "Weka karantini",
+  markMissing: "Weka amepotea",
+  returnToActive: "Rudisha hai",
+  statusReasonOptional: "Sababu (si lazima)",
+  statusReasonPlaceholderQuarantine: "mf. homa, kutenga mnyama mpya, kidonda cha mguu",
+  statusReasonPlaceholderMissing: "mf. alionekana mwisho karibu na mto, usiku wa 12 Agosti",
+  statusReasonPlaceholderActive: "mf. daktari ameondoa, amepatikana Kambi 2",
+  confirmMarkQuarantine: "Weka mnyama huyu katika karantini?",
+  confirmMarkMissing: "Weka mnyama huyu kama amepotea?",
+  confirmReturnToActive: "Rudisha mnyama huyu kuwa hai?",
   closedAnimalNotice:
     "Mnyama huyu ni {status}. Sehemu za utambulisho bado zinaweza kurekebishwa; hali haiwezi kubadilishwa hapa.",
   eventTypeNote: "Kumbukumbu",

@@ -24,6 +24,10 @@ import {
   lifecycleLabelKey,
 } from "@/lib/lifecycle";
 import {
+  animalStatusBadgeVariant,
+  animalStatusLabelKey,
+} from "@/lib/animal-status";
+import {
   DEFAULT_PAGE_SIZE,
   ListPagination,
 } from "@/components/list-pagination";
@@ -185,8 +189,11 @@ function AnimalStatusBadges({
         </Badge>
       )}
       {animal.status !== "ACTIVE" && (
-        <Badge variant="secondary" className="font-normal text-[10px] px-1.5 py-0 h-5">
-          {animal.status}
+        <Badge
+          variant={animalStatusBadgeVariant(animal.status)}
+          className="font-normal text-[10px] px-1.5 py-0 h-5"
+        >
+          {t(animalStatusLabelKey(animal.status))}
         </Badge>
       )}
     </>
