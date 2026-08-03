@@ -15,58 +15,100 @@ export type TagColorCode = (typeof TAG_COLORS)[number];
 
 export type TagColorSource = "animal" | "year" | "camp" | "default" | null;
 
-const STYLES: Record<
-  string,
-  { swatch: string; badge: string; labelEn: string; labelSw: string }
-> = {
+type TagStyle = {
+  /** Inline fill — required so colours render even if Tailwind purged utility classes. */
+  fill: string;
+  border: string;
+  badgeBg: string;
+  badgeText: string;
+  badgeBorder: string;
+  labelEn: string;
+  labelSw: string;
+};
+
+const STYLES: Record<string, TagStyle> = {
   NJANO: {
-    swatch: "bg-yellow-400 border-yellow-600",
-    badge: "bg-yellow-100 text-yellow-950 border-yellow-400",
+    fill: "#facc15",
+    border: "#ca8a04",
+    badgeBg: "#fef9c3",
+    badgeText: "#422006",
+    badgeBorder: "#facc15",
     labelEn: "Yellow (Njano)",
     labelSw: "Njano",
   },
   BLUE: {
-    swatch: "bg-blue-500 border-blue-700",
-    badge: "bg-blue-100 text-blue-950 border-blue-400",
+    fill: "#3b82f6",
+    border: "#1d4ed8",
+    badgeBg: "#dbeafe",
+    badgeText: "#172554",
+    badgeBorder: "#60a5fa",
     labelEn: "Blue",
     labelSw: "Bluu",
   },
   KIJANI: {
-    swatch: "bg-green-500 border-green-700",
-    badge: "bg-green-100 text-green-950 border-green-400",
+    fill: "#22c55e",
+    border: "#15803d",
+    badgeBg: "#dcfce7",
+    badgeText: "#14532d",
+    badgeBorder: "#4ade80",
     labelEn: "Green (Kijani)",
     labelSw: "Kijani",
   },
   NYEKUNDU: {
-    swatch: "bg-red-600 border-red-800",
-    badge: "bg-red-100 text-red-950 border-red-400",
+    fill: "#dc2626",
+    border: "#991b1b",
+    badgeBg: "#fee2e2",
+    badgeText: "#450a0a",
+    badgeBorder: "#f87171",
     labelEn: "Red (Nyekundu)",
     labelSw: "Nyekundu",
   },
   NYEUPE: {
-    swatch: "bg-white border-neutral-400",
-    badge: "bg-neutral-50 text-neutral-900 border-neutral-400",
+    fill: "#ffffff",
+    border: "#a3a3a3",
+    badgeBg: "#fafafa",
+    badgeText: "#171717",
+    badgeBorder: "#a3a3a3",
     labelEn: "White (Nyeupe)",
     labelSw: "Nyeupe",
   },
   ORANGE: {
-    swatch: "bg-orange-500 border-orange-700",
-    badge: "bg-orange-100 text-orange-950 border-orange-400",
+    fill: "#f97316",
+    border: "#c2410c",
+    badgeBg: "#ffedd5",
+    badgeText: "#7c2d12",
+    badgeBorder: "#fb923c",
     labelEn: "Orange",
     labelSw: "Chungwa",
   },
   BLACK: {
-    swatch: "bg-neutral-900 border-neutral-950",
-    badge: "bg-neutral-800 text-neutral-50 border-neutral-700",
+    fill: "#171717",
+    border: "#0a0a0a",
+    badgeBg: "#262626",
+    badgeText: "#fafafa",
+    badgeBorder: "#404040",
     labelEn: "Black",
     labelSw: "Nyeusi",
   },
   PINK: {
-    swatch: "bg-pink-400 border-pink-600",
-    badge: "bg-pink-100 text-pink-950 border-pink-400",
+    fill: "#f472b6",
+    border: "#db2777",
+    badgeBg: "#fce7f3",
+    badgeText: "#500724",
+    badgeBorder: "#f9a8d4",
     labelEn: "Pink",
     labelSw: "Pink",
   },
+};
+
+const FALLBACK: TagStyle = {
+  fill: "#e5e5e5",
+  border: "#a3a3a3",
+  badgeBg: "#f5f5f5",
+  badgeText: "#737373",
+  badgeBorder: "#d4d4d4",
+  labelEn: "—",
+  labelSw: "—",
 };
 
 export function normalizeTagColor(raw: string | null | undefined): string | null {
@@ -81,17 +123,38 @@ export function normalizeTagColor(raw: string | null | undefined): string | null
   return key;
 }
 
-export function tagColorStyle(code: string | null | undefined) {
+export function tagColorStyle(code: string | null | undefined): TagStyle {
   const key = normalizeTagColor(code);
   if (!key || !STYLES[key]) {
     return {
-      swatch: "bg-muted border-muted-foreground/30",
-      badge: "bg-muted text-muted-foreground border-muted-foreground/20",
+      ...FALLBACK,
       labelEn: key || "—",
       labelSw: key || "—",
     };
   }
   return STYLES[key];
+}
+
+/** CSS properties for a colour swatch circle. */
+export function tagColorSwatchCss(code: string | null | undefined): {
+  backgroundColor: string;
+  borderColor: string;
+} {
+  const style = tagColorStyle(code);
+  return { backgroundColor: style.fill, borderColor: style.border };
+}
+
+export function tagColorBadgeCss(code: string | null | undefined): {
+  backgroundColor: string;
+  color: string;
+  borderColor: string;
+} {
+  const style = tagColorStyle(code);
+  return {
+    backgroundColor: style.badgeBg,
+    color: style.badgeText,
+    borderColor: style.badgeBorder,
+  };
 }
 
 export function tagColorLabel(code: string | null | undefined, locale = "en"): string {

@@ -1,8 +1,9 @@
 import { cn } from "@/lib/utils";
 import {
   resolveTagColor,
+  tagColorBadgeCss,
   tagColorLabel,
-  tagColorStyle,
+  tagColorSwatchCss,
   type TagColorSource,
 } from "@/lib/tag-color";
 
@@ -62,7 +63,8 @@ export function EartagBadge({
     ageMonths,
     yearColors,
   });
-  const style = tagColorStyle(color);
+  const swatch = tagColorSwatchCss(color);
+  const badge = tagColorBadgeCss(color);
   const hint = sourceHint(source, birthYear, locale);
   const title = color
     ? `${tagColorLabel(color, locale)}${hint ? ` · ${hint}` : ""}`
@@ -76,9 +78,9 @@ export function EartagBadge({
       <span
         className={cn(
           "inline-block shrink-0 rounded-full border",
-          size === "lg" ? "h-3.5 w-3.5" : "h-2.5 w-2.5",
-          style.swatch
+          size === "lg" ? "h-3.5 w-3.5" : "h-2.5 w-2.5"
         )}
+        style={swatch}
         aria-hidden
       />
       <span
@@ -91,10 +93,8 @@ export function EartagBadge({
       </span>
       {showLabel && color && (
         <span
-          className={cn(
-            "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-medium",
-            style.badge
-          )}
+          className="inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-medium"
+          style={badge}
         >
           {tagColorLabel(color, locale)}
         </span>
@@ -112,12 +112,13 @@ export function TagColorSwatch({
   locale?: string;
   className?: string;
 }) {
-  const style = tagColorStyle(color);
   if (!color) return <span className="text-muted-foreground">—</span>;
+  const swatch = tagColorSwatchCss(color);
   return (
     <span className={cn("inline-flex items-center gap-1.5", className)}>
       <span
-        className={cn("h-3 w-3 rounded-full border shrink-0", style.swatch)}
+        className="h-3 w-3 rounded-full border shrink-0"
+        style={swatch}
       />
       <span className="text-sm">{tagColorLabel(color, locale)}</span>
     </span>
