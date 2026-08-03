@@ -338,6 +338,12 @@ const en = {
   standingNotesHelp:
     "Always-on facts for this animal (temperament, handling, special care). Dated updates go in the event timeline.",
   noStandingNotes: "No standing notes yet. Edit details to add some.",
+  herdStatusSummaryOk: "Active — expand to change",
+  herdStatusSummaryAction: "Needs attention — expand to update",
+  dangerZoneTitle: "Danger zone",
+  dangerZoneAnimalSummary: "Move this animal to Recently deleted",
+  softDeleteAnimalHelp:
+    "Moves the animal to Recently deleted. You can restore it within the retention period.",
   quickNote: "Quick note",
   quickNotePlaceholder: "Write a dated note for the timeline…",
   addQuickNote: "Add note",
@@ -1344,6 +1350,12 @@ const sw: Dict = {
   standingNotesHelp:
     "Ukweli wa kudumu wa mnyama (tabia, utunzaji maalum). Sasisho zenye tarehe huenda kwenye ratiba ya matukio.",
   noStandingNotes: "Hakuna maelezo ya kudumu bado. Hariri maelezo kuongeza.",
+  herdStatusSummaryOk: "Hai — panua kubadilisha",
+  herdStatusSummaryAction: "Inahitaji uangalizi — panua kusasisha",
+  dangerZoneTitle: "Eneo la hatari",
+  dangerZoneAnimalSummary: "Hamisha mnyama kwenda Zilizofutwa",
+  softDeleteAnimalHelp:
+    "Inahamisha mnyama kwenda Zilizofutwa. Unaweza kumrejesha ndani ya muda wa kuhifadhi.",
   quickNote: "Kidokezo cha haraka",
   quickNotePlaceholder: "Andika kidokezo chenye tarehe kwa ratiba…",
   addQuickNote: "Ongeza kidokezo",

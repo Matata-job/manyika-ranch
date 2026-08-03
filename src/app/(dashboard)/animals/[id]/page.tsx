@@ -15,15 +15,15 @@ import { formatAge, type AgeDisplayMode } from "@/lib/utils";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { PedigreeTree, OffspringTree } from "@/components/pedigree-tree";
 import { AnimalPhotoGallery, type AnimalPhoto } from "@/components/animal-photo-gallery";
-import { ArrowLeft, Pencil, StickyNote, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 import { Label } from "@/components/ui/label";
 import { useLocale, useT } from "@/components/providers/locale-provider";
 import type { TranslationKey } from "@/lib/i18n/translations";
-import { EartagBadge, TagColorSwatch } from "@/components/eartag-badge";
-import { TAG_COLORS, resolveTagColor, tagColorLabel } from "@/lib/tag-color";
+import { EartagBadge } from "@/components/eartag-badge";
+import { TAG_COLORS, tagColorLabel } from "@/lib/tag-color";
 import { parseAnimalsList } from "@/lib/animals-api";
 import {
   HERD_PLANS,
@@ -35,6 +35,7 @@ import {
   animalStatusBadgeVariant,
   animalStatusLabelKey,
 } from "@/lib/animal-status";
+import { OptionalSection } from "@/components/optional-section";
 import { PhotoSourcePicker } from "@/components/photo-source-picker";
 import { useObjectUrls } from "@/hooks/use-object-urls";
 import { uploadPhotoFile } from "@/lib/client/upload-photo";
@@ -183,6 +184,9 @@ export default function AnimalDetailPage() {
   const [statusAction, setStatusAction] = useState<
     "QUARANTINE" | "MISSING" | "ACTIVE" | null
   >(null);
+  const [showNotes, setShowNotes] = useState(false);
+  const [showHerdStatus, setShowHerdStatus] = useState(false);
+  const [showDanger, setShowDanger] = useState(false);
   const [pedigree, setPedigree] = useState<{
     offspring?: {
       id: string;
@@ -207,6 +211,9 @@ export default function AnimalDetailPage() {
     eartag: "",
     breed: "",
     sex: "FEMALE",
+    isCastrated: false,
+    isPregnant: false,
+    herdPlan: "EXCLUDED" as HerdPlanValue,
     dob: "",
     ageYears: "",
     ageMonthsPart: "",
@@ -294,6 +301,13 @@ export default function AnimalDetailPage() {
   }
 
   useEffect(() => {
+    if (!animal) return;
+    setShowHerdStatus(
+      animal.status === "QUARANTINE" || animal.status === "MISSING"
+    );
+  }, [id, animal?.status]);
+
+  useEffect(() => {
     loadAnimal();
     fetch(`/api/animals/${id}/pedigree`).then((r) => (r.ok ? r.json() : null)).then(setPedigree);
     fetch(`/api/camps?for=movement`).then((r) => r.json()).then(setCamps);
@@ -356,6 +370,9 @@ export default function AnimalDetailPage() {
       eartag: a.eartag,
       breed: a.breed,
       sex: a.sex,
+      isCastrated: !!a.isCastrated,
+      isPregnant: !!a.isPregnant,
+      herdPlan: (a.herdPlan as HerdPlanValue) || "EXCLUDED",
       dob: a.dob ? a.dob.slice(0, 10) : "",
       ageYears: years === "" ? "" : String(years),
       ageMonthsPart: months === "" ? "" : String(months),
@@ -383,6 +400,9 @@ export default function AnimalDetailPage() {
       eartag: editForm.eartag.trim(),
       breed: editForm.breed,
       sex: editForm.sex,
+      isCastrated: editForm.sex === "MALE" ? editForm.isCastrated : false,
+      isPregnant: editForm.sex === "FEMALE" ? editForm.isPregnant : false,
+      herdPlan: editForm.herdPlan,
       campId: editForm.campId,
       ownerId: editForm.ownerId,
       colorMarkings: editForm.colorMarkings || null,
@@ -438,17 +458,6 @@ export default function AnimalDetailPage() {
     loadAnimal();
   }
 
-  async function toggleSexStatus(field: "isCastrated" | "isPregnant", value: boolean) {
-    setStatusSaving(true);
-    await fetch(`/api/animals/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [field]: value, sex: animal?.sex }),
-    });
-    setStatusSaving(false);
-    loadAnimal();
-  }
-
   async function applyHerdStatus(next: "ACTIVE" | "QUARANTINE" | "MISSING") {
     if (!animal || animal.status === next) return;
     const confirmKey =
@@ -475,34 +484,6 @@ export default function AnimalDetailPage() {
     }
     setStatusReason("");
     setStatusAction(null);
-    loadAnimal();
-  }
-
-  async function setHerdPlan(
-    plan: "EXCLUDED" | "KEEP_BREEDING" | "SELL_NEXT_CYCLE"
-  ) {
-    if (!animal) return;
-    setStatusSaving(true);
-    let note: string | null | undefined;
-    if (plan !== "EXCLUDED") {
-      const entered =
-        window.prompt(t("optionalPlanningNote"), animal.herdPlanNote || "") ??
-        "";
-      note = entered.trim() || null;
-    } else {
-      note = null;
-    }
-    const res = await fetch(`/api/animals/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ herdPlan: plan, herdPlanNote: note }),
-    });
-    setStatusSaving(false);
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      window.alert(err.error || t("failedToSave"));
-      return;
-    }
     loadAnimal();
   }
 
@@ -846,328 +827,7 @@ export default function AnimalDetailPage() {
         <ArrowLeft className="h-4 w-4 mr-1" /> {t("backToAnimals")}
       </Link>
 
-      <div className="flex flex-col md:flex-row gap-6">
-        <AnimalPhotoGallery
-          animalId={id}
-          initialPhotos={animal.photos || []}
-          coverUrl={animal.photoUrl}
-          canEdit={
-            (!isClosed && canUpdateRecords) || (isDeceased && canEdit)
-          }
-          onPhotosChange={loadAnimal}
-        />
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-2 flex-wrap">
-            <EartagBadge
-              eartag={animal.eartag}
-              campTagColor={animal.camp.tagColor}
-              animalTagColor={animal.tagColor}
-              defaultTagColor={defaultTagColor}
-              dob={animal.dob}
-              ageMonths={animal.ageMonths}
-              yearColors={yearColors}
-              locale={locale}
-              size="lg"
-              showLabel
-            />
-            <Badge>
-              {animal.sex === "MALE"
-                ? t("male")
-                : animal.sex === "FEMALE"
-                  ? t("female")
-                  : t("unknownSex")}
-            </Badge>
-            {animal.sex === "MALE" && animal.isCastrated && <Badge variant="outline">{t("castrated")}</Badge>}
-            {animal.sex === "FEMALE" && animal.isPregnant && <Badge variant="warning">{t("pregnant")}</Badge>}
-            {animal.herdPlan && animal.herdPlan !== "EXCLUDED" && (
-              <Badge variant={herdPlanBadgeVariant(animal.herdPlan)}>
-                {t(herdPlanLabelKey(animal.herdPlan))}
-              </Badge>
-            )}
-            <Badge variant={animalStatusBadgeVariant(animal.status)}>
-              {t(animalStatusLabelKey(animal.status))}
-            </Badge>
-            {animal.deathRecord?.isCulling && <Badge variant="warning">{t("causeCulling")}</Badge>}
-            {canEdit && !editingDetails && (
-              <Button variant="outline" size="sm" onClick={() => startEditDetails(animal)}>
-                <Pencil className="h-3.5 w-3.5 mr-1" /> {t("editDetails")}
-              </Button>
-            )}
-            {canDeleteAnimal && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-destructive border-destructive/30"
-                onClick={softDeleteAnimal}
-              >
-                <Trash2 className="h-3.5 w-3.5 mr-1" /> {t("moveToTrash")}
-              </Button>
-            )}
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div><span className="text-muted-foreground">{t("breed")}</span><p className="font-medium">{animal.breed}</p></div>
-            <div><span className="text-muted-foreground">{t("age")}</span><p className="font-medium">{formatAge(animal.ageMonths, ageMode)}</p></div>
-            <div><span className="text-muted-foreground">{t("dob")}</span><p className="font-medium">{formatDate(animal.dob)}</p></div>
-            <div><span className="text-muted-foreground">{t("source")}</span><p className="font-medium">{
-              animal.acquisitionType === "PURCHASED"
-                ? t("purchased")
-                : animal.acquisitionType === "GIFT"
-                  ? t("gift")
-                  : t("bornOnFarm")
-            }</p></div>
-            {(animal.acquisitionType === "PURCHASED" || animal.acquisitionType === "GIFT") && (
-              <div>
-                <span className="text-muted-foreground">{t("acquisitionDate")}</span>
-                <p className="font-medium">{formatDate(animal.acquisitionDate)}</p>
-              </div>
-            )}
-            <div><span className="text-muted-foreground">{t("camp")}</span><p className="font-medium">{animal.camp.name}</p></div>
-            <div><span className="text-muted-foreground">{t("owner")}</span><p className="font-medium">{animal.owner.name}</p></div>
-            <div><span className="text-muted-foreground">{t("sire")}</span><p className="font-medium">{animal.sire?.eartag || "—"}</p></div>
-            <div><span className="text-muted-foreground">{t("dam")}</span><p className="font-medium">{animal.dam?.eartag || "—"}</p></div>
-            <div><span className="text-muted-foreground">{t("colorMarkings")}</span><p className="font-medium">{animal.colorMarkings || "—"}</p></div>
-            <div>
-              <span className="text-muted-foreground">{t("tagColor")}</span>
-              <p className="font-medium mt-0.5">
-                <TagColorSwatch
-                  color={
-                    resolveTagColor({
-                      animalTagColor: animal.tagColor,
-                      campTagColor: animal.camp.tagColor,
-                      defaultTagColor,
-                      dob: animal.dob,
-                      ageMonths: animal.ageMonths,
-                      yearColors,
-                    }).color
-                  }
-                  locale={locale}
-                />
-              </p>
-            </div>
-            {animal.sex === "MALE" && canEdit && !isClosed && (
-              <div>
-                <span className="text-muted-foreground">{t("castrated")}</span>
-                <label className="flex items-center gap-2 mt-1 text-sm font-medium">
-                  <input
-                    type="checkbox"
-                    checked={!!animal.isCastrated}
-                    disabled={statusSaving}
-                    onChange={(e) => toggleSexStatus("isCastrated", e.target.checked)}
-                  />
-                  {animal.isCastrated ? t("yes") : t("no")}
-                </label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Checking this adds a castration event to the timeline.
-                </p>
-              </div>
-            )}
-            {animal.sex === "FEMALE" && canEdit && !isClosed && (
-              <div>
-                <span className="text-muted-foreground">{t("pregnant")}</span>
-                <label className="flex items-center gap-2 mt-1 text-sm font-medium">
-                  <input
-                    type="checkbox"
-                    checked={!!animal.isPregnant}
-                    disabled={statusSaving}
-                    onChange={(e) => toggleSexStatus("isPregnant", e.target.checked)}
-                  />
-                  {animal.isPregnant ? t("yes") : t("no")}
-                </label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Clear after calving, or when confirmed open after breeding season.
-                  Linking a calf or recording calving clears this automatically.
-                </p>
-              </div>
-            )}
-            {canUpdateRecords && !isClosed && (
-              <div className="sm:col-span-2 space-y-2">
-                <span className="text-muted-foreground">{t("herdPlan")}</span>
-                <Select
-                  value={animal.herdPlan || "EXCLUDED"}
-                  onValueChange={(v) => setHerdPlan(v as HerdPlanValue)}
-                  disabled={statusSaving}
-                >
-                  <SelectTrigger className="max-w-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {HERD_PLANS.map((plan) => (
-                      <SelectItem key={plan} value={plan}>
-                        {t(herdPlanLabelKey(plan))}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  {t("herdPlanHelp")}
-                </p>
-                {animal.herdPlanNote && animal.herdPlan !== "EXCLUDED" && (
-                  <p className="text-xs text-muted-foreground">
-                    {animal.herdPlanNote}
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {!isClosed && canEdit && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">{t("herdStatusTitle")}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">{t("herdStatusHelp")}</p>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={animalStatusBadgeVariant(animal.status)} className="text-sm px-2.5 py-1">
-                {t(animalStatusLabelKey(animal.status))}
-              </Badge>
-              <span className="text-sm text-muted-foreground">
-                {animal.status === "QUARANTINE"
-                  ? t("statusQuarantineHelp")
-                  : animal.status === "MISSING"
-                    ? t("statusMissingHelp")
-                    : t("statusActiveHelp")}
-              </span>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3">
-              <button
-                type="button"
-                disabled={statusSaving || animal.status === "ACTIVE"}
-                onClick={() =>
-                  setStatusAction((a) => (a === "ACTIVE" ? null : "ACTIVE"))
-                }
-                className={`rounded-lg border p-3 text-left transition-colors ${
-                  animal.status === "ACTIVE"
-                    ? "border-foreground/30 bg-muted/40"
-                    : statusAction === "ACTIVE"
-                      ? "border-foreground bg-muted/30"
-                      : "hover:border-foreground/40"
-                }`}
-              >
-                <p className="text-sm font-medium">{t("statusActive")}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("statusActiveHelp")}
-                </p>
-              </button>
-              <button
-                type="button"
-                disabled={statusSaving || animal.status === "QUARANTINE"}
-                onClick={() =>
-                  setStatusAction((a) =>
-                    a === "QUARANTINE" ? null : "QUARANTINE"
-                  )
-                }
-                className={`rounded-lg border p-3 text-left transition-colors ${
-                  animal.status === "QUARANTINE"
-                    ? "border-amber-500/50 bg-amber-500/10"
-                    : statusAction === "QUARANTINE"
-                      ? "border-amber-600 bg-amber-500/10"
-                      : "hover:border-foreground/40"
-                }`}
-              >
-                <p className="text-sm font-medium">{t("quarantine")}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("statusQuarantineHelp")}
-                </p>
-              </button>
-              <button
-                type="button"
-                disabled={statusSaving || animal.status === "MISSING"}
-                onClick={() =>
-                  setStatusAction((a) => (a === "MISSING" ? null : "MISSING"))
-                }
-                className={`rounded-lg border p-3 text-left transition-colors ${
-                  animal.status === "MISSING"
-                    ? "border-muted-foreground/40 bg-muted/50"
-                    : statusAction === "MISSING"
-                      ? "border-foreground bg-muted/40"
-                      : "hover:border-foreground/40"
-                }`}
-              >
-                <p className="text-sm font-medium">{t("statusMissing")}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("statusMissingHelp")}
-                </p>
-              </button>
-            </div>
-
-            {statusAction && statusAction !== animal.status && (
-              <div className="rounded-lg border bg-muted/20 p-3 space-y-3 max-w-lg">
-                <div className="space-y-2">
-                  <Label>{t("statusReasonOptional")}</Label>
-                  <Textarea
-                    value={statusReason}
-                    onChange={(e) => setStatusReason(e.target.value)}
-                    rows={2}
-                    placeholder={
-                      statusAction === "QUARANTINE"
-                        ? t("statusReasonPlaceholderQuarantine")
-                        : statusAction === "MISSING"
-                          ? t("statusReasonPlaceholderMissing")
-                          : t("statusReasonPlaceholderActive")
-                    }
-                  />
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    disabled={statusSaving}
-                    onClick={() => void applyHerdStatus(statusAction)}
-                  >
-                    {statusAction === "QUARANTINE"
-                      ? t("markQuarantine")
-                      : statusAction === "MISSING"
-                        ? t("markMissing")
-                        : t("returnToActive")}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={statusSaving}
-                    onClick={() => {
-                      setStatusAction(null);
-                      setStatusReason("");
-                    }}
-                  >
-                    {t("cancel")}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <StickyNote className="h-4 w-4" />
-            {t("standingNotes")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <p className="text-xs text-muted-foreground">{t("standingNotesHelp")}</p>
-          {animal.notes?.trim() ? (
-            <p className="text-sm whitespace-pre-wrap">{animal.notes}</p>
-          ) : (
-            <p className="text-sm text-muted-foreground">{t("noStandingNotes")}</p>
-          )}
-          {canEdit && !editingDetails && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => startEditDetails(animal)}
-            >
-              <Pencil className="h-3.5 w-3.5 mr-1" /> {t("editDetails")}
-            </Button>
-          )}
-        </CardContent>
-      </Card>
-
-      {editingDetails && (
+      {editingDetails ? (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>{t("editAnimalDetails")}</CardTitle>
@@ -1205,7 +865,17 @@ export default function AnimalDetailPage() {
               </div>
               <div className="space-y-2">
                 <Label>{t("sex")}</Label>
-                <Select value={editForm.sex} onValueChange={(v) => setEditForm({ ...editForm, sex: v })}>
+                <Select
+                  value={editForm.sex}
+                  onValueChange={(v) =>
+                    setEditForm({
+                      ...editForm,
+                      sex: v,
+                      isCastrated: v === "MALE" ? editForm.isCastrated : false,
+                      isPregnant: v === "FEMALE" ? editForm.isPregnant : false,
+                    })
+                  }
+                >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="MALE">{t("male")}</SelectItem>
@@ -1214,6 +884,53 @@ export default function AnimalDetailPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {editForm.sex === "MALE" && !isClosed && (
+                <label className="flex items-center gap-2 text-sm sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={editForm.isCastrated}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, isCastrated: e.target.checked })
+                    }
+                  />
+                  {t("castrated")}
+                </label>
+              )}
+              {editForm.sex === "FEMALE" && !isClosed && (
+                <label className="flex items-center gap-2 text-sm sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={editForm.isPregnant}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, isPregnant: e.target.checked })
+                    }
+                  />
+                  {t("pregnant")}
+                </label>
+              )}
+              {canUpdateRecords && !isClosed && (
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>{t("herdPlan")}</Label>
+                  <Select
+                    value={editForm.herdPlan}
+                    onValueChange={(v) =>
+                      setEditForm({ ...editForm, herdPlan: v as HerdPlanValue })
+                    }
+                  >
+                    <SelectTrigger className="max-w-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {HERD_PLANS.map((plan) => (
+                        <SelectItem key={plan} value={plan}>
+                          {t(herdPlanLabelKey(plan))}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">{t("herdPlanHelp")}</p>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>{t("dob")}</Label>
                 <Input
@@ -1465,7 +1182,109 @@ export default function AnimalDetailPage() {
             </div>
           </CardContent>
         </Card>
-      )}
+      ) : (
+        <>
+      <section className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-muted/60 via-background to-background">
+        <div className="p-5 sm:p-6">
+          <div className="flex flex-col md:flex-row gap-6">
+            <AnimalPhotoGallery
+              animalId={id}
+              initialPhotos={animal.photos || []}
+              coverUrl={animal.photoUrl}
+              canEdit={
+                (!isClosed && canUpdateRecords) || (isDeceased && canEdit)
+              }
+              onPhotosChange={loadAnimal}
+            />
+            <div className="flex-1 min-w-0 space-y-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-2 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <EartagBadge
+                      eartag={animal.eartag}
+                      campTagColor={animal.camp.tagColor}
+                      animalTagColor={animal.tagColor}
+                      defaultTagColor={defaultTagColor}
+                      dob={animal.dob}
+                      ageMonths={animal.ageMonths}
+                      yearColors={yearColors}
+                      locale={locale}
+                      size="lg"
+                      showLabel
+                    />
+                    <Badge variant="outline">
+                      {animal.sex === "MALE"
+                        ? t("male")
+                        : animal.sex === "FEMALE"
+                          ? t("female")
+                          : t("unknownSex")}
+                    </Badge>
+                    <Badge variant={animalStatusBadgeVariant(animal.status)}>
+                      {t(animalStatusLabelKey(animal.status))}
+                    </Badge>
+                    {animal.sex === "MALE" && animal.isCastrated && (
+                      <Badge variant="outline">{t("castrated")}</Badge>
+                    )}
+                    {animal.sex === "FEMALE" && animal.isPregnant && (
+                      <Badge variant="warning">{t("pregnant")}</Badge>
+                    )}
+                    {animal.herdPlan && animal.herdPlan !== "EXCLUDED" && (
+                      <Badge variant={herdPlanBadgeVariant(animal.herdPlan)}>
+                        {t(herdPlanLabelKey(animal.herdPlan))}
+                      </Badge>
+                    )}
+                    {animal.deathRecord?.isCulling && (
+                      <Badge variant="warning">{t("causeCulling")}</Badge>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">{animal.breed}</span>
+                    {" · "}
+                    {formatAge(animal.ageMonths, ageMode)}
+                    {" · "}
+                    <Link
+                      href={`/camps/${animal.camp.id}`}
+                      className="text-primary hover:underline"
+                    >
+                      {animal.camp.name}
+                    </Link>
+                    {" · "}
+                    {animal.owner.name}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {animal.acquisitionType === "PURCHASED"
+                      ? t("purchased")
+                      : animal.acquisitionType === "GIFT"
+                        ? t("gift")
+                        : t("bornOnFarm")}
+                    {(animal.acquisitionType === "PURCHASED" ||
+                      animal.acquisitionType === "GIFT") &&
+                      animal.acquisitionDate && (
+                        <> · {formatDate(animal.acquisitionDate)}</>
+                      )}
+                    {animal.dob && (
+                      <>
+                        {" · "}
+                        {t("dob")}: {formatDate(animal.dob)}
+                      </>
+                    )}
+                  </p>
+                </div>
+                {canEdit && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => startEditDetails(animal)}
+                  >
+                    <Pencil className="h-3.5 w-3.5 mr-1" /> {t("editDetails")}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <Tabs defaultValue="events">
         <TabsList className="flex flex-wrap h-auto gap-1">
@@ -2283,6 +2102,168 @@ export default function AnimalDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <OptionalSection
+        open={showNotes}
+        onToggle={() => setShowNotes((v) => !v)}
+        title={t("standingNotes")}
+        summary={
+          animal.notes?.trim()
+            ? animal.notes.trim().slice(0, 80) +
+              (animal.notes.trim().length > 80 ? "…" : "")
+            : t("noStandingNotes")
+        }
+      >
+        {animal.notes?.trim() ? (
+          <p className="text-sm whitespace-pre-wrap">{animal.notes}</p>
+        ) : (
+          <p className="text-sm text-muted-foreground">{t("noStandingNotes")}</p>
+        )}
+      </OptionalSection>
+
+      {!isClosed && canEdit && (
+        <OptionalSection
+          open={showHerdStatus}
+          onToggle={() => setShowHerdStatus((v) => !v)}
+          title={t("herdStatusTitle")}
+          summary={
+            t(animalStatusLabelKey(animal.status)) +
+            " · " +
+            (animal.status === "QUARANTINE" || animal.status === "MISSING"
+              ? t("herdStatusSummaryAction")
+              : t("herdStatusSummaryOk"))
+          }
+        >
+          <p className="text-sm text-muted-foreground">{t("herdStatusHelp")}</p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <button
+              type="button"
+              disabled={statusSaving || animal.status === "ACTIVE"}
+              onClick={() =>
+                setStatusAction((a) => (a === "ACTIVE" ? null : "ACTIVE"))
+              }
+              className={`rounded-lg border p-3 text-left transition-colors ${
+                animal.status === "ACTIVE"
+                  ? "border-foreground/30 bg-muted/40"
+                  : statusAction === "ACTIVE"
+                    ? "border-foreground bg-muted/30"
+                    : "hover:border-foreground/40"
+              }`}
+            >
+              <p className="text-sm font-medium">{t("statusActive")}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {t("statusActiveHelp")}
+              </p>
+            </button>
+            <button
+              type="button"
+              disabled={statusSaving || animal.status === "QUARANTINE"}
+              onClick={() =>
+                setStatusAction((a) =>
+                  a === "QUARANTINE" ? null : "QUARANTINE"
+                )
+              }
+              className={`rounded-lg border p-3 text-left transition-colors ${
+                animal.status === "QUARANTINE"
+                  ? "border-amber-500/50 bg-amber-500/10"
+                  : statusAction === "QUARANTINE"
+                    ? "border-amber-600 bg-amber-500/10"
+                    : "hover:border-foreground/40"
+              }`}
+            >
+              <p className="text-sm font-medium">{t("quarantine")}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {t("statusQuarantineHelp")}
+              </p>
+            </button>
+            <button
+              type="button"
+              disabled={statusSaving || animal.status === "MISSING"}
+              onClick={() =>
+                setStatusAction((a) => (a === "MISSING" ? null : "MISSING"))
+              }
+              className={`rounded-lg border p-3 text-left transition-colors ${
+                animal.status === "MISSING"
+                  ? "border-muted-foreground/40 bg-muted/50"
+                  : statusAction === "MISSING"
+                    ? "border-foreground bg-muted/40"
+                    : "hover:border-foreground/40"
+              }`}
+            >
+              <p className="text-sm font-medium">{t("statusMissing")}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {t("statusMissingHelp")}
+              </p>
+            </button>
+          </div>
+
+          {statusAction && statusAction !== animal.status && (
+            <div className="rounded-lg border bg-muted/20 p-3 space-y-3 max-w-lg">
+              <div className="space-y-2">
+                <Label>{t("statusReasonOptional")}</Label>
+                <Textarea
+                  value={statusReason}
+                  onChange={(e) => setStatusReason(e.target.value)}
+                  rows={2}
+                  placeholder={
+                    statusAction === "QUARANTINE"
+                      ? t("statusReasonPlaceholderQuarantine")
+                      : statusAction === "MISSING"
+                        ? t("statusReasonPlaceholderMissing")
+                        : t("statusReasonPlaceholderActive")
+                  }
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  disabled={statusSaving}
+                  onClick={() => void applyHerdStatus(statusAction)}
+                >
+                  {statusAction === "QUARANTINE"
+                    ? t("markQuarantine")
+                    : statusAction === "MISSING"
+                      ? t("markMissing")
+                      : t("returnToActive")}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={statusSaving}
+                  onClick={() => {
+                    setStatusAction(null);
+                    setStatusReason("");
+                  }}
+                >
+                  {t("cancel")}
+                </Button>
+              </div>
+            </div>
+          )}
+        </OptionalSection>
+      )}
+
+      {canDeleteAnimal && (
+        <OptionalSection
+          open={showDanger}
+          onToggle={() => setShowDanger((v) => !v)}
+          title={t("dangerZoneTitle")}
+          summary={t("dangerZoneAnimalSummary")}
+          className="border-dashed border-muted-foreground/30 bg-muted/20"
+        >
+          <p className="text-sm text-muted-foreground">{t("softDeleteAnimalHelp")}</p>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={softDeleteAnimal}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1" /> {t("moveToTrash")}
+          </Button>
+        </OptionalSection>
+      )}
+        </>
+      )}
+
     </div>
   );
 }
