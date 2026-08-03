@@ -187,10 +187,11 @@ const en = {
 
   // Animal fields
   eartag: "Eartag",
-  rfidChip: "RFID chip",
+  rfidChip: "RFID",
+  rfidChipOptional: "+ RFID",
   rfidChipHelp:
     "Electronic ear button ID from the reader. Unique backup if the plastic tag is lost.",
-  rfidChipPlaceholder: "Scan or type chip number",
+  rfidChipPlaceholder: "Chip ID",
   rfidTaken: "That RFID chip is already on another animal",
   breed: "Breed",
   sex: "Sex",
@@ -1228,10 +1229,11 @@ const sw: Dict = {
   pendingCount: "{n} inasubiri",
 
   eartag: "Lebo ya sikio",
-  rfidChip: "Chip ya RFID",
+  rfidChip: "RFID",
+  rfidChipOptional: "+ RFID",
   rfidChipHelp:
     "Nambari ya kitufe cha sikio cha kielektroniki kutoka kwa reader. Hifadhi ya ziada ikiwa lebo ya plastiki imepotea.",
-  rfidChipPlaceholder: "Skani au andika nambari ya chip",
+  rfidChipPlaceholder: "Nambari ya chip",
   rfidTaken: "Chip hiyo ya RFID tayari iko kwa mnyama mwingine",
   breed: "Aina",
   sex: "Jinsia",

@@ -208,6 +208,7 @@ export default function AnimalDetailPage() {
   >([]);
   const [editingDetails, setEditingDetails] = useState(false);
   const [savingDetails, setSavingDetails] = useState(false);
+  const [showRfidEdit, setShowRfidEdit] = useState(false);
   const [editForm, setEditForm] = useState({
     eartag: "",
     rfidChip: "",
@@ -390,6 +391,7 @@ export default function AnimalDetailPage() {
       sireId: a.sire?.id || "",
       damId: a.dam?.id || "",
     });
+    setShowRfidEdit(Boolean(a.rfidChip));
     setEditingDetails(true);
   }
 
@@ -852,19 +854,39 @@ export default function AnimalDetailPage() {
                   value={editForm.eartag}
                   onChange={(e) => setEditForm({ ...editForm, eartag: e.target.value })}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label>{t("rfidChip")}</Label>
-                <Input
-                  value={editForm.rfidChip}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, rfidChip: e.target.value })
-                  }
-                  placeholder={t("rfidChipPlaceholder")}
-                  className="font-mono"
-                  autoComplete="off"
-                />
-                <p className="text-xs text-muted-foreground">{t("rfidChipHelp")}</p>
+                {showRfidEdit || editForm.rfidChip ? (
+                  <div className="flex items-center gap-2 pt-1">
+                    <span className="shrink-0 text-xs text-muted-foreground w-10">
+                      {t("rfidChip")}
+                    </span>
+                    <Input
+                      value={editForm.rfidChip}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, rfidChip: e.target.value })
+                      }
+                      placeholder={t("rfidChipPlaceholder")}
+                      className="h-8 font-mono text-sm"
+                      autoComplete="off"
+                    />
+                    {!editForm.rfidChip && (
+                      <button
+                        type="button"
+                        className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
+                        onClick={() => setShowRfidEdit(false)}
+                      >
+                        {t("cancel")}
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowRfidEdit(true)}
+                  >
+                    {t("rfidChipOptional")}
+                  </button>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>{t("breed")} *</Label>
@@ -1230,8 +1252,11 @@ export default function AnimalDetailPage() {
                       showLabel
                     />
                     {animal.rfidChip && (
-                      <Badge variant="outline" className="font-mono font-normal">
-                        RFID {animal.rfidChip}
+                      <Badge
+                        variant="outline"
+                        className="font-mono font-normal text-[10px] px-1.5 py-0"
+                      >
+                        {animal.rfidChip}
                       </Badge>
                     )}
                     <Badge variant="outline">

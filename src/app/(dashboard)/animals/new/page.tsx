@@ -110,6 +110,8 @@ function NewAnimalPageContent() {
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const photoPreviewUrls = useObjectUrls(photoFiles);
   const [eartagManual, setEartagManual] = useState(false);
+  /** RFID stays hidden until opened — optional for later tag+chip use. */
+  const [showRfid, setShowRfid] = useState(false);
   /** For purchased/gift: approximate age is the usual path when DOB is unknown. */
   const [ageEntryMode, setAgeEntryMode] = useState<"approx" | "dob">("approx");
   const [lastEartag, setLastEartag] = useState<string | null>(null);
@@ -367,6 +369,7 @@ function NewAnimalPageContent() {
     setShowMore(false);
     setEartagManual(false);
     setAgeEntryMode("approx");
+    setShowRfid(false);
     setForm({
       eartag: "",
       rfidChip: "",
@@ -697,23 +700,42 @@ function NewAnimalPageContent() {
               />
             </Field>
 
-            <Field
-              label={t("rfidChip")}
-              hint={t("rfidChipHelp")}
-              className="sm:col-span-2"
-            >
-              <Input
-                id="rfidChip"
-                value={form.rfidChip}
-                onChange={(e) =>
-                  setForm({ ...form, rfidChip: e.target.value })
-                }
-                placeholder={t("rfidChipPlaceholder")}
-                autoComplete="off"
-                inputMode="text"
-                className="font-mono"
-              />
-            </Field>
+            <div className="sm:col-span-2">
+              {showRfid || form.rfidChip ? (
+                <div className="flex items-center gap-2">
+                  <span className="shrink-0 text-xs text-muted-foreground w-10">
+                    {t("rfidChip")}
+                  </span>
+                  <Input
+                    id="rfidChip"
+                    value={form.rfidChip}
+                    onChange={(e) =>
+                      setForm({ ...form, rfidChip: e.target.value })
+                    }
+                    placeholder={t("rfidChipPlaceholder")}
+                    autoComplete="off"
+                    className="h-8 font-mono text-sm"
+                  />
+                  {!form.rfidChip && (
+                    <button
+                      type="button"
+                      className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
+                      onClick={() => setShowRfid(false)}
+                    >
+                      {t("cancel")}
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowRfid(true)}
+                >
+                  {t("rfidChipOptional")}
+                </button>
+              )}
+            </div>
 
             <Field
               label={t("breed")}
