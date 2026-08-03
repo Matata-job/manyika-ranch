@@ -1126,21 +1126,21 @@ const sw: Dict = {
   trashRetentionDays: "Siku za uhifadhi wa zilizofutwa",
   trashRetentionHelp:
     "Muda wanyama na kambi zilizofutwa kwa upole zinabaki zikirejeshwa kabla ya kufutwa kabisa (1–365).",
-  moveToTrash: "Hamisha kwenda Zilizofutwa",
+  moveToTrash: "Hamisha kwenda kwenye Zilizofutwa",
   undoDeath: "Tengua kifo (rudisha hai)",
   deactivateCamp: "Zima kambi",
   activateCamp: "Washa kambi",
   campInactive: "Haifanyi kazi",
   campActive: "Inafanya kazi",
   campStatus: "Hali ya kambi",
-  campLifecycleTitle: "Hali na kufuta kambi",
-  campLifecycleSummary: "Zima au hamisha kwenda Zilizofutwa — vitendo adimu",
+  campLifecycleTitle: "Hali ya kambi na kufuta kambi",
+  campLifecycleSummary: "Zima au hamisha kwenda kwenye Zilizofutwa — vitendo adimu",
   campLifecycleHelp:
-    "Chaguo hizi zimefichwa kwa makusudi. Zitumie tu kambi isipokei wanyama tena, au unapoondoa kambi tupu.",
+    "Machaguo haya yamefichwa kwa makusudi. Yatumike tu endapo kambi haina wanyama na haitarajii kupokea, au unapoondoa/ unapofuta kambi tupu.",
   deactivateCampHelp:
     "Zima tu kambi isiyo na wanyama hai. Kambi zilizozimwa zinabaki kwenye orodha lakini huonyeshwa kama hazifanyi kazi.",
   softDeleteCampHelp:
-    "Ni kambi tupu tu zinazoweza kuhamishwa. Zinaonekana chini ya Mipangilio → Zilizofutwa na zinaweza kurejeshwa ndani ya muda wa kuhifadhi.",
+    "Ni kambi tupu tu zinazoweza kuhamishwa. Zinaonekana chini kwenye Mipangilio → Zilizofutwa na zinaweza kurejeshwa ndani ya muda wa kuhifadhi.",
   typeCampNameToConfirm: "Andika “{name}” ili kuthibitisha",
   typeCampNameMismatch: "Jina la kambi halilingani. Hakuna kilichofutwa.",
   noResults: "Hakuna matokeo",
