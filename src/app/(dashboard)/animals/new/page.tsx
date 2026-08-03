@@ -110,6 +110,8 @@ function NewAnimalPageContent() {
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const photoPreviewUrls = useObjectUrls(photoFiles);
   const [eartagManual, setEartagManual] = useState(false);
+  /** For purchased/gift: approximate age is the usual path when DOB is unknown. */
+  const [ageEntryMode, setAgeEntryMode] = useState<"approx" | "dob">("approx");
   const [lastEartag, setLastEartag] = useState<string | null>(null);
   const [success, setSuccess] = useState<{
     eartag: string;
@@ -363,6 +365,7 @@ function NewAnimalPageContent() {
     setPhotoFiles([]);
     setShowMore(false);
     setEartagManual(false);
+    setAgeEntryMode("approx");
     setForm({
       eartag: "",
       breed,
@@ -409,6 +412,16 @@ function NewAnimalPageContent() {
       alert(t("sourceRequired"));
       return;
     }
+    if (isExternal) {
+      const hasDob = ageEntryMode === "dob" && Boolean(form.dob);
+      const hasApprox =
+        ageEntryMode === "approx" &&
+        (form.ageYears !== "" || form.ageMonthsPart !== "");
+      if (!hasDob && !hasApprox) {
+        alert(t("ageRequired"));
+        return;
+      }
+    }
     const taken = animals.some(
       (a) => a.eartag.trim().toUpperCase() === form.eartag.trim().toUpperCase()
     );
@@ -418,20 +431,26 @@ function NewAnimalPageContent() {
     }
     setLoading(true);
 
+    const useDob =
+      isBornOnFarm || (isExternal && ageEntryMode === "dob" && form.dob);
     const payload = {
       ...form,
       sireId: form.sireId || null,
       damId: form.damId || null,
       ownerId: form.ownerId || undefined,
-      dob: form.dob || null,
+      dob: useDob ? form.dob || null : null,
       acquisitionType: form.acquisitionType,
       acquisitionDate: isExternal ? form.acquisitionDate || null : null,
       isCastrated: form.sex === "MALE" ? form.isCastrated : false,
       isPregnant: form.sex === "FEMALE" ? form.isPregnant : false,
-      ageYears: form.dob ? undefined : form.ageYears ? Number(form.ageYears) : 0,
-      ageMonthsPart: form.dob
+      ageYears: useDob
         ? undefined
-        : form.ageMonthsPart
+        : form.ageYears !== ""
+          ? Number(form.ageYears)
+          : 0,
+      ageMonthsPart: useDob
+        ? undefined
+        : form.ageMonthsPart !== ""
           ? Number(form.ageMonthsPart)
           : 0,
     };
@@ -760,7 +779,8 @@ function NewAnimalPageContent() {
                     | "GIFT"
                     | "") || ""
                 }
-                onChange={(v) =>
+                onChange={(v) => {
+                  setAgeEntryMode("approx");
                   setForm({
                     ...form,
                     acquisitionType: v,
@@ -771,8 +791,8 @@ function NewAnimalPageContent() {
                     dob: "",
                     ageYears: "",
                     ageMonthsPart: "",
-                  })
-                }
+                  });
+                }}
                 options={[
                   { value: "BORN_ON_FARM", label: t("bornOnFarm") },
                   { value: "PURCHASED", label: t("purchased") },
@@ -900,41 +920,110 @@ function NewAnimalPageContent() {
                     }
                   />
                 </Field>
-                <Field label={t("dob")} className="sm:col-span-2">
-                  <Input
-                    type="date"
-                    value={form.dob}
-                    onChange={(e) =>
-                      setForm({ ...form, dob: e.target.value })
-                    }
+
+                <Field
+                  label={t("age")}
+                  required
+                  hint={t("ageEntryMethodHint")}
+                  className="sm:col-span-2"
+                >
+                  <ChoicePills
+                    value={ageEntryMode}
+                    onChange={(v) => {
+                      setAgeEntryMode(v);
+                      if (v === "dob") {
+                        setForm({
+                          ...form,
+                          ageYears: "",
+                          ageMonthsPart: "",
+                        });
+                      } else {
+                        setForm({ ...form, dob: "" });
+                      }
+                    }}
+                    options={[
+                      { value: "approx", label: t("ageApprox") },
+                      { value: "dob", label: t("ageKnowDob") },
+                    ]}
                   />
                 </Field>
-                {!form.dob && (
-                  <>
-                    <Field label={t("ageYears")}>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={form.ageYears}
-                        onChange={(e) =>
-                          setForm({ ...form, ageYears: e.target.value })
-                        }
-                        placeholder="0"
-                      />
-                    </Field>
-                    <Field label={t("ageMonthsPart")}>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={11}
-                        value={form.ageMonthsPart}
-                        onChange={(e) =>
-                          setForm({ ...form, ageMonthsPart: e.target.value })
-                        }
-                        placeholder="0"
-                      />
-                    </Field>
-                  </>
+
+                {ageEntryMode === "dob" ? (
+                  <Field
+                    label={t("dob")}
+                    hint={t("ageDobHintBought")}
+                    className="sm:col-span-2"
+                  >
+                    <Input
+                      type="date"
+                      value={form.dob}
+                      onChange={(e) =>
+                        setForm({ ...form, dob: e.target.value })
+                      }
+                    />
+                  </Field>
+                ) : (
+                  <div className="sm:col-span-2 space-y-2 rounded-lg border bg-muted/30 p-3">
+                    <div>
+                      <Label className="text-sm font-medium">
+                        {t("ageApprox")}
+                      </Label>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {t("ageApproxHint")}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min={0}
+                          inputMode="numeric"
+                          value={form.ageYears}
+                          onChange={(e) =>
+                            setForm({ ...form, ageYears: e.target.value })
+                          }
+                          placeholder="0"
+                          className="h-11 pr-16 text-base"
+                          aria-label={t("yearsUnit")}
+                        />
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          {t("yearsUnit")}
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={11}
+                          inputMode="numeric"
+                          value={form.ageMonthsPart}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              ageMonthsPart: e.target.value,
+                            })
+                          }
+                          placeholder="0"
+                          className="h-11 pr-16 text-base"
+                          aria-label={t("monthsUnit")}
+                        />
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          {t("monthsUnit")}
+                        </span>
+                      </div>
+                    </div>
+                    {(form.ageYears !== "" || form.ageMonthsPart !== "") && (
+                      <p className="text-sm font-medium text-foreground/80">
+                        {t("ageApproxSummary", {
+                          years: form.ageYears === "" ? "0" : form.ageYears,
+                          months:
+                            form.ageMonthsPart === ""
+                              ? "0"
+                              : form.ageMonthsPart,
+                        })}
+                      </p>
+                    )}
+                  </div>
                 )}
               </>
             )}
