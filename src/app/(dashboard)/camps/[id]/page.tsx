@@ -91,6 +91,7 @@ export default function CampDetailPage() {
   const [showNotes, setShowNotes] = useState(false);
   const [form, setForm] = useState({
     name: "",
+    code: "",
     sizeAcres: "",
     latitude: "",
     longitude: "",
@@ -115,6 +116,7 @@ export default function CampDetailPage() {
         if (!opts?.soft) {
           setForm({
             name: data.name || "",
+            code: data.code || "",
             sizeAcres: data.sizeAcres != null ? String(data.sizeAcres) : "",
             latitude: data.latitude != null ? String(data.latitude) : "",
             longitude: data.longitude != null ? String(data.longitude) : "",
@@ -142,6 +144,7 @@ export default function CampDetailPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: form.name,
+        code: form.code.trim() || null,
         sizeAcres: form.sizeAcres || null,
         latitude: form.latitude || null,
         longitude: form.longitude || null,
@@ -233,6 +236,16 @@ export default function CampDetailPage() {
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("campCode")}</Label>
+              <Input
+                value={form.code}
+                onChange={(e) => setForm({ ...form, code: e.target.value })}
+                placeholder="MR-01"
+                className="font-mono"
+              />
+              <p className="text-sm text-muted-foreground">{t("campCodeHelp")}</p>
             </div>
             <div className="space-y-2">
               <Label>{t("sizeAcres")}</Label>

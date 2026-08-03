@@ -363,6 +363,8 @@ const en = {
   noAnimalsInCamp: "No animals visible for your role.",
   supervisor: "Supervisor",
   campName: "Camp name",
+  campCode: "Camp ID",
+  campCodeHelp: "Permanent ranch code, e.g. MR-01. Unique per ranch.",
   newCamp: "New camp",
   noCamps: "No camps yet",
 
@@ -1325,6 +1327,8 @@ const sw: Dict = {
   noAnimalsInCamp: "Hakuna wanyama wanaoonekana kwa jukumu lako.",
   supervisor: "Msimamizi",
   campName: "Jina la kambi",
+  campCode: "Kitambulisho cha kambi",
+  campCodeHelp: "Nambari ya kudumu ya shamba, mf. MR-01. Lazima iwe ya kipekee.",
   newCamp: "Kambi mpya",
   noCamps: "Hakuna kambi bado",
 

@@ -41,6 +41,7 @@ export default function NewCampPage() {
   const [showLocation, setShowLocation] = useState(false);
   const [form, setForm] = useState({
     name: "",
+    code: "",
     sizeAcres: "",
     latitude: "",
     longitude: "",
@@ -70,6 +71,7 @@ export default function NewCampPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: form.name,
+        code: form.code.trim() || null,
         sizeAcres: form.sizeAcres || null,
         latitude: form.latitude || null,
         longitude: form.longitude || null,
@@ -118,6 +120,17 @@ export default function NewCampPage() {
                 required
                 autoFocus
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="code">{t("campCode")}</Label>
+              <Input
+                id="code"
+                value={form.code}
+                onChange={(e) => setForm({ ...form, code: e.target.value })}
+                placeholder="MR-01"
+                className="font-mono"
+              />
+              <p className="text-sm text-muted-foreground">{t("campCodeHelp")}</p>
             </div>
             <div className="space-y-2">
               <Label>{t("tagColorCamp")}</Label>
