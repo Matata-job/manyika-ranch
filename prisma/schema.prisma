@@ -242,6 +242,11 @@ model Camp {
   logoUrl      String?
   waterSources String?
   notes        String?
+  /** Inactive camps stay visible but are not used for new registrations by default. */
+  isActive     Boolean              @default(true)
+  /** Soft-delete — hidden from lists until restored or purged after retention. */
+  deletedAt    DateTime?
+  deletedById  String?
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
   animals      Animal[]
@@ -255,6 +260,8 @@ model Camp {
   photos       CampPhoto[]
 
   @@unique([ranchId, code])
+  @@index([ranchId, deletedAt])
+  @@index([ranchId, isActive])
 }
 
 model CampPhoto {
@@ -313,6 +320,9 @@ model Animal {
   /** Plastic eartag colour override; else year / camp colour */
   tagColor         String?
   notes            String?
+  /** Soft-delete — incorrect registrations stay in trash until restored or purged. */
+  deletedAt        DateTime?
+  deletedById      String?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   weightLogs       WeightLog[]
@@ -335,6 +345,7 @@ model Animal {
   @@index([ownerId])
   @@index([status])
   @@index([herdPlan])
+  @@index([deletedAt])
 }
 
 model AnimalPhoto {

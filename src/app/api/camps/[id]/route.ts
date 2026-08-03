@@ -28,12 +28,14 @@ export async function GET(
     0
   );
 
+  const animalWhere = { campId: id, status: "ACTIVE" as const, deletedAt: null };
+
   const [camp, animalTotal, sexGroups] = await Promise.all([
-    prisma.camp.findUnique({
-      where: { id },
+    prisma.camp.findFirst({
+      where: { id, deletedAt: null },
       include: {
         animals: {
-          where: { status: "ACTIVE" },
+          where: animalWhere,
           select: {
             id: true,
             eartag: true,
@@ -56,10 +58,10 @@ export async function GET(
         },
       },
     }),
-    prisma.animal.count({ where: { campId: id, status: "ACTIVE" } }),
+    prisma.animal.count({ where: animalWhere }),
     prisma.animal.groupBy({
       by: ["sex"],
-      where: { campId: id, status: "ACTIVE" },
+      where: animalWhere,
       _count: { _all: true },
     }),
   ]);
@@ -93,7 +95,7 @@ export async function PATCH(
   if (!result.ok) return result.error;
 
   const existing = await prisma.camp.findFirst({
-    where: { id, ranchId: result.user.ranchId },
+    where: { id, ranchId: result.user.ranchId, deletedAt: null },
   });
   if (!existing) {
     return NextResponse.json({ error: "Camp not found" }, { status: 404 });
@@ -122,6 +124,25 @@ export async function PATCH(
     data.legacyCode = body.legacyCode?.trim() || null;
   }
 
+  if (body.isActive !== undefined) {
+    const nextActive = Boolean(body.isActive);
+    if (!nextActive) {
+      const activeAnimals = await prisma.animal.count({
+        where: { campId: id, status: "ACTIVE", deletedAt: null },
+      });
+      if (activeAnimals > 0) {
+        return NextResponse.json(
+          {
+            error:
+              "Cannot deactivate a camp that still has active animals. Move or sell them first.",
+          },
+          { status: 400 }
+        );
+      }
+    }
+    data.isActive = nextActive;
+  }
+
   const camp = await prisma.camp.update({
     where: { id },
     data,
@@ -131,6 +152,7 @@ export async function PATCH(
   return NextResponse.json(camp);
 }
 
+/** Soft-delete camp into Recently deleted (no remaining animals). */
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -139,17 +161,36 @@ export async function DELETE(
   const result = await requirePermission("manageCamps");
   if (!result.ok) return result.error;
 
+  const existing = await prisma.camp.findFirst({
+    where: { id, ranchId: result.user.ranchId, deletedAt: null },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "Camp not found" }, { status: 404 });
+  }
+
   const animalCount = await prisma.animal.count({
-    where: { campId: id, status: "ACTIVE" },
+    where: { campId: id, deletedAt: null },
   });
   if (animalCount > 0) {
     return NextResponse.json(
-      { error: "Cannot delete camp with active animals" },
+      {
+        error:
+          "Cannot delete a camp that still has animals. Move, sell, or remove them first.",
+      },
       { status: 400 }
     );
   }
 
-  await prisma.camp.delete({ where: { id } });
-  await createAuditLog(result.user.id, "DELETE", "Camp", id);
-  return NextResponse.json({ success: true });
+  await prisma.camp.update({
+    where: { id },
+    data: {
+      deletedAt: new Date(),
+      deletedById: result.user.id,
+      isActive: false,
+    },
+  });
+  await createAuditLog(result.user.id, "DELETE", "Camp", id, {
+    soft: true,
+  });
+  return NextResponse.json({ success: true, softDeleted: true });
 }

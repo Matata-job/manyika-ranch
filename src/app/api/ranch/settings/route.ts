@@ -12,6 +12,7 @@ import {
   getRanchEartagYearColors,
   normalizeTagColor,
 } from "@/lib/tag-color";
+import { getTrashRetentionDays } from "@/lib/trash";
 import { getHealthNotifyDaysEarly, getWeightAlertDropPercent, getWeightAlertMinKg } from "@/lib/services/health-schedule";
 import type { Prisma, Role } from "@prisma/client";
 
@@ -38,6 +39,7 @@ export async function GET() {
     weightAlertMinKg: getWeightAlertMinKg(ranch.settings),
     eartagYearColors: getRanchEartagYearColors(ranch.settings),
     defaultTagColor: getRanchDefaultTagColor(ranch.settings),
+    trashRetentionDays: getTrashRetentionDays(ranch.settings),
     settings: ranch.settings,
   });
 }
@@ -196,6 +198,23 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
+  if (body.trashRetentionDays !== undefined) {
+    if (!canManageCamps) {
+      return NextResponse.json(
+        { error: "Only ranch managers can change trash retention" },
+        { status: 403 }
+      );
+    }
+    const days = parseInt(String(body.trashRetentionDays), 10);
+    if (!Number.isFinite(days) || days < 1 || days > 365) {
+      return NextResponse.json(
+        { error: "Trash retention must be between 1 and 365 days" },
+        { status: 400 }
+      );
+    }
+    next.trashRetentionDays = days;
+  }
+
   const updated = await prisma.ranch.update({
     where: { id: result.user.ranchId },
     data: { settings: next as Prisma.InputJsonValue },
@@ -212,6 +231,7 @@ export async function PATCH(req: NextRequest) {
     weightAlertMinKg: getWeightAlertMinKg(updated.settings),
     eartagYearColors: getRanchEartagYearColors(updated.settings),
     defaultTagColor: getRanchDefaultTagColor(updated.settings),
+    trashRetentionDays: getTrashRetentionDays(updated.settings),
     settings: updated.settings,
   });
 }

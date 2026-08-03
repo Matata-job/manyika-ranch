@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -152,6 +152,7 @@ function healthTypeKey(type: string): TranslationKey {
 
 export default function AnimalDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const t = useT();
   const { locale } = useLocale();
   const { data: session } = useSession();
@@ -162,6 +163,7 @@ export default function AnimalDetailPage() {
     : false;
   const canRecordDeath = role ? hasPermission(role, "manageMortality") : false;
   const canEditDeath = role ? hasPermission(role, "editMortality") : false;
+  const canDeleteAnimal = role ? hasPermission(role, "deleteAnimal") : false;
   const canMove = role ? hasPermission(role, "manageMovements") : false;
   const canManageHealth = role ? hasPermission(role, "manageHealth") : false;
   const canManageEvents = role ? hasPermission(role, "manageEvents") : false;
@@ -692,6 +694,30 @@ export default function AnimalDetailPage() {
     }
   }
 
+  async function undoDeath() {
+    if (!confirm(t("confirmUndoDeath"))) return;
+    setSavingDeath(true);
+    const res = await fetch(`/api/animals/${id}/death/undo`, { method: "POST" });
+    setSavingDeath(false);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || t("failedToSave"));
+      return;
+    }
+    loadAnimal();
+  }
+
+  async function softDeleteAnimal() {
+    if (!confirm(t("confirmSoftDeleteAnimal"))) return;
+    const res = await fetch(`/api/animals/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || t("failedToDelete"));
+      return;
+    }
+    router.push("/animals");
+  }
+
   async function saveDeathEdit() {
     if (!animal?.deathRecord) return;
     setSavingDeath(true);
@@ -829,6 +855,16 @@ export default function AnimalDetailPage() {
             {canEdit && !editingDetails && (
               <Button variant="outline" size="sm" onClick={() => startEditDetails(animal)}>
                 <Pencil className="h-3.5 w-3.5 mr-1" /> {t("editDetails")}
+              </Button>
+            )}
+            {canDeleteAnimal && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive border-destructive/30"
+                onClick={softDeleteAnimal}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" /> {t("moveToTrash")}
               </Button>
             )}
           </div>
@@ -1874,13 +1910,23 @@ export default function AnimalDetailPage() {
             <CardHeader className="flex flex-row items-center justify-between gap-2">
               <CardTitle>{animal.deathRecord ? t("deathRecord") : t("recordDeathCulling")}</CardTitle>
               {animal.deathRecord && canEditDeath && !editingDeath && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => startEditDeath(animal.deathRecord!)}
-                >
-                  <Pencil className="h-3.5 w-3.5 mr-1" /> {t("editDeathRecord")}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => startEditDeath(animal.deathRecord!)}
+                  >
+                    <Pencil className="h-3.5 w-3.5 mr-1" /> {t("editDeathRecord")}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={savingDeath}
+                    onClick={undoDeath}
+                  >
+                    {t("undoDeath")}
+                  </Button>
+                </div>
               )}
             </CardHeader>
             <CardContent className="space-y-4">

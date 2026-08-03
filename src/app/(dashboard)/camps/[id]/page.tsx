@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +52,7 @@ interface CampDetail {
   logoUrl: string | null;
   waterSources: string | null;
   notes: string | null;
+  isActive?: boolean;
   animals: {
     id: string;
     eartag: string;
@@ -71,6 +72,7 @@ interface CampDetail {
 
 export default function CampDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const t = useT();
   const { locale } = useLocale();
   const { data: session } = useSession();
@@ -157,6 +159,37 @@ export default function CampDetailPage() {
     setEditing(false);
     setShowNotes(Boolean(form.notes.trim()));
     load(animalsOffset, { soft: true });
+  }
+
+  async function toggleActive() {
+    const next = !(camp?.isActive !== false);
+    if (!next && !window.confirm(t("confirmDeactivateCamp"))) return;
+    setSaving(true);
+    const res = await fetch(`/api/camps/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive: next }),
+    });
+    setSaving(false);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || t("failedToSave"));
+      return;
+    }
+    load(animalsOffset, { soft: true });
+  }
+
+  async function softDeleteCamp() {
+    if (!window.confirm(t("confirmSoftDeleteCamp"))) return;
+    setSaving(true);
+    const res = await fetch(`/api/camps/${id}`, { method: "DELETE" });
+    setSaving(false);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || t("failedToDelete"));
+      return;
+    }
+    router.push("/camps");
   }
 
   if (loading) {
@@ -307,10 +340,13 @@ export default function CampDetailPage() {
                         {camp.code}
                       </p>
                     )}
+                    {camp.isActive === false && (
+                      <Badge variant="secondary">{t("campInactive")}</Badge>
+                    )}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2 shrink-0">
-                  {canRegister && (
+                  {canRegister && camp.isActive !== false && (
                     <Button asChild>
                       <Link href={registerHref}>
                         <Plus className="h-4 w-4 mr-2" />
@@ -322,6 +358,26 @@ export default function CampDetailPage() {
                     <Button variant="outline" onClick={() => setEditing(true)}>
                       <Pencil className="h-4 w-4 mr-2" />
                       {t("editDetails")}
+                    </Button>
+                  )}
+                  {canManage && (
+                    <Button
+                      variant="outline"
+                      disabled={saving}
+                      onClick={toggleActive}
+                    >
+                      {camp.isActive === false
+                        ? t("activateCamp")
+                        : t("deactivateCamp")}
+                    </Button>
+                  )}
+                  {canManage && (
+                    <Button
+                      variant="destructive"
+                      disabled={saving}
+                      onClick={softDeleteCamp}
+                    >
+                      {t("moveToTrash")}
                     </Button>
                   )}
                 </div>

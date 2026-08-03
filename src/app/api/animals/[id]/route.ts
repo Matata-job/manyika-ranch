@@ -392,11 +392,21 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  return NextResponse.json(
-    {
-      error:
-        "Use POST /api/animals/:id/death to record mortality with cause and disposal details",
+  const { id } = await params;
+  const access = await requireAnimalAccess(id);
+  if (!access.ok) return access.error;
+
+  const result = await requirePermission("deleteAnimal");
+  if (!result.ok) return result.error;
+
+  await prisma.animal.update({
+    where: { id },
+    data: {
+      deletedAt: new Date(),
+      deletedById: result.user.id,
     },
-    { status: 400 }
-  );
+  });
+
+  await createAuditLog(result.user.id, "DELETE", "Animal", id, { soft: true });
+  return NextResponse.json({ success: true, softDeleted: true });
 }

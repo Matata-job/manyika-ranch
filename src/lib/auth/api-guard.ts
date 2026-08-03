@@ -86,11 +86,16 @@ export async function requireCampAccess(campId: string): Promise<CampAccessOk | 
 export async function buildAnimalScope(
   userId: string,
   role: Role,
-  options?: { campId?: string | null }
+  options?: { campId?: string | null; includeDeleted?: boolean }
 ): Promise<Prisma.AnimalWhereInput | { error: NextResponse }> {
+  const deletedFilter = options?.includeDeleted
+    ? {}
+    : { deletedAt: null };
+
   if (role === Role.EXTERNAL_OWNER) {
     return {
       ownerId: userId,
+      ...deletedFilter,
       ...(options?.campId ? { campId: options.campId } : {}),
     };
   }
@@ -98,7 +103,10 @@ export async function buildAnimalScope(
   const accessible = await resolveAccessibleCampIds(userId, role);
 
   if (accessible === "all") {
-    return options?.campId ? { campId: options.campId } : {};
+    return {
+      ...deletedFilter,
+      ...(options?.campId ? { campId: options.campId } : {}),
+    };
   }
 
   if (accessible.length === 0) {
@@ -114,31 +122,38 @@ export async function buildAnimalScope(
         ),
       };
     }
-    return { campId: options.campId };
+    return { campId: options.campId, ...deletedFilter };
   }
 
-  return { campId: { in: accessible } };
+  return { campId: { in: accessible }, ...deletedFilter };
 }
 
 export async function buildCampScope(
   userId: string,
   role: Role,
-  ranchId: string
+  ranchId: string,
+  options?: { includeDeleted?: boolean }
 ): Promise<Prisma.CampWhereInput> {
+  const deletedFilter = options?.includeDeleted
+    ? {}
+    : { deletedAt: null };
+
   if (role === Role.EXTERNAL_OWNER) {
     return {
       ranchId,
-      animals: { some: { ownerId: userId } },
+      ...deletedFilter,
+      animals: { some: { ownerId: userId, deletedAt: null } },
     };
   }
 
   const accessible = await resolveAccessibleCampIds(userId, role);
   if (accessible === "all") {
-    return { ranchId };
+    return { ranchId, ...deletedFilter };
   }
 
   return {
     ranchId,
+    ...deletedFilter,
     id: { in: accessible.length > 0 ? accessible : ["__none__"] },
   };
 }
@@ -192,23 +207,39 @@ export async function buildAlertScope(
 }
 
 type AnimalAccessOk = AuthOk & {
-  animal: { id: string; campId: string; ownerId: string };
+  animal: {
+    id: string;
+    campId: string;
+    ownerId: string;
+    deletedAt: Date | null;
+  };
   campIds: string[];
 };
 
 export async function requireAnimalAccess(
-  animalId: string
+  animalId: string,
+  options?: { allowDeleted?: boolean }
 ): Promise<AnimalAccessOk | AuthFail> {
   const result = await requireAuth();
   if (!result.ok) return result;
 
   const animal = await prisma.animal.findUnique({
     where: { id: animalId },
-    select: { id: true, campId: true, ownerId: true },
+    select: { id: true, campId: true, ownerId: true, deletedAt: true },
   });
 
   if (!animal) {
     return { ok: false, error: NextResponse.json({ error: "Not found" }, { status: 404 }) };
+  }
+
+  if (animal.deletedAt && !options?.allowDeleted) {
+    return {
+      ok: false,
+      error: NextResponse.json(
+        { error: "Animal is in Recently deleted. Restore it from trash to continue." },
+        { status: 404 }
+      ),
+    };
   }
 
   if (result.user.role === Role.EXTERNAL_OWNER) {

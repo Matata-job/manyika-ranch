@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { hasPermission } from "@/lib/auth/rbac";
@@ -22,10 +23,14 @@ export default async function CampsPage() {
   const camps = await prisma.camp.findMany({
     where: campWhere,
     include: {
-      _count: { select: { animals: { where: { status: "ACTIVE" } } } },
+      _count: {
+        select: {
+          animals: { where: { status: "ACTIVE", deletedAt: null } },
+        },
+      },
       assignments: { include: { user: { select: { name: true } } } },
     },
-    orderBy: [{ code: "asc" }, { name: "asc" }],
+    orderBy: [{ isActive: "desc" }, { code: "asc" }, { name: "asc" }],
   });
 
   return (
@@ -63,11 +68,18 @@ export default async function CampsPage() {
               <Card className="hover:shadow-md transition-shadow h-full">
                 <CardHeader>
                   <CardTitle className="flex flex-wrap items-baseline gap-2">
-                    <span>{camp.name}</span>
+                    <span className={!camp.isActive ? "text-muted-foreground" : undefined}>
+                      {camp.name}
+                    </span>
                     {camp.code && (
                       <span className="text-sm font-normal text-muted-foreground">
                         {camp.code}
                       </span>
+                    )}
+                    {!camp.isActive && (
+                      <Badge variant="secondary" className="font-normal">
+                        {t("campInactive")}
+                      </Badge>
                     )}
                   </CardTitle>
                 </CardHeader>

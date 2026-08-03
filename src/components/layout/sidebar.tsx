@@ -19,6 +19,7 @@ import {
   Wallet,
   ChevronDown,
   ClipboardList,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -81,6 +82,12 @@ const settingsNav: {
     href: "/settings/breeds",
     labelKey: "navBreeds",
     icon: Dna,
+    roles: ["OWNER", "FARM_MANAGER"],
+  },
+  {
+    href: "/settings/trash",
+    labelKey: "navRecentlyDeleted",
+    icon: Trash2,
     roles: ["OWNER", "FARM_MANAGER"],
   },
   {

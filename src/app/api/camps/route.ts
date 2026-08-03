@@ -21,7 +21,11 @@ export async function GET(req: NextRequest) {
 
   if (forMovement && hasPermission(result.user.role as Role, "manageMovements")) {
     const camps = await prisma.camp.findMany({
-      where: { ranchId: result.user.ranchId },
+      where: {
+        ranchId: result.user.ranchId,
+        deletedAt: null,
+        isActive: true,
+      },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     });
@@ -37,12 +41,16 @@ export async function GET(req: NextRequest) {
   const camps = await prisma.camp.findMany({
     where,
     include: {
-      _count: { select: { animals: { where: { status: "ACTIVE" } } } },
+      _count: {
+        select: {
+          animals: { where: { status: "ACTIVE", deletedAt: null } },
+        },
+      },
       assignments: {
         include: { user: { select: { id: true, name: true } } },
       },
     },
-    orderBy: { name: "asc" },
+    orderBy: [{ isActive: "desc" }, { name: "asc" }],
   });
 
   return NextResponse.json(camps);
@@ -70,6 +78,7 @@ export async function POST(req: NextRequest) {
       logoUrl: body.logoUrl?.trim() || null,
       waterSources: body.waterSources?.trim() || null,
       notes: body.notes?.trim() || null,
+      isActive: body.isActive !== false,
     },
   });
 

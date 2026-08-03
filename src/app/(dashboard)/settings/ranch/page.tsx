@@ -26,6 +26,7 @@ export default function RanchSettingsPage() {
   const [weightMinKg, setWeightMinKg] = useState("");
   const [yearRows, setYearRows] = useState<YearRow[]>([]);
   const [defaultTagColor, setDefaultTagColor] = useState("");
+  const [trashRetentionDays, setTrashRetentionDays] = useState("30");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -49,6 +50,9 @@ export default function RanchSettingsPage() {
           setWeightMinKg("");
         }
         if (data?.defaultTagColor) setDefaultTagColor(data.defaultTagColor);
+        if (data?.trashRetentionDays != null) {
+          setTrashRetentionDays(String(data.trashRetentionDays));
+        }
         if (data?.eartagYearColors) {
           setYearRows(
             Object.entries(data.eartagYearColors as Record<string, string>)
@@ -78,6 +82,8 @@ export default function RanchSettingsPage() {
         weightAlertDropPercent: weightDropPercent === "" ? 15 : weightDropPercent,
         weightAlertMinKg: weightMinKg === "" ? null : weightMinKg,
         defaultTagColor: defaultTagColor || null,
+        trashRetentionDays:
+          trashRetentionDays === "" ? 30 : trashRetentionDays,
         eartagYearColors,
       }),
     });
@@ -98,6 +104,9 @@ export default function RanchSettingsPage() {
       );
       if (data.ageDisplayMode) setMode(data.ageDisplayMode);
       setDefaultTagColor(data.defaultTagColor || "");
+      if (data.trashRetentionDays != null) {
+        setTrashRetentionDays(String(data.trashRetentionDays));
+      }
       if (data.eartagYearColors) {
         setYearRows(
           Object.entries(data.eartagYearColors as Record<string, string>)
@@ -366,6 +375,30 @@ export default function RanchSettingsPage() {
             <p className="text-sm text-muted-foreground">
               {t("weightAlertMinKgHelp")}
             </p>
+          </div>
+
+          <div className="space-y-2 border-t pt-4">
+            <Label htmlFor="trash-days">{t("trashRetentionDays")}</Label>
+            <Input
+              id="trash-days"
+              type="number"
+              min={1}
+              max={365}
+              value={trashRetentionDays}
+              onChange={(e) => {
+                setTrashRetentionDays(e.target.value);
+                setMessage("");
+              }}
+            />
+            <p className="text-sm text-muted-foreground">
+              {t("trashRetentionHelp")}
+            </p>
+            <Link
+              href="/settings/trash"
+              className="inline-block text-sm text-primary underline underline-offset-2"
+            >
+              {t("navRecentlyDeleted")}
+            </Link>
           </div>
 
           <Button onClick={save} disabled={saving}>
