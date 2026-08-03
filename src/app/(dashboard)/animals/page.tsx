@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { LayoutGrid, List, Plus, Search, SlidersHorizontal, StickyNote, X } from "lucide-react";
+import { LayoutGrid, List, Plus, Search, SlidersHorizontal, StickyNote, X, ArrowUpDown } from "lucide-react";
+
 import { useSession } from "next-auth/react";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
@@ -222,6 +223,20 @@ function AnimalsPageContent() {
   const [viewMode, setViewMode] = useState<ViewMode>("list");
 
   useEffect(() => {
+    if (!filtersOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFiltersOpen(false);
+    };
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [filtersOpen]);
+
+  useEffect(() => {
     try {
       const stored = localStorage.getItem(VIEW_STORAGE_KEY);
       if (stored === "list" || stored === "grid") setViewMode(stored);
@@ -244,9 +259,6 @@ function AnimalsPageContent() {
     setFilters(next);
     setSearchInput(searchParams.get("search") || "");
     setAgeFilterMode(deriveAgeMode(next));
-    const hasAdvanced =
-      ADVANCED_KEYS.some((k) => next[k] !== DEFAULTS[k]) || ageFilterActive(next);
-    if (hasAdvanced) setFiltersOpen(true);
   }, [searchParams]);
 
   useEffect(() => {
@@ -524,58 +536,60 @@ function AnimalsPageContent() {
         </div>
       </div>
 
-      <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row gap-2">
+      <div className="space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
             <Input
               placeholder={t("searchEartagBreed")}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="pl-9 h-10 border-muted-foreground/20 bg-background shadow-none"
+              className="pl-9 h-11 rounded-xl border-border/80 bg-card shadow-sm"
             />
           </div>
-          <Select value={filters.sort} onValueChange={(v) => updateFilter("sort", v)}>
-            <SelectTrigger className="h-10 w-full sm:w-[180px] border-muted-foreground/20 shadow-none">
-              <SelectValue placeholder={t("sortBy")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="eartag_asc">Eartag A–Z</SelectItem>
-              <SelectItem value="eartag_desc">Eartag Z–A</SelectItem>
-              <SelectItem value="age_asc">Youngest first</SelectItem>
-              <SelectItem value="age_desc">Oldest first</SelectItem>
-              <SelectItem value="breed_asc">Breed A–Z</SelectItem>
-              <SelectItem value="sex_asc">Males first</SelectItem>
-              <SelectItem value="sex_desc">Females first</SelectItem>
-              <SelectItem value="camp_asc">Camp A–Z</SelectItem>
-              <SelectItem value="newest">Newest</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className={cn(
-              "h-10 px-3 border-muted-foreground/20 shadow-none",
-              (filtersOpen || advancedCount > 0) && "border-foreground/30 bg-muted/40"
-            )}
-            onClick={() => setFiltersOpen((o) => !o)}
-          >
-            <SlidersHorizontal className="h-4 w-4 mr-1.5" />
-            {t("advancedFilters")}
-            {advancedCount > 0 && (
-              <span className="ml-1.5 text-xs tabular-nums text-muted-foreground">
-                {advancedCount}
-              </span>
-            )}
-          </Button>
+          <div className="flex gap-2 shrink-0">
+            <Select value={filters.sort} onValueChange={(v) => updateFilter("sort", v)}>
+              <SelectTrigger className="h-11 w-full sm:w-[168px] rounded-xl border-border/80 bg-card shadow-sm">
+                <ArrowUpDown className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
+                <SelectValue placeholder={t("sortBy")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="eartag_asc">{t("sortEartagAsc")}</SelectItem>
+                <SelectItem value="newest">{t("sortNewest")}</SelectItem>
+                <SelectItem value="eartag_desc">{t("sortEartagDesc")}</SelectItem>
+                <SelectItem value="age_asc">{t("sortAgeAsc")}</SelectItem>
+                <SelectItem value="age_desc">{t("sortAgeDesc")}</SelectItem>
+                <SelectItem value="breed_asc">{t("sortBreedAsc")}</SelectItem>
+                <SelectItem value="camp_asc">{t("sortCampAsc")}</SelectItem>
+                <SelectItem value="sex_asc">{t("sortSexMale")}</SelectItem>
+                <SelectItem value="sex_desc">{t("sortSexFemale")}</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="outline"
+              className={cn(
+                "h-11 px-4 rounded-xl border-border/80 bg-card shadow-sm relative",
+                advancedCount > 0 && "border-primary/40 text-foreground"
+              )}
+              onClick={() => setFiltersOpen(true)}
+            >
+              <SlidersHorizontal className="h-4 w-4 mr-1.5" />
+              {t("advancedFilters")}
+              {advancedCount > 0 && (
+                <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-foreground px-1.5 text-[10px] font-semibold text-background">
+                  {advancedCount}
+                </span>
+              )}
+            </Button>
+          </div>
         </div>
 
-        <div className="flex gap-1.5 overflow-x-auto scrollbar-none -mx-1 px-1">
+        <div className="flex gap-2 overflow-x-auto scrollbar-none -mx-1 px-1 pb-0.5">
           {[
             { id: "all", label: t("all") },
             { id: "castrated", label: t("castrated") },
-            { id: "intact", label: "Intact" },
+            { id: "intact", label: t("intactMales") },
             { id: "pregnant", label: t("pregnant") },
             { id: "calves", label: t("calves") },
           ].map((chip) => (
@@ -584,10 +598,10 @@ function AnimalsPageContent() {
               type="button"
               onClick={() => (chip.id === "all" ? clearAll() : applyPreset(chip.id))}
               className={cn(
-                "shrink-0 px-3 py-1 text-xs tracking-wide transition-colors",
+                "shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors",
                 activePreset === chip.id
-                  ? "text-foreground font-medium underline underline-offset-4 decoration-foreground/40"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border/80 bg-card text-muted-foreground hover:text-foreground hover:border-foreground/30"
               )}
             >
               {chip.label}
@@ -597,125 +611,134 @@ function AnimalsPageContent() {
             <button
               type="button"
               onClick={clearAll}
-              className="shrink-0 px-2 py-1 text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+              className="shrink-0 rounded-full border border-transparent px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
             >
               <X className="h-3 w-3" />
               {t("clearFilters")}
             </button>
           )}
         </div>
+      </div>
 
-        {filtersOpen && (
-          <div className="rounded-lg border border-muted-foreground/15 bg-muted/20 p-4 space-y-3 animate-in fade-in-0">
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">{t("eartagColor")}</Label>
+      {/* Right filter drawer */}
+      <div
+        className={cn(
+          "fixed inset-0 z-50 transition-opacity duration-200",
+          filtersOpen
+            ? "pointer-events-auto opacity-100"
+            : "pointer-events-none opacity-0"
+        )}
+        aria-hidden={!filtersOpen}
+      >
+        <button
+          type="button"
+          className="absolute inset-0 bg-black/40 backdrop-blur-[1px]"
+          aria-label={t("cancel")}
+          onClick={() => setFiltersOpen(false)}
+        />
+        <aside
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="animals-filter-title"
+          className={cn(
+            "absolute inset-y-0 right-0 flex w-full max-w-md flex-col bg-background shadow-2xl border-l transition-transform duration-300 ease-out",
+            filtersOpen ? "translate-x-0" : "translate-x-full"
+          )}
+        >
+          <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
+            <div>
+              <h2
+                id="animals-filter-title"
+                className="text-lg font-semibold tracking-tight"
+              >
+                {t("advancedFilters")}
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {t("animalsFilterDrawerHelp")}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFiltersOpen(false)}
+              className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label={t("cancel")}
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
+            <section className="space-y-2.5">
+              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t("eartagColor")}
+              </Label>
               <TagColorFilter
                 value={filters.tagColor === "all" ? null : filters.tagColor}
                 onChange={(code) => updateFilter("tagColor", code || "all")}
+                showHelp={false}
               />
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
-              <Select value={filters.sex} onValueChange={(v) => updateFilter("sex", v)}>
-                <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
-                  <SelectValue placeholder={t("sex")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All sexes</SelectItem>
-                  <SelectItem value="MALE">{t("male")}</SelectItem>
-                  <SelectItem value="FEMALE">{t("female")}</SelectItem>
-                  <SelectItem value="UNKNOWN">{t("unknownSex")}</SelectItem>
-                </SelectContent>
-              </Select>
+            </section>
 
-              <Select
-                value={filters.castrated}
-                onValueChange={(v) => updateFilter("castrated", v)}
-                disabled={filters.sex === "FEMALE" || filters.sex === "UNKNOWN"}
-              >
-                <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
-                  <SelectValue placeholder="Male status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Male status</SelectItem>
-                  <SelectItem value="true">{t("castrated")}</SelectItem>
-                  <SelectItem value="false">Intact</SelectItem>
-                </SelectContent>
-              </Select>
+            <section className="space-y-2.5">
+              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t("sex")}
+              </Label>
+              <ChoicePills
+                options={[
+                  { value: "all", label: t("all") },
+                  { value: "MALE", label: t("male") },
+                  { value: "FEMALE", label: t("female") },
+                  { value: "UNKNOWN", label: t("unknownSex") },
+                ]}
+                value={filters.sex}
+                onChange={(v) => updateFilter("sex", v)}
+              />
+              {filters.sex === "MALE" && (
+                <ChoicePills
+                  options={[
+                    { value: "all", label: t("all") },
+                    { value: "true", label: t("castrated") },
+                    { value: "false", label: t("intactMales") },
+                  ]}
+                  value={filters.castrated}
+                  onChange={(v) => updateFilter("castrated", v)}
+                />
+              )}
+              {filters.sex === "FEMALE" && (
+                <ChoicePills
+                  options={[
+                    { value: "all", label: t("all") },
+                    { value: "true", label: t("pregnant") },
+                    { value: "false", label: t("notPregnant") },
+                  ]}
+                  value={filters.pregnant}
+                  onChange={(v) => updateFilter("pregnant", v)}
+                />
+              )}
+            </section>
 
-              <Select
-                value={filters.pregnant}
-                onValueChange={(v) => updateFilter("pregnant", v)}
-                disabled={filters.sex === "MALE" || filters.sex === "UNKNOWN"}
-              >
-                <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
-                  <SelectValue placeholder="Female status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Female status</SelectItem>
-                  <SelectItem value="true">{t("pregnant")}</SelectItem>
-                  <SelectItem value="false">Not pregnant</SelectItem>
-                </SelectContent>
-              </Select>
+            <section className="space-y-2.5">
+              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t("status")}
+              </Label>
+              <ChoicePills
+                options={[
+                  { value: "ACTIVE", label: t("statusActive") },
+                  { value: "ALL", label: t("all") },
+                  { value: "DECEASED", label: t("statusDeceased") },
+                  { value: "SOLD", label: t("statusSold") },
+                  { value: "QUARANTINE", label: t("quarantine") },
+                  { value: "MISSING", label: t("statusMissing") },
+                ]}
+                value={filters.status}
+                onChange={(v) => updateFilter("status", v)}
+              />
+            </section>
 
-              <Select value={filters.breed} onValueChange={(v) => updateFilter("breed", v)}>
-                <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
-                  <SelectValue placeholder={t("breed")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All breeds</SelectItem>
-                  {breeds.map((b) => (
-                    <SelectItem key={b.id} value={b.name}>
-                      {b.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={filters.camp} onValueChange={(v) => updateFilter("camp", v)}>
-                <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
-                  <SelectValue placeholder={t("camp")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All camps</SelectItem>
-                  {camps.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={filters.status} onValueChange={(v) => updateFilter("status", v)}>
-                <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
-                  <SelectValue placeholder={t("status")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ACTIVE">{t("active")}</SelectItem>
-                  <SelectItem value="ALL">All statuses</SelectItem>
-                  <SelectItem value="DECEASED">{t("deceased")}</SelectItem>
-                  <SelectItem value="QUARANTINE">{t("quarantine")}</SelectItem>
-                  <SelectItem value="SOLD">{t("sold")}</SelectItem>
-                  <SelectItem value="MISSING">Missing</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={filters.owner} onValueChange={(v) => updateFilter("owner", v)}>
-                <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">
-                  <SelectValue placeholder={t("owner")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All owners</SelectItem>
-                  {owners.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>
-                      {o.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2 pt-1 border-t border-muted-foreground/10">
-              <Label className="text-xs text-muted-foreground">{t("ageFilter")}</Label>
+            <section className="space-y-2.5">
+              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t("ageFilter")}
+              </Label>
               <ChoicePills
                 options={[
                   { value: "all", label: t("allAges") },
@@ -730,13 +753,13 @@ function AnimalsPageContent() {
                 onChange={applyAgeFilterMode}
               />
               {ageFilterMode === "months" && (
-                <div className="grid grid-cols-2 gap-2 max-w-md pt-1">
-                  <div className="space-y-1">
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div className="space-y-1.5">
                     <p className="text-xs text-muted-foreground">{t("ageMinMonths")}</p>
                     <Input
                       type="number"
                       min={0}
-                      className="h-9 bg-background border-muted-foreground/15 shadow-none"
+                      className="h-10 rounded-lg"
                       placeholder="0"
                       value={filters.ageMinMonths}
                       onChange={(e) =>
@@ -744,13 +767,13 @@ function AnimalsPageContent() {
                       }
                     />
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <p className="text-xs text-muted-foreground">{t("ageMaxMonths")}</p>
                     <Input
                       type="number"
                       min={0}
-                      className="h-9 bg-background border-muted-foreground/15 shadow-none"
-                      placeholder="e.g. 24"
+                      className="h-10 rounded-lg"
+                      placeholder="24"
                       value={filters.ageMaxMonths}
                       onChange={(e) =>
                         updateFilter("ageMaxMonths", e.target.value)
@@ -760,30 +783,107 @@ function AnimalsPageContent() {
                 </div>
               )}
               {ageFilterMode === "born" && (
-                <div className="grid grid-cols-2 gap-2 max-w-md pt-1">
-                  <div className="space-y-1">
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div className="space-y-1.5">
                     <p className="text-xs text-muted-foreground">{t("bornFrom")}</p>
                     <Input
                       type="date"
-                      className="h-9 bg-background border-muted-foreground/15 shadow-none"
+                      className="h-10 rounded-lg"
                       value={filters.dobFrom}
                       onChange={(e) => updateFilter("dobFrom", e.target.value)}
                     />
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <p className="text-xs text-muted-foreground">{t("bornTo")}</p>
                     <Input
                       type="date"
-                      className="h-9 bg-background border-muted-foreground/15 shadow-none"
+                      className="h-10 rounded-lg"
                       value={filters.dobTo}
                       onChange={(e) => updateFilter("dobTo", e.target.value)}
                     />
                   </div>
                 </div>
               )}
-            </div>
+            </section>
+
+            <section className="space-y-2.5">
+              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t("breed")}
+              </Label>
+              <Select value={filters.breed} onValueChange={(v) => updateFilter("breed", v)}>
+                <SelectTrigger className="h-10 rounded-lg">
+                  <SelectValue placeholder={t("breed")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("allBreeds")}</SelectItem>
+                  {breeds.map((b) => (
+                    <SelectItem key={b.id} value={b.name}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </section>
+
+            <section className="space-y-2.5">
+              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t("camp")}
+              </Label>
+              <Select value={filters.camp} onValueChange={(v) => updateFilter("camp", v)}>
+                <SelectTrigger className="h-10 rounded-lg">
+                  <SelectValue placeholder={t("camp")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("allCamps")}</SelectItem>
+                  {camps.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </section>
+
+            <section className="space-y-2.5">
+              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t("owner")}
+              </Label>
+              <Select value={filters.owner} onValueChange={(v) => updateFilter("owner", v)}>
+                <SelectTrigger className="h-10 rounded-lg">
+                  <SelectValue placeholder={t("owner")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("allOwners")}</SelectItem>
+                  {owners.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>
+                      {o.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </section>
           </div>
-        )}
+
+          <div className="border-t px-5 py-4 flex items-center justify-between gap-3 bg-background">
+            <button
+              type="button"
+              className="text-sm text-muted-foreground hover:text-foreground"
+              onClick={() => {
+                clearAll();
+                setFiltersOpen(true);
+              }}
+            >
+              {t("clearAll")}
+            </button>
+            <Button
+              type="button"
+              className="min-w-[7rem]"
+              onClick={() => setFiltersOpen(false)}
+            >
+              {t("apply")}
+            </Button>
+          </div>
+        </aside>
       </div>
 
       {loading ? (
