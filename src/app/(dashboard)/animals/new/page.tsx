@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { enqueueSync } from "@/lib/sync/offline-db";
 import { ChoicePills } from "@/components/choice-pills";
-import { ArrowLeft, ChevronDown, ChevronRight, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, X } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 import { parseAnimalsList } from "@/lib/animals-api";
 import { PhotoSourcePicker } from "@/components/photo-source-picker";
@@ -25,6 +25,42 @@ import { cn } from "@/lib/utils";
 import { useObjectUrls } from "@/hooks/use-object-urls";
 import { rememberCampEartag, suggestNextEartag } from "@/lib/eartag";
 import { uploadPhotoFile } from "@/lib/client/upload-photo";
+
+const LOOKUPS_CACHE_KEY = "register-lookups-v1";
+const DEFAULTS_CACHE_KEY = "register-animal-defaults-v1";
+
+type RememberedDefaults = {
+  breed: string;
+  sex: string;
+  isCastrated: boolean;
+  isPregnant: boolean;
+  campId: string;
+  ownerId: string;
+  sireId: string;
+  damId: string;
+  colorMarkings: string;
+  acquisitionType: string;
+  acquisitionDate: string;
+};
+
+function loadRememberedDefaults(): Partial<RememberedDefaults> | null {
+  try {
+    const raw = localStorage.getItem(DEFAULTS_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<RememberedDefaults>;
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveRememberedDefaults(form: RememberedDefaults) {
+  try {
+    localStorage.setItem(DEFAULTS_CACHE_KEY, JSON.stringify(form));
+  } catch {
+    /* quota / private mode */
+  }
+}
 
 function Field({
   label,
@@ -70,6 +106,7 @@ function NewAnimalPageContent() {
   const searchParams = useSearchParams();
   const campFromQuery = searchParams.get("camp");
   const campPrefillDone = useRef(false);
+  const defaultsApplied = useRef(false);
   const [loading, setLoading] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [camps, setCamps] = useState<CampOption[]>([]);
@@ -82,6 +119,11 @@ function NewAnimalPageContent() {
   const photoPreviewUrls = useObjectUrls(photoFiles);
   const [eartagManual, setEartagManual] = useState(false);
   const [lastEartag, setLastEartag] = useState<string | null>(null);
+  const [success, setSuccess] = useState<{
+    eartag: string;
+    animalId: string | null;
+    offline: boolean;
+  } | null>(null);
   const [form, setForm] = useState({
     eartag: "",
     breed: "",
@@ -105,10 +147,14 @@ function NewAnimalPageContent() {
   const isExternal =
     form.acquisitionType === "PURCHASED" || form.acquisitionType === "GIFT";
 
-  async function applyCampEartagSuggestion(campId: string) {
+  async function applyCampEartagSuggestion(
+    campId: string,
+    opts?: { forceEartag?: boolean; extraEartags?: string[] }
+  ) {
     const camp = camps.find((c) => c.id === campId);
     let suggested: string | null = null;
     let last: string | null = null;
+    const extra = opts?.extraEartags ?? [];
 
     try {
       const res = await fetch(`/api/camps/${campId}/next-eartag`);
@@ -116,6 +162,14 @@ function NewAnimalPageContent() {
         const data = await res.json();
         suggested = data.suggested || null;
         last = data.lastEartag || null;
+        if (
+          suggested &&
+          extra.some(
+            (e) => e.trim().toUpperCase() === suggested!.trim().toUpperCase()
+          )
+        ) {
+          suggested = null;
+        }
       }
     } catch {
       /* offline */
@@ -124,10 +178,11 @@ function NewAnimalPageContent() {
     if (!suggested) {
       const { recallCampEartag } = await import("@/lib/eartag");
       const remembered = recallCampEartag(campId);
-      const allTags = animals.map((a) => a.eartag);
-      const campTags = animals
-        .filter((a) => a.campId === campId)
-        .map((a) => a.eartag);
+      const allTags = [...animals.map((a) => a.eartag), ...extra];
+      const campTags = [
+        ...animals.filter((a) => a.campId === campId).map((a) => a.eartag),
+        ...extra,
+      ];
       suggested = suggestNextEartag({
         campCode: camp?.code,
         sequenceEartags: [...campTags, ...(remembered ? [remembered] : [])],
@@ -138,18 +193,18 @@ function NewAnimalPageContent() {
 
     setLastEartag(last);
     setForm((prev) => {
-      const shouldFill = !eartagManual || !prev.eartag.trim();
+      const shouldFill =
+        opts?.forceEartag || !eartagManual || !prev.eartag.trim();
       return {
         ...prev,
         campId,
         eartag: shouldFill && suggested ? suggested : prev.eartag,
       };
     });
+    if (opts?.forceEartag) setEartagManual(false);
   }
 
   useEffect(() => {
-    const CACHE_KEY = "register-lookups-v1";
-
     function applyLookups(
       c: unknown,
       o: unknown,
@@ -185,7 +240,7 @@ function NewAnimalPageContent() {
     }
 
     try {
-      const cached = localStorage.getItem(CACHE_KEY);
+      const cached = localStorage.getItem(LOOKUPS_CACHE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached) as {
           camps?: unknown;
@@ -197,6 +252,27 @@ function NewAnimalPageContent() {
       }
     } catch {
       // ignore bad cache
+    }
+
+    if (!defaultsApplied.current) {
+      defaultsApplied.current = true;
+      const remembered = loadRememberedDefaults();
+      if (remembered) {
+        setForm((prev) => ({
+          ...prev,
+          breed: remembered.breed || prev.breed,
+          sex: remembered.sex || prev.sex,
+          isCastrated: Boolean(remembered.isCastrated),
+          isPregnant: Boolean(remembered.isPregnant),
+          campId: campFromQuery || remembered.campId || prev.campId,
+          ownerId: remembered.ownerId || prev.ownerId,
+          sireId: remembered.sireId || prev.sireId,
+          damId: remembered.damId || prev.damId,
+          colorMarkings: remembered.colorMarkings || prev.colorMarkings,
+          acquisitionType: remembered.acquisitionType || prev.acquisitionType,
+          acquisitionDate: remembered.acquisitionDate || prev.acquisitionDate,
+        }));
+      }
     }
 
     if (!navigator.onLine) return;
@@ -211,7 +287,7 @@ function NewAnimalPageContent() {
         applyLookups(c, o, b, a);
         try {
           localStorage.setItem(
-            CACHE_KEY,
+            LOOKUPS_CACHE_KEY,
             JSON.stringify({ camps: c, owners: o, breeds: b, animals: a })
           );
         } catch {
@@ -221,14 +297,21 @@ function NewAnimalPageContent() {
       .catch(() => {
         // keep cached lookups if online fetch fails
       });
-  }, []);
+  }, [campFromQuery]);
 
   useEffect(() => {
-    if (campPrefillDone.current || !campFromQuery || camps.length === 0) return;
-    if (!camps.some((c) => c.id === campFromQuery)) return;
+    if (campPrefillDone.current || camps.length === 0) return;
+    const campId = campFromQuery || form.campId;
+    if (!campId || !camps.some((c) => c.id === campId)) return;
+    // Query camp always wins; remembered camp only auto-suggests eartag once
+    if (!campFromQuery && form.eartag.trim()) {
+      campPrefillDone.current = true;
+      return;
+    }
     campPrefillDone.current = true;
-    void applyCampEartagSuggestion(campFromQuery);
-  }, [campFromQuery, camps]);
+    void applyCampEartagSuggestion(campId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once lookups ready
+  }, [campFromQuery, camps, form.campId]);
 
   function removePhoto(index: number) {
     setPhotoFiles((prev) => prev.filter((_, i) => i !== index));
@@ -240,6 +323,45 @@ function NewAnimalPageContent() {
       urls.push(await uploadPhotoFile(file, "animals", t("photoUploadFailed")));
     }
     return urls;
+  }
+
+  function persistDefaultsFromForm() {
+    saveRememberedDefaults({
+      breed: form.breed,
+      sex: form.sex,
+      isCastrated: form.isCastrated,
+      isPregnant: form.isPregnant,
+      campId: form.campId,
+      ownerId: form.ownerId,
+      sireId: form.sireId,
+      damId: form.damId,
+      colorMarkings: form.colorMarkings,
+      acquisitionType: form.acquisitionType,
+      acquisitionDate: form.acquisitionDate,
+    });
+  }
+
+  async function prepareNextAnimal(justSavedEartag: string) {
+    const campId = form.campId;
+    setPhotoFiles([]);
+    setShowMore(false);
+    setEartagManual(false);
+    setForm((prev) => ({
+      ...prev,
+      eartag: "",
+      dob: "",
+      ageYears: "",
+      ageMonthsPart: "",
+      notes: "",
+      // Keep batch fields: camp, breed, sex, source, owner, parents, markings, acquisition date
+    }));
+    setLastEartag(justSavedEartag);
+    if (campId) {
+      await applyCampEartagSuggestion(campId, {
+        forceEartag: true,
+        extraEartags: [justSavedEartag],
+      });
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -275,21 +397,32 @@ function NewAnimalPageContent() {
           : 0,
     };
 
+    const savedEartag = form.eartag.trim();
+    const campName =
+      camps.find((c) => c.id === form.campId)?.name || "";
+
     if (!navigator.onLine) {
       try {
         await enqueueSync("create", "animal", payload, photoFiles);
-        rememberCampEartag(form.campId, form.eartag.trim());
+        rememberCampEartag(form.campId, savedEartag);
+        persistDefaultsFromForm();
       } catch (err) {
         alert(err instanceof Error ? err.message : t("failedToCreateAnimal"));
         setLoading(false);
         return;
       }
-      alert(
-        photoFiles.length > 0
-          ? t("savedOfflineWithPhotos", { n: photoFiles.length })
-          : t("savedOffline")
-      );
-      router.push("/animals");
+      setAnimals((prev) => [
+        ...prev,
+        {
+          id: `offline-${savedEartag}`,
+          eartag: savedEartag,
+          sex: form.sex,
+          campId: form.campId,
+          campName,
+        },
+      ]);
+      setLoading(false);
+      setSuccess({ eartag: savedEartag, animalId: null, offline: true });
       return;
     }
 
@@ -316,13 +449,36 @@ function NewAnimalPageContent() {
 
     if (res.ok) {
       const animal = await res.json();
-      rememberCampEartag(form.campId, form.eartag.trim());
-      router.push(`/animals/${animal.id}`);
+      rememberCampEartag(form.campId, savedEartag);
+      persistDefaultsFromForm();
+      setAnimals((prev) => [
+        ...prev,
+        {
+          id: animal.id,
+          eartag: savedEartag,
+          sex: form.sex,
+          campId: form.campId,
+          campName,
+        },
+      ]);
+      setLoading(false);
+      setSuccess({ eartag: savedEartag, animalId: animal.id, offline: false });
     } else {
       const err = await res.json();
       alert(err.error || t("failedToCreateAnimal"));
       setLoading(false);
     }
+  }
+
+  async function onAddAnother() {
+    const eartag = success?.eartag;
+    setSuccess(null);
+    if (eartag) await prepareNextAnimal(eartag);
+  }
+
+  function onBackToListing() {
+    setSuccess(null);
+    router.push("/animals");
   }
 
   const males = animals.filter((a) => a.sex === "MALE");
@@ -810,6 +966,57 @@ function NewAnimalPageContent() {
           </Button>
         </div>
       </form>
+
+      {success && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="animal-added-title"
+            className="relative w-full max-w-md rounded-2xl border bg-background p-6 pt-8 shadow-lg"
+          >
+            <button
+              type="button"
+              onClick={() => void onAddAnother()}
+              className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground hover:text-foreground"
+              aria-label={t("cancel")}
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <div className="flex flex-col items-center text-center space-y-3">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600">
+                <CheckCircle2 className="h-8 w-8" strokeWidth={2} />
+              </div>
+              <h2 id="animal-added-title" className="text-xl font-semibold tracking-tight">
+                {t("animalAddedTitle")}
+              </h2>
+              <p className="text-sm text-muted-foreground max-w-sm">
+                {success.offline
+                  ? t("animalAddedOfflineMessage", { eartag: success.eartag })
+                  : t("animalAddedMessage", { eartag: success.eartag })}
+              </p>
+              <div className="flex w-full flex-col-reverse sm:flex-row gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={onBackToListing}
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  {t("backToAnimalsListing")}
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1 bg-foreground text-background hover:bg-foreground/90"
+                  onClick={() => void onAddAnother()}
+                >
+                  {t("addAnotherAnimal")}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

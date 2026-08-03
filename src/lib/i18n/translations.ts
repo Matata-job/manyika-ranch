@@ -214,6 +214,13 @@ const en = {
   addCamp: "Add Camp",
   registerAnimal: "Register animal",
   registerAnimalSubtitle: "Defaults to born on farm. Switch source only for purchased or gift animals.",
+  animalAddedTitle: "Animal added successfully",
+  animalAddedMessage:
+    "{eartag} has been registered. Would you like to add another animal?",
+  animalAddedOfflineMessage:
+    "{eartag} was saved offline and will sync when you are online. Add another?",
+  addAnotherAnimal: "Yes",
+  backToAnimalsListing: "Back to animals listing",
   sectionIdentity: "Who is this animal?",
   sectionIdentityHelp: "Eartag, breed, sex, and which camp it lives in.",
   sectionArrival: "How did it arrive?",
@@ -1194,6 +1201,13 @@ const sw: Dict = {
   addCamp: "Ongeza kambi",
   registerAnimal: "Sajili mnyama",
   registerAnimalSubtitle: "Kwa kawaida ni amezalishwa shambani. Badilisha chanzo tu kwa mnyama aliye nunuliwa au zawadi.",
+  animalAddedTitle: "Mnyama amesajiliwa",
+  animalAddedMessage:
+    "{eartag} amesajiliwa. Ungependa kuongeza mnyama mwingine?",
+  animalAddedOfflineMessage:
+    "{eartag} amehifadhiwa nje ya mtandao na atasawazishwa ukiwa mtandaoni. Ongeza mwingine?",
+  addAnotherAnimal: "Ndiyo",
+  backToAnimalsListing: "Rudi kwenye orodha ya wanyama",
   sectionIdentity: "Mnyama ni nani?",
   sectionIdentityHelp: "Lebo ya sikio, aina, jinsia, na kambi anayoishi.",
   sectionArrival: "Alifikaje?",
