@@ -157,11 +157,6 @@ export default function CampDetailPage() {
             notes: data.notes || "",
             tagColor: data.tagColor || "",
           });
-          setShowNotes(
-            Boolean(data.notes?.trim()) ||
-              (Array.isArray(data.journalNotes) &&
-                data.journalNotes.length > 0)
-          );
         }
       }
       setLoading(false);
@@ -197,7 +192,6 @@ export default function CampDetailPage() {
       return;
     }
     setEditing(false);
-    setShowNotes(Boolean(form.notes.trim()) || (camp?.journalNotes?.length ?? 0) > 0);
     load(animalsOffset, { soft: true });
   }
 
@@ -219,7 +213,6 @@ export default function CampDetailPage() {
     const created = (await res.json()) as CampJournalNote;
     setNoteBody("");
     setNoteDate(todayInputDate());
-    setShowNotes(true);
     setCamp((c) =>
       c
         ? {
