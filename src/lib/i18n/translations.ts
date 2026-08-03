@@ -147,9 +147,9 @@ const en = {
   campLifecycleTitle: "Camp status & deletion",
   campLifecycleSummary: "Deactivate or move to Recently deleted — uncommon actions",
   campLifecycleHelp:
-    "These options are tucked away on purpose. Use them only when the camp should no longer receive animals, or when removing an empty camp.",
+    "These options are hidden on purpose. Use them only when the camp has no animals and is not expected to receive any, or if it was opened by mistake — you can delete it only when the camp is empty.",
   deactivateCampHelp:
-    "Deactivate only when the camp has no active animals. Inactive camps stay in the list but are marked inactive.",
+    "Deactivate only a camp with no active animals. Deactivated camps stay in the list but are shown as not in use.",
   softDeleteCampHelp:
     "Only empty camps can be moved. They appear under Settings → Recently deleted and can be restored within the retention period.",
   typeCampNameToConfirm: "Type “{name}” to confirm",
@@ -396,8 +396,18 @@ const en = {
   removeLogo: "Remove logo",
   noCampPhotos: "No camp photos yet",
   campNotes: "Camp notes",
-  noCampNotes: "No notes for this camp",
-  noCampNotesEditHint: "No notes yet — use Edit details to add them.",
+  noCampNotes: "No notes for this camp yet",
+  noCampNotesEditHint:
+    "Add a dated note below — supervisors and owners can record camp updates here.",
+  campNoteDate: "Date",
+  campNoteBody: "Note",
+  campNotePlaceholder: "e.g. counted 19 head, 9 still untagged…",
+  addCampNote: "Add note",
+  campNoteSaved: "Note saved",
+  campNoteAuthor: "By {name}",
+  legacyCampNotes: "Older general notes",
+  campNotesHelp:
+    "Dated notes for this camp. Supervisors and owners can add updates anytime.",
   uploadPhotos: "Upload {n} photo(s)",
   chooseFromDevice: "Choose from device",
   takePhoto: "Take photo",
@@ -1182,9 +1192,9 @@ const sw: Dict = {
   campLifecycleTitle: "Hali ya kambi na kufuta kambi",
   campLifecycleSummary: "Zima au hamisha kwenda kwenye Zilizofutwa — vitendo adimu",
   campLifecycleHelp:
-    "Machaguo haya yamefichwa kwa makusudi. Yatumike tu endapo kambi haina wanyama na haitarajii kupokea, au unapoondoa/ unapofuta kambi tupu.",
+    "Machaguo haya yamefichwa kwa makusudi. Yatumike tu endapo kambi haina wanyama na haitarajii kupokea, au kama ilifunguliwa kimakosa unaweza kuifuta endapo tu kambi ipo tupu.",
   deactivateCampHelp:
-    "Zima tu kambi isiyo na wanyama hai. Kambi zilizozimwa zinabaki kwenye orodha lakini huonyeshwa kama hazifanyi kazi.",
+    "Zima tu kambi isiyo na wanyama hai. Kambi zilizozimwa zinabaki kwenye orodha lakini huonyeshwa kuwa hazifanyi kazi.",
   softDeleteCampHelp:
     "Ni kambi tupu tu zinazoweza kuhamishwa. Zinaonekana chini kwenye Mipangilio → Zilizofutwa na zinaweza kurejeshwa ndani ya muda wa kuhifadhi.",
   typeCampNameToConfirm: "Andika “{name}” ili kuthibitisha",
@@ -1424,8 +1434,18 @@ const sw: Dict = {
   removeLogo: "Ondoa nembo",
   noCampPhotos: "Hakuna picha za kambi bado",
   campNotes: "Maelezo ya kambi",
-  noCampNotes: "Hakuna maelezo ya kambi hii",
-  noCampNotesEditHint: "Hakuna maelezo bado — tumia Hariri maelezo kuyaongeza.",
+  noCampNotes: "Hakuna maelezo ya kambi bado",
+  noCampNotesEditHint:
+    "Ongeza maelezo yenye tarehe hapa chini — wasimamizi na mmiliki wanaweza kurekodi masasisho ya kambi.",
+  campNoteDate: "Tarehe",
+  campNoteBody: "Maelezo",
+  campNotePlaceholder: "mf. tumehesabu 19, 9 bado hawajawekewa alama…",
+  addCampNote: "Ongeza maelezo",
+  campNoteSaved: "Maelezo yamehifadhiwa",
+  campNoteAuthor: "Na {name}",
+  legacyCampNotes: "Maelezo ya zamani (jumla)",
+  campNotesHelp:
+    "Maelezo yenye tarehe kwa kambi hii. Wasimamizi na mmiliki wanaweza kuongeza masasisho wakati wowote.",
   uploadPhotos: "Pakia picha {n}",
   chooseFromDevice: "Chagua kutoka kifaa",
   takePhoto: "Piga picha",

@@ -64,6 +64,11 @@ export async function GET(
           orderBy: { takenAt: "desc" },
           include: { uploadedBy: { select: { name: true } } },
         },
+        journalNotes: {
+          orderBy: [{ noteDate: "desc" }, { createdAt: "desc" }],
+          take: 50,
+          include: { author: { select: { id: true, name: true } } },
+        },
       },
     }),
     prisma.animal.count({ where: animalWhere }),

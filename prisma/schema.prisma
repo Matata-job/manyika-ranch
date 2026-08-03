@@ -207,6 +207,7 @@ model User {
   animalEvents  AnimalEvent[]
   uploadedAnimalPhotos AnimalPhoto[]
   uploadedCampPhotos CampPhoto[]
+  campNotes     CampNote[]
   expenses      Expense[]
   otherIncomes  OtherIncome[]
   ownerInvoices OwnerInvoice[]
@@ -263,10 +264,27 @@ model Camp {
   expenses     Expense[]
   otherIncomes OtherIncome[]
   photos       CampPhoto[]
+  journalNotes CampNote[]
 
   @@unique([ranchId, code])
   @@index([ranchId, deletedAt])
   @@index([ranchId, isActive])
+}
+
+/** Dated camp journal entries (supervisor / owner updates). */
+model CampNote {
+  id        String   @id @default(cuid())
+  campId    String
+  camp      Camp     @relation(fields: [campId], references: [id], onDelete: Cascade)
+  body      String
+  /** Calendar date this note is about (defaults to created day). */
+  noteDate  DateTime @db.Date
+  authorId  String?
+  author    User?    @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campId, noteDate])
 }
 
 model CampPhoto {

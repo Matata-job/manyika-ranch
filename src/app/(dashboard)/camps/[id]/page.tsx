@@ -34,6 +34,32 @@ import {
   ListPagination,
 } from "@/components/list-pagination";
 
+function todayInputDate(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function formatNoteDate(value: string | Date, locale: string): string {
+  const d = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleDateString(locale === "sw" ? "sw-TZ" : "en-GB", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+type CampJournalNote = {
+  id: string;
+  body: string;
+  noteDate: string;
+  createdAt: string;
+  author: { id: string; name: string } | null;
+};
+
 const CampLocationPicker = dynamic(
   () =>
     import("@/components/camp-location-picker").then((m) => m.CampLocationPicker),
@@ -69,6 +95,7 @@ interface CampDetail {
   _count?: { animals: number };
   assignments: { user: { name: string; role: string } }[];
   photos: CampPhoto[];
+  journalNotes?: CampJournalNote[];
 }
 
 export default function CampDetailPage() {
@@ -79,6 +106,7 @@ export default function CampDetailPage() {
   const { data: session } = useSession();
   const role = session?.user?.role as Role | undefined;
   const canManage = role ? hasPermission(role, "manageCamps") : false;
+  const canAddNotes = role ? hasPermission(role, "addCampNotes") : false;
   const canRegister = role ? hasPermission(role, "createAnimal") : false;
 
   const [camp, setCamp] = useState<CampDetail | null>(null);
@@ -92,6 +120,9 @@ export default function CampDetailPage() {
   const [showNotes, setShowNotes] = useState(false);
   const [showLifecycle, setShowLifecycle] = useState(false);
   const [trashConfirmName, setTrashConfirmName] = useState("");
+  const [noteDate, setNoteDate] = useState(todayInputDate);
+  const [noteBody, setNoteBody] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
   const [form, setForm] = useState({
     name: "",
     code: "",
@@ -130,7 +161,11 @@ export default function CampDetailPage() {
             notes: data.notes || "",
             tagColor: data.tagColor || "",
           });
-          setShowNotes(Boolean(data.notes?.trim()));
+          setShowNotes(
+            Boolean(data.notes?.trim()) ||
+              (Array.isArray(data.journalNotes) &&
+                data.journalNotes.length > 0)
+          );
         }
       }
       setLoading(false);
@@ -167,8 +202,37 @@ export default function CampDetailPage() {
       return;
     }
     setEditing(false);
-    setShowNotes(Boolean(form.notes.trim()));
+    setShowNotes(Boolean(form.notes.trim()) || (camp?.journalNotes?.length ?? 0) > 0);
     load(animalsOffset, { soft: true });
+  }
+
+  async function addCampNote() {
+    const text = noteBody.trim();
+    if (!text) return;
+    setSavingNote(true);
+    const res = await fetch(`/api/camps/${id}/notes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body: text, noteDate }),
+    });
+    setSavingNote(false);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || t("failedToSave"));
+      return;
+    }
+    const created = (await res.json()) as CampJournalNote;
+    setNoteBody("");
+    setNoteDate(todayInputDate());
+    setShowNotes(true);
+    setCamp((c) =>
+      c
+        ? {
+            ...c,
+            journalNotes: [created, ...(c.journalNotes || [])],
+          }
+        : c
+    );
   }
 
   async function toggleActive() {
@@ -230,7 +294,16 @@ export default function CampDetailPage() {
   ]
     .filter(Boolean)
     .join(" · ");
-  const hasNotes = Boolean(camp.notes?.trim());
+  const hasLegacyNotes = Boolean(camp.notes?.trim());
+  const journalNotes = camp.journalNotes || [];
+  const hasJournalNotes = journalNotes.length > 0;
+  const notesSummary = hasJournalNotes
+    ? journalNotes[0].body.trim().slice(0, 80) +
+      (journalNotes[0].body.trim().length > 80 ? "…" : "")
+    : hasLegacyNotes
+      ? camp.notes!.trim().slice(0, 80) +
+        (camp.notes!.trim().length > 80 ? "…" : "")
+      : t("noCampNotes");
   const registerHref = `/animals/new?camp=${camp.id}`;
 
   return (
@@ -484,23 +557,86 @@ export default function CampDetailPage() {
             open={showNotes}
             onToggle={() => setShowNotes((v) => !v)}
             title={t("campNotes")}
-            summary={
-              hasNotes
-                ? camp.notes!.trim().slice(0, 80) +
-                  (camp.notes!.trim().length > 80 ? "…" : "")
-                : t("noCampNotes")
-            }
+            summary={notesSummary}
           >
-            {hasNotes ? (
-              <p className="text-sm whitespace-pre-wrap leading-relaxed">
-                {camp.notes}
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground flex items-center gap-2">
-                <StickyNote className="h-4 w-4 shrink-0" />
-                {canManage ? t("noCampNotesEditHint") : t("noCampNotes")}
-              </p>
-            )}
+            <div className="space-y-4">
+              <p className="text-xs text-muted-foreground">{t("campNotesHelp")}</p>
+
+              {canAddNotes && (
+                <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+                  <div className="grid gap-3 sm:grid-cols-[10rem_1fr]">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="camp-note-date">{t("campNoteDate")}</Label>
+                      <Input
+                        id="camp-note-date"
+                        type="date"
+                        value={noteDate}
+                        onChange={(e) => setNoteDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="camp-note-body">{t("campNoteBody")}</Label>
+                      <Textarea
+                        id="camp-note-body"
+                        value={noteBody}
+                        onChange={(e) => setNoteBody(e.target.value)}
+                        placeholder={t("campNotePlaceholder")}
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={savingNote || !noteBody.trim()}
+                    onClick={addCampNote}
+                  >
+                    {savingNote ? t("saving") : t("addCampNote")}
+                  </Button>
+                </div>
+              )}
+
+              {hasJournalNotes ? (
+                <ul className="space-y-3">
+                  {journalNotes.map((n) => (
+                    <li
+                      key={n.id}
+                      className="rounded-md border bg-background/80 p-3 space-y-1"
+                    >
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground">
+                          {formatNoteDate(n.noteDate, locale)}
+                        </span>
+                        {n.author?.name && (
+                          <span>
+                            {t("campNoteAuthor", { name: n.author.name })}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                        {n.body}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <StickyNote className="h-4 w-4 shrink-0" />
+                  {canAddNotes ? t("noCampNotesEditHint") : t("noCampNotes")}
+                </p>
+              )}
+
+              {hasLegacyNotes && (
+                <div className="rounded-md border border-dashed p-3 space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {t("legacyCampNotes")}
+                  </p>
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                    {camp.notes}
+                  </p>
+                </div>
+              )}
+            </div>
           </OptionalSection>
         </>
       )}

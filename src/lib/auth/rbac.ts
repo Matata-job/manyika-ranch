@@ -13,6 +13,8 @@ export const ROLE_LABELS: Record<Role, string> = {
 export const PERMISSIONS = {
   manageUsers: [Role.OWNER, Role.FARM_MANAGER],
   manageCamps: [Role.OWNER, Role.FARM_MANAGER],
+  /** Dated journal notes on a camp — owner, manager, or assigned supervisor. */
+  addCampNotes: [Role.OWNER, Role.FARM_MANAGER, Role.CAMP_SUPERVISOR],
   viewCamps: [
     Role.OWNER,
     Role.FARM_MANAGER,
