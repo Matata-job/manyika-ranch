@@ -239,6 +239,11 @@ model Camp {
   longitude    Float?
   /** Farm / camp size in acres */
   sizeAcres    Float?
+  /**
+   * Estimated total live animals at the camp, including those not yet tagged.
+   * Untagged ≈ max(0, estimatedLive − tagged ACTIVE count).
+   */
+  estimatedLive Int?
   logoUrl      String?
   waterSources String?
   notes        String?

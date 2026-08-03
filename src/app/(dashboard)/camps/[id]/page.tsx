@@ -49,6 +49,7 @@ interface CampDetail {
   latitude: number | null;
   longitude: number | null;
   sizeAcres: number | null;
+  estimatedLive: number | null;
   logoUrl: string | null;
   waterSources: string | null;
   notes: string | null;
@@ -95,6 +96,7 @@ export default function CampDetailPage() {
     name: "",
     code: "",
     sizeAcres: "",
+    estimatedLive: "",
     latitude: "",
     longitude: "",
     waterSources: "",
@@ -120,6 +122,8 @@ export default function CampDetailPage() {
             name: data.name || "",
             code: data.code || "",
             sizeAcres: data.sizeAcres != null ? String(data.sizeAcres) : "",
+            estimatedLive:
+              data.estimatedLive != null ? String(data.estimatedLive) : "",
             latitude: data.latitude != null ? String(data.latitude) : "",
             longitude: data.longitude != null ? String(data.longitude) : "",
             waterSources: data.waterSources || "",
@@ -148,6 +152,7 @@ export default function CampDetailPage() {
         name: form.name,
         code: form.code.trim() || null,
         sizeAcres: form.sizeAcres || null,
+        estimatedLive: form.estimatedLive || null,
         latitude: form.latitude || null,
         longitude: form.longitude || null,
         waterSources: form.waterSources || null,
@@ -211,6 +216,12 @@ export default function CampDetailPage() {
 
   const animalTotal =
     camp.animalTotal ?? camp._count?.animals ?? camp.animals.length;
+  const estimatedLive =
+    camp.estimatedLive != null && camp.estimatedLive >= 0
+      ? camp.estimatedLive
+      : null;
+  const untaggedEstimate =
+    estimatedLive != null ? Math.max(0, estimatedLive - animalTotal) : null;
   const bySex = camp.bySex ?? {};
   const sexLine = [
     bySex.MALE ? `${bySex.MALE} ${t("male")}` : null,
@@ -265,6 +276,23 @@ export default function CampDetailPage() {
                   setForm({ ...form, sizeAcres: e.target.value })
                 }
               />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("estimatedLive")}</Label>
+              <Input
+                type="number"
+                min={0}
+                step={1}
+                inputMode="numeric"
+                value={form.estimatedLive}
+                onChange={(e) =>
+                  setForm({ ...form, estimatedLive: e.target.value })
+                }
+                placeholder="e.g. 19"
+              />
+              <p className="text-sm text-muted-foreground">
+                {t("estimatedLiveHelp")}
+              </p>
             </div>
             <OptionalSection
               open={showLocation}
@@ -396,12 +424,26 @@ export default function CampDetailPage() {
                 <p className="text-lg font-semibold tabular-nums">
                   {animalTotal}{" "}
                   <span className="font-medium text-muted-foreground">
-                    {t("activeAnimals").toLowerCase()}
+                    {(estimatedLive != null
+                      ? t("taggedAnimals")
+                      : t("activeAnimals")
+                    ).toLowerCase()}
                   </span>
                 </p>
                 {sexLine && (
                   <p className="text-sm sm:text-base text-muted-foreground">
                     {sexLine}
+                  </p>
+                )}
+                {estimatedLive != null && (
+                  <p className="text-sm sm:text-base text-muted-foreground tabular-nums">
+                    {untaggedEstimate != null && untaggedEstimate > 0
+                      ? t("campHerdSummary", {
+                          tagged: animalTotal,
+                          untagged: untaggedEstimate,
+                          estimated: estimatedLive,
+                        })
+                      : t("estimatedLiveShort", { n: estimatedLive })}
                   </p>
                 )}
                 {camp.tagColor && (

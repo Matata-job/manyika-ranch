@@ -12,6 +12,14 @@ function parseOptionalFloat(value: unknown): number | null | undefined {
   return Number.isFinite(n) ? n : null;
 }
 
+function parseOptionalNonNegInt(value: unknown): number | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  const n = parseInt(String(value), 10);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return n;
+}
+
 export async function GET(req: NextRequest) {
   const result = await requirePermission("viewCamps");
   if (!result.ok) return result.error;
@@ -75,6 +83,7 @@ export async function POST(req: NextRequest) {
       latitude: parseOptionalFloat(body.latitude) ?? null,
       longitude: parseOptionalFloat(body.longitude) ?? null,
       sizeAcres: parseOptionalFloat(body.sizeAcres) ?? null,
+      estimatedLive: parseOptionalNonNegInt(body.estimatedLive) ?? null,
       logoUrl: body.logoUrl?.trim() || null,
       waterSources: body.waterSources?.trim() || null,
       notes: body.notes?.trim() || null,
