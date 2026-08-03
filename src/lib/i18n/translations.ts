@@ -64,7 +64,7 @@ const en = {
   activityMortalityHelp: "Death and cull (kuchinja) records.",
   activityBulkCull: "Dead Animal Record",
   activityBulkCullHelp:
-    "Select animals, then record death or cull (kuchinja) with a shared cause.",
+    "Select animals, then record death or cull with a cause.",
   activityEvents: "Events timeline",
   activityEventsHelp: "Herd event history across camps.",
   goToActivities: "Go to Activities",
@@ -424,10 +424,10 @@ const en = {
   bulkMortality: "Dead Animal Record",
   bulkMortalityTitle: "Dead Animal Record",
   bulkMortalitySubtitle:
-    "Select animals, then record death or cull (kuchinja) with the same cause and disposal.",
+    "Select animals, then record death or cull with a cause.",
   deadAnimalRecordTitle: "Dead Animal Record",
   deadAnimalRecordSelectHelp:
-    "Select the animals you want to perform this activity on.",
+    "Select animals, then record death or cull with a cause.",
   deadAnimalRecordDetailsHelp:
     "Enter cause, disposal, and date for the selected animals.",
   backToActivities: "Back to activities",
@@ -983,9 +983,9 @@ const sw: Dict = {
   activityBuyersHelp: "Anwani za wanunuzi na historia ya ununuzi.",
   activityMortality: "Vifo",
   activityMortalityHelp: "Rekodi za vifo na kuchinja.",
-  activityBulkCull: "Rekodi ya mnyama aliyekufa",
+  activityBulkCull: "Rekodi Kifo Cha mnyama",
   activityBulkCullHelp:
-    "Chagua wanyama, kisha rekodi kifo au kuchinja kwa sababu moja.",
+    "Chagua wanyama, kisha rekodi kifo au kuchinjwa na sababu yake.",
   activityEvents: "Ratiba ya matukio",
   activityEventsHelp: "Historia ya matukio ya mifugo katika kambi.",
   goToActivities: "Nenda kwenye Shughuli",
@@ -1331,13 +1331,13 @@ const sw: Dict = {
   mortalityTitle: "Vifo",
   mortalitySubtitle: "Vifo na kuchinja",
   noMortality: "Hakuna rekodi za vifo",
-  bulkMortality: "Rekodi ya mnyama aliyekufa",
-  bulkMortalityTitle: "Rekodi ya mnyama aliyekufa",
+  bulkMortality: "Rekodi Kifo Cha mnyama",
+  bulkMortalityTitle: "Rekodi Kifo Cha mnyama",
   bulkMortalitySubtitle:
-    "Chagua wanyama, kisha rekodi kifo au kuchinja kwa sababu na utupaji sawa.",
-  deadAnimalRecordTitle: "Rekodi ya mnyama aliyekufa",
+    "Chagua wanyama, kisha rekodi kifo au kuchinjwa na sababu yake.",
+  deadAnimalRecordTitle: "Rekodi Kifo Cha mnyama",
   deadAnimalRecordSelectHelp:
-    "Chagua wanyama unaotaka kurekodi shughuli hii.",
+    "Chagua wanyama, kisha rekodi kifo au kuchinjwa na sababu yake.",
   deadAnimalRecordDetailsHelp:
     "Weka sababu, utupaji, na tarehe kwa wanyama waliochaguliwa.",
   backToActivities: "Rudi kwenye shughuli",
