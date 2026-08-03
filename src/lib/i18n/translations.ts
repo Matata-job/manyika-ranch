@@ -143,6 +143,17 @@ const en = {
   activateCamp: "Activate camp",
   campInactive: "Inactive",
   campActive: "Active",
+  campStatus: "Camp status",
+  campLifecycleTitle: "Camp status & deletion",
+  campLifecycleSummary: "Deactivate or move to Recently deleted — uncommon actions",
+  campLifecycleHelp:
+    "These options are tucked away on purpose. Use them only when the camp should no longer receive animals, or when removing an empty camp.",
+  deactivateCampHelp:
+    "Deactivate only when the camp has no active animals. Inactive camps stay in the list but are marked inactive.",
+  softDeleteCampHelp:
+    "Only empty camps can be moved. They appear under Settings → Recently deleted and can be restored within the retention period.",
+  typeCampNameToConfirm: "Type “{name}” to confirm",
+  typeCampNameMismatch: "Camp name does not match. Nothing was deleted.",
   noResults: "No results",
   email: "Email",
   password: "Password",
@@ -1114,6 +1125,17 @@ const sw: Dict = {
   activateCamp: "Washa kambi",
   campInactive: "Haifanyi kazi",
   campActive: "Inafanya kazi",
+  campStatus: "Hali ya kambi",
+  campLifecycleTitle: "Hali na kufuta kambi",
+  campLifecycleSummary: "Zima au hamisha kwenda Zilizofutwa — vitendo adimu",
+  campLifecycleHelp:
+    "Chaguo hizi zimefichwa kwa makusudi. Zitumie tu kambi isipokei wanyama tena, au unapoondoa kambi tupu.",
+  deactivateCampHelp:
+    "Zima tu kambi isiyo na wanyama hai. Kambi zilizozimwa zinabaki kwenye orodha lakini huonyeshwa kama hazifanyi kazi.",
+  softDeleteCampHelp:
+    "Ni kambi tupu tu zinazoweza kuhamishwa. Zinaonekana chini ya Mipangilio → Zilizofutwa na zinaweza kurejeshwa ndani ya muda wa kuhifadhi.",
+  typeCampNameToConfirm: "Andika “{name}” ili kuthibitisha",
+  typeCampNameMismatch: "Jina la kambi halilingani. Hakuna kilichofutwa.",
   noResults: "Hakuna matokeo",
   email: "Barua pepe",
   password: "Nenosiri",

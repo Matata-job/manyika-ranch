@@ -24,11 +24,11 @@ import type { Role } from "@prisma/client";
 import { useLocale, useT } from "@/components/providers/locale-provider";
 import { TAG_COLORS, tagColorLabel } from "@/lib/tag-color";
 import { TagColorSwatch } from "@/components/eartag-badge";
+import { OptionalSection } from "@/components/optional-section";
 import {
   CampPhotoGallery,
   type CampPhoto,
 } from "@/components/camp-photo-gallery";
-import { OptionalSection } from "@/components/optional-section";
 import {
   DEFAULT_PAGE_SIZE,
   ListPagination,
@@ -89,6 +89,8 @@ export default function CampDetailPage() {
   const [showLocation, setShowLocation] = useState(false);
   const [showPhotos, setShowPhotos] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const [showLifecycle, setShowLifecycle] = useState(false);
+  const [trashConfirmName, setTrashConfirmName] = useState("");
   const [form, setForm] = useState({
     name: "",
     code: "",
@@ -183,6 +185,11 @@ export default function CampDetailPage() {
   }
 
   async function softDeleteCamp() {
+    if (!camp) return;
+    if (trashConfirmName.trim() !== camp.name.trim()) {
+      alert(t("typeCampNameMismatch"));
+      return;
+    }
     if (!window.confirm(t("confirmSoftDeleteCamp"))) return;
     setSaving(true);
     const res = await fetch(`/api/camps/${id}`, { method: "DELETE" });
@@ -373,24 +380,13 @@ export default function CampDetailPage() {
                       {t("editDetails")}
                     </Button>
                   )}
-                  {canManage && (
+                  {canManage && camp.isActive === false && (
                     <Button
                       variant="outline"
                       disabled={saving}
                       onClick={toggleActive}
                     >
-                      {camp.isActive === false
-                        ? t("activateCamp")
-                        : t("deactivateCamp")}
-                    </Button>
-                  )}
-                  {canManage && (
-                    <Button
-                      variant="destructive"
-                      disabled={saving}
-                      onClick={softDeleteCamp}
-                    >
-                      {t("moveToTrash")}
+                      {t("activateCamp")}
                     </Button>
                   )}
                 </div>
@@ -602,6 +598,82 @@ export default function CampDetailPage() {
           </>
         )}
       </div>
+
+      {canManage && !editing && (
+        <OptionalSection
+          open={showLifecycle}
+          onToggle={() => {
+            setShowLifecycle((v) => !v);
+            if (showLifecycle) setTrashConfirmName("");
+          }}
+          title={t("campLifecycleTitle")}
+          summary={t("campLifecycleSummary")}
+          className="border-dashed border-muted-foreground/30 bg-muted/20"
+        >
+          <p className="text-sm text-muted-foreground">
+            {t("campLifecycleHelp")}
+          </p>
+
+          <div className="rounded-md border bg-background/80 p-3 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-medium">{t("campStatus")}</p>
+                <p className="text-xs text-muted-foreground">
+                  {camp.isActive === false
+                    ? t("campInactive")
+                    : t("campActive")}
+                  {" · "}
+                  {t("deactivateCampHelp")}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={saving}
+                onClick={toggleActive}
+              >
+                {camp.isActive === false
+                  ? t("activateCamp")
+                  : t("deactivateCamp")}
+              </Button>
+            </div>
+          </div>
+
+          <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 space-y-3">
+            <div>
+              <p className="text-sm font-medium text-destructive">
+                {t("moveToTrash")}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {t("softDeleteCampHelp")}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="trash-confirm">
+                {t("typeCampNameToConfirm", { name: camp.name })}
+              </Label>
+              <Input
+                id="trash-confirm"
+                value={trashConfirmName}
+                onChange={(e) => setTrashConfirmName(e.target.value)}
+                placeholder={camp.name}
+                autoComplete="off"
+                className="max-w-sm"
+              />
+            </div>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={
+                saving || trashConfirmName.trim() !== camp.name.trim()
+              }
+              onClick={softDeleteCamp}
+            >
+              {t("moveToTrash")}
+            </Button>
+          </div>
+        </OptionalSection>
+      )}
     </div>
   );
 }
