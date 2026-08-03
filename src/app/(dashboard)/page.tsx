@@ -111,10 +111,19 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">{t("dashboardTitle")}</h1>
-        <p className="text-muted-foreground">{t("dashboardSubtitle")}</p>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">{t("dashboardTitle")}</h1>
+          <p className="text-muted-foreground">{t("dashboardSubtitle")}</p>
+        </div>
+        <Link
+          href="/activities"
+          className="inline-flex items-center justify-center rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background hover:opacity-90 transition-opacity"
+        >
+          {t("goToActivities")}
+        </Link>
       </div>
+      <p className="text-sm text-muted-foreground -mt-4">{t("goToActivitiesHelp")}</p>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => {

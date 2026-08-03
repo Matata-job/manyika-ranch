@@ -1,0 +1,41 @@
+---
+description: Restore Cattlytics-inspired Manyika redesign context when user types REMEMBERDSTATE
+alwaysApply: true
+---
+
+# REMEMBERDSTATE — Manyika Ranch UI direction
+
+When the user types **`REMEMBERDSTATE`**, **`REMEMBEREDSTATE`**, or **“remembered state”**, restore this context and continue from it (do not invent a different IA).
+
+## Reference product (inspire, do not clone)
+
+- App: **Cattlytics** — https://cattlytics.folio3.com/
+- Channel: https://www.youtube.com/@Cattlytics
+- Sample video: https://www.youtube.com/watch?v=x2QCp3CQddE
+- Screenshots from review session live under the Cursor project assets folder (filenames like `Screenshot_2026-08-03_at_*.png`).
+
+**Take from Cattlytics:** activity card hub, category pills, location/cattle card chrome, report grids, clear primary CTAs, fewer top-level nav items, classic ranch day-to-day flow.
+
+**Do not clone:** Cattlytics green brand, Ask AI FAB, Groups product, Scheduler/Planner as Phase A scope, US-only lifecycle IA as primary navigation.
+
+## Locked product decisions
+
+- **1C**: Phase A first (shell + Activities hub + light entry chrome); Phase B = deeper page redesigns later.
+- **2A**: Keep **Manyika Ranch** brand (name + existing palette in `globals.css`). Borrow structure/flow only.
+
+## Target primary sidebar
+
+1. Dashboard  
+2. Animals  
+3. Camps  
+4. Activities (hub)  
+5. Reports  
+6. Finance  
+7. Alerts  
+8. Settings (nested: users, breeds, ranch, activity log)
+
+Deep routes (`/breeding`, `/sales`, `/health`, etc.) stay valid; they are reached from Activities cards, not as long sidebar lists.
+
+## Activities hub categories
+
+All / Health / Breeding / Movement / Sales & records — cards gate by existing RBAC permissions.

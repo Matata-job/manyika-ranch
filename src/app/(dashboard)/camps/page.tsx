@@ -30,17 +30,23 @@ export default async function CampsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">{t("campsTitle")}</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight text-primary">
+            {t("campsTitle")}
+          </h1>
+          <p className="text-muted-foreground mt-1">{t("campsSubtitle")}</p>
+          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
+            {t("campsListHelp")}
+          </p>
+          <p className="text-xs text-muted-foreground mt-2">
             {camps.length} camp{camps.length === 1 ? "" : "s"}
             {role === "CAMP_SUPERVISOR" ? " assigned to you" : " across the ranch"}
           </p>
         </div>
         {canManage && (
           <Link href="/camps/new">
-            <Button>
+            <Button className="bg-foreground text-background hover:bg-foreground/90">
               <Plus className="h-4 w-4 mr-2" />
               {t("addCamp")}
             </Button>

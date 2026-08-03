@@ -379,7 +379,12 @@ function AnimalsPageContent() {
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">{t("animalsTitle")}</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-primary">
+            {t("animalsTitle")}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
+            {t("animalsListHelp")}
+          </p>
           <p className="text-sm text-muted-foreground mt-1">
             {loading
               ? t("loading")
@@ -433,7 +438,7 @@ function AnimalsPageContent() {
           </div>
           {canCreate && (
             <Link href="/animals/new">
-              <Button size="sm">
+              <Button size="sm" className="bg-foreground text-background hover:bg-foreground/90">
                 <Plus className="h-4 w-4 mr-1.5" />
                 {t("addAnimal")}
               </Button>

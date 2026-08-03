@@ -7,8 +7,6 @@ import {
   LayoutDashboard,
   Tent,
   Beef,
-  HeartPulse,
-  ArrowLeftRight,
   BarChart3,
   Users,
   Bell,
@@ -17,12 +15,10 @@ import {
   Menu,
   X,
   Activity,
-  Skull,
   Settings,
-  CircleDollarSign,
-  Contact,
   Wallet,
-  HandCoins,
+  ChevronDown,
+  ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -33,63 +29,20 @@ import { roleLabel, type TranslationKey } from "@/lib/i18n/translations";
 import type { Role } from "@prisma/client";
 import { useState } from "react";
 
-const navItems: {
+const primaryNav: {
   href: string;
   labelKey: TranslationKey;
   icon: typeof LayoutDashboard;
   roles: "all" | string[];
 }[] = [
   { href: "/", labelKey: "navDashboard", icon: LayoutDashboard, roles: "all" },
-  { href: "/camps", labelKey: "navCamps", icon: Tent, roles: "all" },
   { href: "/animals", labelKey: "navAnimals", icon: Beef, roles: "all" },
+  { href: "/camps", labelKey: "navCamps", icon: Tent, roles: "all" },
   {
-    href: "/health",
-    labelKey: "navHealth",
-    icon: HeartPulse,
-    roles: ["OWNER", "FARM_MANAGER", "CAMP_SUPERVISOR", "VETERINARIAN", "RECORDS_CLERK"],
-  },
-  { href: "/events", labelKey: "navEvents", icon: Activity, roles: "all" },
-  {
-    href: "/mortality",
-    labelKey: "navMortality",
-    icon: Skull,
-    roles: ["OWNER", "FARM_MANAGER", "CAMP_SUPERVISOR", "VETERINARIAN", "RECORDS_CLERK", "VIEWER"],
-  },
-  {
-    href: "/sales",
-    labelKey: "navSales",
-    icon: CircleDollarSign,
-    roles: ["OWNER", "FARM_MANAGER", "RECORDS_CLERK", "VIEWER"],
-  },
-  {
-    href: "/buyers",
-    labelKey: "navBuyers",
-    icon: Contact,
-    roles: ["OWNER", "FARM_MANAGER", "RECORDS_CLERK"],
-  },
-  {
-    href: "/finance",
-    labelKey: "navFinance",
-    icon: Wallet,
-    roles: ["OWNER", "FARM_MANAGER", "RECORDS_CLERK", "VIEWER"],
-  },
-  {
-    href: "/owners",
-    labelKey: "navOwnersBilling",
-    icon: HandCoins,
-    roles: ["OWNER", "FARM_MANAGER", "RECORDS_CLERK", "VIEWER"],
-  },
-  {
-    href: "/movements",
-    labelKey: "navMovements",
-    icon: ArrowLeftRight,
-    roles: ["OWNER", "FARM_MANAGER"],
-  },
-  {
-    href: "/breeding",
-    labelKey: "navBreeding",
-    icon: Dna,
-    roles: ["OWNER", "FARM_MANAGER", "CAMP_SUPERVISOR", "RECORDS_CLERK"],
+    href: "/activities",
+    labelKey: "navActivities",
+    icon: ClipboardList,
+    roles: "all",
   },
   {
     href: "/reports",
@@ -97,17 +50,31 @@ const navItems: {
     icon: BarChart3,
     roles: ["OWNER", "FARM_MANAGER", "CAMP_SUPERVISOR", "VETERINARIAN", "RECORDS_CLERK", "VIEWER"],
   },
+  {
+    href: "/finance",
+    labelKey: "navFinance",
+    icon: Wallet,
+    roles: ["OWNER", "FARM_MANAGER", "RECORDS_CLERK", "VIEWER"],
+  },
   { href: "/alerts", labelKey: "navAlerts", icon: Bell, roles: "all" },
+];
+
+const settingsNav: {
+  href: string;
+  labelKey: TranslationKey;
+  icon: typeof Settings;
+  roles: string[];
+}[] = [
+  {
+    href: "/settings/ranch",
+    labelKey: "navSettings",
+    icon: Settings,
+    roles: ["OWNER", "FARM_MANAGER"],
+  },
   {
     href: "/settings/users",
     labelKey: "navUsers",
     icon: Users,
-    roles: ["OWNER", "FARM_MANAGER"],
-  },
-  {
-    href: "/settings/audit",
-    labelKey: "navActivityLog",
-    icon: Activity,
     roles: ["OWNER", "FARM_MANAGER"],
   },
   {
@@ -117,9 +84,9 @@ const navItems: {
     roles: ["OWNER", "FARM_MANAGER"],
   },
   {
-    href: "/settings/ranch",
-    labelKey: "navSettings",
-    icon: Settings,
+    href: "/settings/audit",
+    labelKey: "navActivityLog",
+    icon: Activity,
     roles: ["OWNER", "FARM_MANAGER"],
   },
 ];
@@ -131,13 +98,31 @@ interface SidebarProps {
 export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(() =>
+    pathname.startsWith("/settings")
+  );
   const t = useT();
   const { locale } = useLocale();
 
-  const filteredNav = navItems.filter((item) => {
+  const filteredPrimary = primaryNav.filter((item) => {
     if (item.roles === "all") return true;
     return item.roles.includes(user.role);
   });
+
+  const filteredSettings = settingsNav.filter((item) =>
+    item.roles.includes(user.role)
+  );
+
+  function linkClass(href: string) {
+    const isActive =
+      pathname === href || (href !== "/" && pathname.startsWith(href));
+    return cn(
+      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+      isActive
+        ? "bg-primary text-primary-foreground"
+        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+    );
+  }
 
   const navContent = (
     <>
@@ -148,28 +133,62 @@ export function Sidebar({ user }: SidebarProps) {
         </Link>
       </div>
       <nav className="flex-1 space-y-1 p-4 overflow-y-auto">
-        {filteredNav.map((item) => {
+        {filteredPrimary.map((item) => {
           const Icon = item.icon;
-          const isActive =
-            pathname === item.href ||
-            (item.href !== "/" && pathname.startsWith(item.href));
           return (
             <Link
               key={item.href}
               href={item.href}
               onClick={() => setMobileOpen(false)}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
+              className={linkClass(item.href)}
             >
               <Icon className="h-4 w-4" />
               {t(item.labelKey)}
             </Link>
           );
         })}
+
+        {filteredSettings.length > 0 && (
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => setSettingsOpen((v) => !v)}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                pathname.startsWith("/settings")
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              <Settings className="h-4 w-4" />
+              <span className="flex-1 text-left">{t("navSettingsGroup")}</span>
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 transition-transform",
+                  settingsOpen && "rotate-180"
+                )}
+              />
+            </button>
+            {settingsOpen && (
+              <div className="mt-1 ml-2 space-y-1 border-l pl-2">
+                {filteredSettings.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMobileOpen(false)}
+                      className={linkClass(item.href)}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {t(item.labelKey)}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </nav>
       <div className="border-t p-4 space-y-3">
         <LanguageSwitcher />
