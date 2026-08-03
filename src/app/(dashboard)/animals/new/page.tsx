@@ -96,6 +96,7 @@ function NewAnimalPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const campFromQuery = searchParams.get("camp");
+  const campLocked = Boolean(campFromQuery);
   const campPrefillDone = useRef(false);
   const defaultsApplied = useRef(false);
   const [loading, setLoading] = useState(false);
@@ -124,7 +125,7 @@ function NewAnimalPageContent() {
     dob: "",
     ageYears: "",
     ageMonthsPart: "",
-    campId: "",
+    campId: campFromQuery || "",
     ownerId: "",
     sireId: "",
     damId: "",
@@ -248,12 +249,18 @@ function NewAnimalPageContent() {
     if (!defaultsApplied.current) {
       defaultsApplied.current = true;
       const remembered = loadRememberedDefaults();
-      if (remembered) {
-        setForm((prev) => ({
-          ...prev,
-          breed: remembered.breed || prev.breed,
-          campId: campFromQuery || remembered.campId || prev.campId,
-        }));
+      setForm((prev) => ({
+        ...prev,
+        breed: remembered?.breed || prev.breed,
+        // Camp from URL always wins when registering from a camp page
+        campId: campFromQuery || remembered?.campId || prev.campId,
+      }));
+      // Remember this camp immediately when opened from a camp page
+      if (campFromQuery) {
+        saveRememberedDefaults({
+          campId: campFromQuery,
+          breed: remembered?.breed || "",
+        });
       }
     }
 
@@ -285,15 +292,42 @@ function NewAnimalPageContent() {
     if (campPrefillDone.current || camps.length === 0) return;
     const campId = campFromQuery || form.campId;
     if (!campId || !camps.some((c) => c.id === campId)) return;
-    // Query camp always wins; remembered camp only auto-suggests eartag once
-    if (!campFromQuery && form.eartag.trim()) {
-      campPrefillDone.current = true;
-      return;
-    }
     campPrefillDone.current = true;
-    void applyCampEartagSuggestion(campId);
+    void applyCampEartagSuggestion(campId, {
+      forceEartag: !form.eartag.trim(),
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once lookups ready
   }, [campFromQuery, camps, form.campId]);
+
+  // Ensure camp from URL is available for the locked name label even if not in list yet
+  useEffect(() => {
+    if (!campFromQuery) return;
+    if (camps.some((c) => c.id === campFromQuery)) return;
+    let cancelled = false;
+    fetch(`/api/camps/${campFromQuery}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.id) return;
+        setCamps((prev) =>
+          prev.some((c) => c.id === data.id)
+            ? prev
+            : [
+                ...prev,
+                {
+                  id: data.id,
+                  name: data.name as string,
+                  code: (data.code as string | null) ?? null,
+                },
+              ]
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // Only when opening from a camp — avoid re-fetch loops on camps updates
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campFromQuery]);
 
   function removePhoto(index: number) {
     setPhotoFiles((prev) => prev.filter((_, i) => i !== index));
@@ -467,16 +501,27 @@ function NewAnimalPageContent() {
   function onBackToListing() {
     setSuccess(null);
     // Came from a camp page → return to that camp’s animal list.
-    // Otherwise (home / animals / activities) → dashboard home.
+    // Otherwise → animals list.
     if (campFromQuery) {
       router.push(`/camps/${campFromQuery}`);
       return;
     }
-    router.push("/");
+    router.push("/animals");
   }
 
   const males = animals.filter((a) => a.sex === "MALE");
   const females = animals.filter((a) => a.sex === "FEMALE");
+
+  const selectedCamp =
+    camps.find((c) => c.id === form.campId) ||
+    (campFromQuery
+      ? camps.find((c) => c.id === campFromQuery)
+      : undefined);
+  const selectedCampLabel = selectedCamp
+    ? selectedCamp.code
+      ? `${selectedCamp.code} · ${selectedCamp.name}`
+      : selectedCamp.name
+    : "";
 
   function parentsForSelect(
     list: { id: string; eartag: string; campId: string; campName: string }[]
@@ -499,11 +544,11 @@ function NewAnimalPageContent() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <Link
-            href={campFromQuery ? `/camps/${campFromQuery}` : "/"}
+            href={campFromQuery ? `/camps/${campFromQuery}` : "/animals"}
             className="mb-3 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="mr-1 h-4 w-4" />
-            {campFromQuery ? t("backToCampAnimals") : t("backToHome")}
+            {campFromQuery ? t("backToCampAnimals") : t("backToAnimalsListing")}
           </Link>
           <h1 className="text-2xl font-bold tracking-tight text-primary">
             {t("registerAnimal")}
@@ -545,26 +590,40 @@ function NewAnimalPageContent() {
               label={t("camp")}
               required
               className="sm:col-span-2"
-              hint={t("eartagAutoHint")}
+              hint={
+                campLocked ? t("campLockedFromCampPage") : t("eartagAutoHint")
+              }
             >
-              <Select
-                value={form.campId || undefined}
-                onValueChange={(v) => {
-                  void applyCampEartagSuggestion(v);
-                }}
-                required
-              >
-                <SelectTrigger autoFocus>
-                  <SelectValue placeholder={t("selectCamp")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {camps.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.code ? `${c.code} · ${c.name}` : c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {campLocked ? (
+                <>
+                  <Input
+                    value={selectedCampLabel || t("loading")}
+                    readOnly
+                    className="bg-muted/50 font-medium"
+                    aria-readonly
+                  />
+                  <input type="hidden" name="campId" value={form.campId} />
+                </>
+              ) : (
+                <Select
+                  value={form.campId || undefined}
+                  onValueChange={(v) => {
+                    void applyCampEartagSuggestion(v);
+                  }}
+                  required
+                >
+                  <SelectTrigger autoFocus>
+                    <SelectValue placeholder={t("selectCamp")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {camps.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.code ? `${c.code} · ${c.name}` : c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </Field>
 
             <Field
@@ -999,7 +1058,7 @@ function NewAnimalPageContent() {
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   {campFromQuery
                     ? t("backToCampAnimals")
-                    : t("backToHome")}
+                    : t("backToAnimalsListing")}
                 </Button>
                 <Button
                   type="button"
