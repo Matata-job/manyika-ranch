@@ -10,6 +10,7 @@ import { computeAgeMonths } from "@/lib/utils";
 import { logAnimalEvent } from "@/lib/services/event-service";
 import type { Role, Sex, AnimalStatus, Prisma } from "@prisma/client";
 import { ageGroupWhere, ageMonthsRangeWhere, dobRangeWhere } from "@/lib/reports/age-filter";
+import { normalizeTagColor } from "@/lib/tag-color";
 
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 5000;
@@ -33,6 +34,7 @@ export async function GET(req: NextRequest) {
   const ageMaxRaw = searchParams.get("ageMaxMonths");
   const dobFrom = searchParams.get("dobFrom");
   const dobTo = searchParams.get("dobTo");
+  const tagColorRaw = searchParams.get("tagColor");
   const sort = searchParams.get("sort") || "eartag_asc";
   const limit = Math.min(
     Math.max(
@@ -119,6 +121,21 @@ export async function GET(req: NextRequest) {
       ...(ageWhere ? [ageWhere] : []),
       ...(monthsWhere ? [monthsWhere] : []),
       ...(bornWhere ? [bornWhere] : []),
+      ...(normalizeTagColor(tagColorRaw)
+        ? [
+            {
+              OR: [
+                { tagColor: normalizeTagColor(tagColorRaw)! },
+                {
+                  AND: [
+                    { OR: [{ tagColor: null }, { tagColor: "" }] },
+                    { camp: { tagColor: normalizeTagColor(tagColorRaw)! } },
+                  ],
+                },
+              ],
+            },
+          ]
+        : []),
     ],
   };
 

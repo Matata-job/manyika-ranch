@@ -15,7 +15,9 @@ import type { Role } from "@prisma/client";
 import { cn, formatAge, type AgeDisplayMode } from "@/lib/utils";
 import { parseAnimalsPage } from "@/lib/animals-api";
 import { EartagBadge } from "@/components/eartag-badge";
+import { TagColorFilter } from "@/components/animals/tag-color-filter";
 import { useLocale, useT } from "@/components/providers/locale-provider";
+import { Label } from "@/components/ui/label";
 import {
   lifecycleKind,
   lifecycleLabelKey,
@@ -57,6 +59,7 @@ type Filters = {
   owner: string;
   castrated: string;
   pregnant: string;
+  tagColor: string;
   sort: string;
 };
 
@@ -78,6 +81,7 @@ const DEFAULTS: Filters = {
   owner: "all",
   castrated: "all",
   pregnant: "all",
+  tagColor: "all",
   sort: "eartag_asc",
 };
 
@@ -94,6 +98,7 @@ const ADVANCED_KEYS: (keyof Filters)[] = [
   "owner",
   "castrated",
   "pregnant",
+  "tagColor",
 ];
 
 function filtersFromParams(params: URLSearchParams): Filters {
@@ -111,6 +116,7 @@ function filtersFromParams(params: URLSearchParams): Filters {
     owner: params.get("owner") || "all",
     castrated: params.get("castrated") || "all",
     pregnant: params.get("pregnant") || "all",
+    tagColor: params.get("tagColor") || "all",
     sort: params.get("sort") || "eartag_asc",
   };
 }
@@ -330,6 +336,7 @@ function AnimalsPageContent() {
     if (filters.owner !== "all") params.set("owner", filters.owner);
     if (filters.castrated !== "all") params.set("castrated", filters.castrated);
     if (filters.pregnant !== "all") params.set("pregnant", filters.pregnant);
+    if (filters.tagColor !== "all") params.set("tagColor", filters.tagColor);
     if (filters.sort) params.set("sort", filters.sort);
     params.set("limit", String(PAGE_SIZE));
     params.set("offset", String(pageOffset));
@@ -542,6 +549,13 @@ function AnimalsPageContent() {
 
         {filtersOpen && (
           <div className="rounded-lg border border-muted-foreground/15 bg-muted/20 p-4 space-y-3 animate-in fade-in-0">
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">{t("eartagColor")}</Label>
+              <TagColorFilter
+                value={filters.tagColor === "all" ? null : filters.tagColor}
+                onChange={(code) => updateFilter("tagColor", code || "all")}
+              />
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
               <Select value={filters.sex} onValueChange={(v) => updateFilter("sex", v)}>
                 <SelectTrigger className="h-9 bg-background border-muted-foreground/15 shadow-none">

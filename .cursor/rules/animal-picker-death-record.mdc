@@ -1,0 +1,26 @@
+---
+description: Animal picker columns/filters (eartag colour) and Dead Animal Record / kuchinja flow
+alwaysApply: true
+---
+
+# Animal pickers & Dead Animal Record
+
+When changing animal lists, bulk activities, or death/culling flows, follow this pattern.
+
+## Dead Animal Record (bulk cull / death)
+
+- Activity name: **Dead Animal Record** (EN). Cull = **kuchinja** in Swahili (not “uteuzi”).
+- Route: `/mortality/bulk` — select animals → **Continue** → shared death details (cause, disposal, date).
+- Single animal: Death tab **Record Death / Culling** (`/animals/[id]`) must use the same cause picker (system list + **add new** custom cause).
+- Custom causes live in ranch `settings.customDeathCauses` (string[]); persist as `DeathCause.OTHER` + `causeDetail` = cause name. `CULLING` / kuchinja sets `isCulling`.
+
+## Animal data fetching UI (all pickers & lists)
+
+Prefer shared pieces under `src/components/animals/`:
+
+- **Eartag colour**: show `EartagBadge`; filter with colour swatches (`TagColorFilter`) using resolved colour (animal → year → camp → ranch default).
+- **Customize columns**: show/hide columns (localStorage prefs). Keep eartag + checkbox always on for selection UIs.
+- **Filters**: search by eartag, camp/location, sex/type pills, status, breed; ear-tag colour is first-class.
+- Keep Manyika branding (not Cattlytics green). Prefer simple panels over heavy modals when enough.
+
+New bulk activity pickers (sales, treatment, move, etc.) should reuse this picker pattern rather than inventing a thinner checkbox list.
