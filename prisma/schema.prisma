@@ -596,7 +596,13 @@ model Expense {
   ranchId      String
   ranch        Ranch           @relation(fields: [ranchId], references: [id])
   category     ExpenseCategory
+  /** Custom category label when category = OTHER */
+  categoryDetail String?
   amountTzs    Float
+  /** Optional quantity purchased / used */
+  quantity     Float?
+  /** Unit for quantity (kg, bags, L, …) */
+  unit         String?
   date         DateTime        @default(now())
   description  String?
   campId       String?

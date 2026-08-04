@@ -5,7 +5,13 @@ import {
   resolveAccessibleCampIds,
 } from "@/lib/auth/api-guard";
 import { createAuditLog } from "@/lib/services/animal-service";
-import type { ExpenseCategory, Prisma, Role } from "@prisma/client";
+import type { Prisma, Role } from "@prisma/client";
+import {
+  getCustomExpenseCategories,
+  getCustomExpenseUnits,
+  isSystemExpenseCategory,
+  parseExpenseCategorySelection,
+} from "@/lib/expense-categories";
 
 async function financeCampFilter(
   userId: string,
@@ -22,7 +28,6 @@ async function financeCampFilter(
     return { campId };
   }
   if (accessible === "all") return {};
-  // Camp-scoped: show ranch-wide (null camp) + assigned camps
   return {
     OR: [{ campId: null }, { campId: { in: accessible.length ? accessible : ["__none__"] } }],
   };
@@ -45,13 +50,24 @@ export async function GET(req: NextRequest) {
   );
   if ("error" in campFilter) return campFilter.error;
 
+  let categoryWhere: Prisma.ExpenseWhereInput = {};
+  if (category && category !== "all") {
+    if (category.startsWith("custom:")) {
+      const detail = category.slice("custom:".length).trim();
+      categoryWhere = { category: "OTHER", categoryDetail: detail };
+    } else if (isSystemExpenseCategory(category)) {
+      categoryWhere =
+        category === "OTHER"
+          ? { category: "OTHER", OR: [{ categoryDetail: null }, { categoryDetail: "" }] }
+          : { category };
+    }
+  }
+
   const expenses = await prisma.expense.findMany({
     where: {
       ranchId: result.user.ranchId,
       ...campFilter,
-      ...(category && category !== "all"
-        ? { category: category as ExpenseCategory }
-        : {}),
+      ...categoryWhere,
       ...(from || to
         ? {
             date: {
@@ -71,7 +87,17 @@ export async function GET(req: NextRequest) {
 
   const total = expenses.reduce((sum, e) => sum + e.amountTzs, 0);
 
-  return NextResponse.json({ expenses, total });
+  const ranch = await prisma.ranch.findUnique({
+    where: { id: result.user.ranchId },
+    select: { settings: true },
+  });
+
+  return NextResponse.json({
+    expenses,
+    total,
+    customExpenseCategories: getCustomExpenseCategories(ranch?.settings),
+    customExpenseUnits: getCustomExpenseUnits(ranch?.settings),
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -87,6 +113,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Category is required" }, { status: 400 });
   }
 
+  const { category, categoryDetail } = parseExpenseCategorySelection(
+    String(body.category)
+  );
+  // Allow body.categoryDetail override when category is OTHER
+  const detail =
+    category === "OTHER"
+      ? (typeof body.categoryDetail === "string" && body.categoryDetail.trim()
+          ? body.categoryDetail.trim()
+          : categoryDetail)
+      : null;
+
+  if (category === "OTHER" && !detail) {
+    // Plain OTHER without custom name is allowed
+  }
+
+  let quantity: number | null = null;
+  if (body.quantity !== undefined && body.quantity !== null && body.quantity !== "") {
+    const q = parseFloat(String(body.quantity));
+    if (!Number.isFinite(q) || q < 0) {
+      return NextResponse.json({ error: "Invalid quantity" }, { status: 400 });
+    }
+    quantity = q;
+  }
+  const unit =
+    typeof body.unit === "string" && body.unit.trim() ? body.unit.trim() : null;
+
   if (body.campId) {
     const camp = await prisma.camp.findFirst({
       where: { id: body.campId, ranchId: result.user.ranchId },
@@ -96,11 +148,52 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Persist new custom category / unit on ranch settings
+  if (detail || unit) {
+    const ranch = await prisma.ranch.findUnique({
+      where: { id: result.user.ranchId },
+      select: { settings: true },
+    });
+    const current = (ranch?.settings as Record<string, unknown>) || {};
+    const next = { ...current };
+    let changed = false;
+    if (detail) {
+      const cats = getCustomExpenseCategories(current);
+      if (!cats.some((c) => c.toLowerCase() === detail.toLowerCase())) {
+        next.customExpenseCategories = [...cats, detail];
+        changed = true;
+      }
+    }
+    if (unit) {
+      const units = [
+        ...getCustomExpenseUnits(current),
+      ];
+      // Only persist if not a default and not already custom
+      const defaults = ["kg", "bags", "L", "pieces", "days", "hours", "trips", "bales", "tons"];
+      if (
+        !defaults.some((d) => d.toLowerCase() === unit.toLowerCase()) &&
+        !units.some((u) => u.toLowerCase() === unit.toLowerCase())
+      ) {
+        next.customExpenseUnits = [...units, unit];
+        changed = true;
+      }
+    }
+    if (changed) {
+      await prisma.ranch.update({
+        where: { id: result.user.ranchId },
+        data: { settings: next as Prisma.InputJsonValue },
+      });
+    }
+  }
+
   const expense = await prisma.expense.create({
     data: {
       ranchId: result.user.ranchId,
-      category: body.category,
+      category,
+      categoryDetail: detail,
       amountTzs,
+      quantity,
+      unit,
       date: body.date ? new Date(body.date) : new Date(),
       description: body.description?.trim() || null,
       campId: body.campId || null,
@@ -115,7 +208,10 @@ export async function POST(req: NextRequest) {
 
   await createAuditLog(result.user.id, "CREATE", "Expense", expense.id, {
     category: expense.category,
+    categoryDetail: expense.categoryDetail,
     amountTzs: expense.amountTzs,
+    quantity: expense.quantity,
+    unit: expense.unit,
   });
 
   return NextResponse.json(expense, { status: 201 });

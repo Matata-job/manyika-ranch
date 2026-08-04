@@ -7,61 +7,39 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
-import type { TranslationKey } from "@/lib/i18n/translations";
-
-const EXPENSE_CATEGORIES = [
-  "FEED",
-  "VET_MEDICINE",
-  "WAGES",
-  "TRANSPORT",
-  "EQUIPMENT",
-  "MAINTENANCE",
-  "FUEL",
-  "WATER",
-  "INSURANCE",
-  "OTHER",
-] as const;
-
-function expenseCategoryKey(c: string): TranslationKey {
-  switch (c) {
-    case "FEED":
-      return "catFeed";
-    case "VET_MEDICINE":
-      return "catVetMedicine";
-    case "WAGES":
-      return "catWages";
-    case "TRANSPORT":
-      return "transport";
-    case "EQUIPMENT":
-      return "catEquipment";
-    case "MAINTENANCE":
-      return "catMaintenance";
-    case "FUEL":
-      return "catFuel";
-    case "WATER":
-      return "catWater";
-    case "INSURANCE":
-      return "catInsurance";
-    default:
-      return "other";
-  }
-}
+import {
+  DEFAULT_EXPENSE_UNITS,
+  SYSTEM_EXPENSE_CATEGORIES,
+  expenseCategoryDisplayName,
+  expenseCategoryLabelKey,
+} from "@/lib/expense-categories";
 
 interface ExpenseRow {
   id: string;
   category: string;
+  categoryDetail?: string | null;
   amountTzs: number;
+  quantity?: number | null;
+  unit?: string | null;
   date: string;
   description: string | null;
   camp: { id: string; name: string } | null;
   recordedBy: { name: string };
 }
+
+const ADD_NEW = "__add_new__";
 
 export default function ExpensesPage() {
   const t = useT();
@@ -72,6 +50,8 @@ export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [total, setTotal] = useState(0);
   const [camps, setCamps] = useState<{ id: string; name: string }[]>([]);
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [customUnits, setCustomUnits] = useState<string[]>([]);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [camp, setCamp] = useState("all");
@@ -80,12 +60,25 @@ export default function ExpensesPage() {
   const [form, setForm] = useState({
     category: "FEED",
     amountTzs: "",
+    quantity: "",
+    unit: "",
     date: "",
     description: "",
     campId: "",
     notes: "",
   });
   const [saving, setSaving] = useState(false);
+
+  const unitOptions: string[] = [];
+  {
+    const seen = new Set<string>();
+    for (const u of [...DEFAULT_EXPENSE_UNITS, ...customUnits]) {
+      const key = u.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      unitOptions.push(u);
+    }
+  }
 
   async function load() {
     const params = new URLSearchParams();
@@ -98,6 +91,12 @@ export default function ExpensesPage() {
       const data = await res.json();
       setExpenses(data.expenses || []);
       setTotal(data.total || 0);
+      if (Array.isArray(data.customExpenseCategories)) {
+        setCustomCategories(data.customExpenseCategories);
+      }
+      if (Array.isArray(data.customExpenseUnits)) {
+        setCustomUnits(data.customExpenseUnits);
+      }
     }
   }
 
@@ -108,6 +107,56 @@ export default function ExpensesPage() {
     load();
   }, []);
 
+  async function persistCustomCategory(name: string) {
+    const next = [
+      ...customCategories.filter(
+        (c) => c.toLowerCase() !== name.toLowerCase()
+      ),
+      name,
+    ];
+    setCustomCategories(next);
+    await fetch("/api/ranch/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ customExpenseCategories: next }),
+    });
+  }
+
+  async function persistCustomUnit(name: string) {
+    const next = [
+      ...customUnits.filter((u) => u.toLowerCase() !== name.toLowerCase()),
+      name,
+    ];
+    setCustomUnits(next);
+    await fetch("/api/ranch/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ customExpenseUnits: next }),
+    });
+  }
+
+  function onCategoryChange(value: string) {
+    if (value === ADD_NEW) {
+      const name = window.prompt(t("expenseAddCategoryPrompt"))?.trim();
+      if (!name) return;
+      void persistCustomCategory(name);
+      setForm((prev) => ({ ...prev, category: `custom:${name}` }));
+      return;
+    }
+    setForm((prev) => ({ ...prev, category: value }));
+  }
+
+  function onUnitChange(value: string) {
+    if (value === ADD_NEW) {
+      const name = window.prompt(t("expenseAddUnitPrompt"))?.trim();
+      if (!name) return;
+      void persistCustomUnit(name);
+      setForm((prev) => ({ ...prev, unit: name }));
+      return;
+    }
+    setForm((prev) => ({ ...prev, unit: value === "none" ? "" : value }));
+  }
+
   async function createExpense(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -115,9 +164,14 @@ export default function ExpensesPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ...form,
-        campId: form.campId || null,
+        category: form.category,
+        amountTzs: form.amountTzs,
+        quantity: form.quantity || null,
+        unit: form.unit || null,
         date: form.date || undefined,
+        description: form.description,
+        campId: form.campId || null,
+        notes: form.notes,
       }),
     });
     setSaving(false);
@@ -130,6 +184,8 @@ export default function ExpensesPage() {
     setForm({
       category: "FEED",
       amountTzs: "",
+      quantity: "",
+      unit: "",
       date: "",
       description: "",
       campId: "",
@@ -155,7 +211,9 @@ export default function ExpensesPage() {
             <ArrowLeft className="h-4 w-4 mr-1" /> {t("financeTitle")}
           </Link>
           <h1 className="text-3xl font-bold">{t("expenses")}</h1>
-          <p className="text-muted-foreground">{t("totalLabel", { total: formatCurrency(total) })}</p>
+          <p className="text-muted-foreground">
+            {t("totalLabel", { total: formatCurrency(total) })}
+          </p>
         </div>
         {canManage && (
           <Button onClick={() => setShowForm(!showForm)}>
@@ -170,22 +228,33 @@ export default function ExpensesPage() {
             <CardTitle>{t("newExpense")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={createExpense} className="grid gap-4 sm:grid-cols-2 max-w-2xl">
+            <form
+              onSubmit={createExpense}
+              className="grid gap-4 sm:grid-cols-2 max-w-2xl"
+            >
               <div className="space-y-2">
                 <Label>{t("category")}</Label>
-                <Select
-                  value={form.category}
-                  onValueChange={(v) => setForm({ ...form, category: v })}
-                >
+                <Select value={form.category} onValueChange={onCategoryChange}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {EXPENSE_CATEGORIES.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {t(expenseCategoryKey(c))}
+                    {SYSTEM_EXPENSE_CATEGORIES.filter((c) => c !== "OTHER").map(
+                      (c) => (
+                        <SelectItem key={c} value={c}>
+                          {t(expenseCategoryLabelKey(c))}
+                        </SelectItem>
+                      )
+                    )}
+                    {customCategories.map((c) => (
+                      <SelectItem key={`custom:${c}`} value={`custom:${c}`}>
+                        {c}
                       </SelectItem>
                     ))}
+                    <SelectItem value="OTHER">{t("other")}</SelectItem>
+                    <SelectItem value={ADD_NEW}>
+                      + {t("expenseAddCategory")}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -194,9 +263,47 @@ export default function ExpensesPage() {
                 <Input
                   type="number"
                   required
+                  min={0}
                   value={form.amountTzs}
-                  onChange={(e) => setForm({ ...form, amountTzs: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, amountTzs: e.target.value })
+                  }
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>{t("expenseQuantity")}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="any"
+                  placeholder="0"
+                  value={form.quantity}
+                  onChange={(e) =>
+                    setForm({ ...form, quantity: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t("expenseUnit")}</Label>
+                <Select
+                  value={form.unit || "none"}
+                  onValueChange={onUnitChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("expenseUnitOptional")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{t("expenseUnitOptional")}</SelectItem>
+                    {unitOptions.map((u) => (
+                      <SelectItem key={u} value={u}>
+                        {u}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={ADD_NEW}>
+                      + {t("expenseAddUnit")}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>{t("date")}</Label>
@@ -210,7 +317,9 @@ export default function ExpensesPage() {
                 <Label>{t("campOptional")}</Label>
                 <Select
                   value={form.campId || "none"}
-                  onValueChange={(v) => setForm({ ...form, campId: v === "none" ? "" : v })}
+                  onValueChange={(v) =>
+                    setForm({ ...form, campId: v === "none" ? "" : v })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder={t("ranchWide")} />
@@ -229,7 +338,9 @@ export default function ExpensesPage() {
                 <Label>{t("description")}</Label>
                 <Input
                   value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, description: e.target.value })
+                  }
                 />
               </div>
               <Button type="submit" disabled={saving} className="sm:col-span-2">
@@ -243,8 +354,16 @@ export default function ExpensesPage() {
       <Card>
         <CardContent className="pt-6">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 mb-4">
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+            <Input
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+            />
+            <Input
+              type="date"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+            />
             <Select value={camp} onValueChange={setCamp}>
               <SelectTrigger>
                 <SelectValue placeholder={t("camp")} />
@@ -264,18 +383,28 @@ export default function ExpensesPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t("allCategories")}</SelectItem>
-                {EXPENSE_CATEGORIES.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {t(expenseCategoryKey(c))}
+                {SYSTEM_EXPENSE_CATEGORIES.filter((c) => c !== "OTHER").map(
+                  (c) => (
+                    <SelectItem key={c} value={c}>
+                      {t(expenseCategoryLabelKey(c))}
+                    </SelectItem>
+                  )
+                )}
+                {customCategories.map((c) => (
+                  <SelectItem key={`custom:${c}`} value={`custom:${c}`}>
+                    {c}
                   </SelectItem>
                 ))}
+                <SelectItem value="OTHER">{t("other")}</SelectItem>
               </SelectContent>
             </Select>
             <Button onClick={load}>{t("apply")}</Button>
           </div>
 
           {expenses.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("noExpensesInRange")}</p>
+            <p className="text-sm text-muted-foreground">
+              {t("noExpensesInRange")}
+            </p>
           ) : (
             <div className="rounded-lg border overflow-x-auto">
               <table className="w-full text-sm">
@@ -283,6 +412,7 @@ export default function ExpensesPage() {
                   <tr className="border-b bg-muted/50">
                     <th className="p-3 text-left">{t("date")}</th>
                     <th className="p-3 text-left">{t("category")}</th>
+                    <th className="p-3 text-left">{t("expenseQtyUnit")}</th>
                     <th className="p-3 text-left">{t("description")}</th>
                     <th className="p-3 text-left">{t("camp")}</th>
                     <th className="p-3 text-right">{t("amount")}</th>
@@ -293,7 +423,18 @@ export default function ExpensesPage() {
                   {expenses.map((e) => (
                     <tr key={e.id} className="border-b">
                       <td className="p-3">{formatDate(e.date)}</td>
-                      <td className="p-3">{t(expenseCategoryKey(e.category))}</td>
+                      <td className="p-3">
+                        {expenseCategoryDisplayName(
+                          e.category,
+                          e.categoryDetail,
+                          t
+                        )}
+                      </td>
+                      <td className="p-3">
+                        {e.quantity != null
+                          ? `${e.quantity}${e.unit ? ` ${e.unit}` : ""}`
+                          : e.unit || "—"}
+                      </td>
                       <td className="p-3">{e.description || "—"}</td>
                       <td className="p-3">{e.camp?.name || "—"}</td>
                       <td className="p-3 text-right font-medium">
@@ -301,7 +442,11 @@ export default function ExpensesPage() {
                       </td>
                       {canManage && (
                         <td className="p-3">
-                          <Button size="sm" variant="ghost" onClick={() => remove(e.id)}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => remove(e.id)}
+                          >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </td>

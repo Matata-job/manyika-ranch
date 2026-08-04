@@ -93,7 +93,11 @@ export async function GET(req: NextRequest) {
 
   const expensesByCategory: Record<string, number> = {};
   for (const e of expenses) {
-    expensesByCategory[e.category] = (expensesByCategory[e.category] || 0) + e.amountTzs;
+    const key =
+      e.category === "OTHER" && e.categoryDetail?.trim()
+        ? e.categoryDetail.trim()
+        : e.category;
+    expensesByCategory[key] = (expensesByCategory[key] || 0) + e.amountTzs;
   }
 
   const incomeByCategory: Record<string, number> = {};

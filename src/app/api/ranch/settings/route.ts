@@ -14,6 +14,10 @@ import {
 } from "@/lib/tag-color";
 import { getTrashRetentionDays } from "@/lib/trash";
 import { getHealthNotifyDaysEarly, getWeightAlertDropPercent, getWeightAlertMinKg } from "@/lib/services/health-schedule";
+import {
+  getCustomExpenseCategories,
+  getCustomExpenseUnits,
+} from "@/lib/expense-categories";
 import type { Prisma, Role } from "@prisma/client";
 
 export async function GET() {
@@ -40,6 +44,8 @@ export async function GET() {
     eartagYearColors: getRanchEartagYearColors(ranch.settings),
     defaultTagColor: getRanchDefaultTagColor(ranch.settings),
     trashRetentionDays: getTrashRetentionDays(ranch.settings),
+    customExpenseCategories: getCustomExpenseCategories(ranch.settings),
+    customExpenseUnits: getCustomExpenseUnits(ranch.settings),
     settings: ranch.settings,
   });
 }
@@ -215,6 +221,30 @@ export async function PATCH(req: NextRequest) {
     next.trashRetentionDays = days;
   }
 
+  if (body.customExpenseCategories !== undefined) {
+    if (!hasPermission(result.user.role as Role, "manageFinance")) {
+      return NextResponse.json(
+        { error: "Only finance managers can change expense categories" },
+        { status: 403 }
+      );
+    }
+    next.customExpenseCategories = getCustomExpenseCategories({
+      customExpenseCategories: body.customExpenseCategories,
+    });
+  }
+
+  if (body.customExpenseUnits !== undefined) {
+    if (!hasPermission(result.user.role as Role, "manageFinance")) {
+      return NextResponse.json(
+        { error: "Only finance managers can change expense units" },
+        { status: 403 }
+      );
+    }
+    next.customExpenseUnits = getCustomExpenseUnits({
+      customExpenseUnits: body.customExpenseUnits,
+    });
+  }
+
   const updated = await prisma.ranch.update({
     where: { id: result.user.ranchId },
     data: { settings: next as Prisma.InputJsonValue },
@@ -232,6 +262,8 @@ export async function PATCH(req: NextRequest) {
     eartagYearColors: getRanchEartagYearColors(updated.settings),
     defaultTagColor: getRanchDefaultTagColor(updated.settings),
     trashRetentionDays: getTrashRetentionDays(updated.settings),
+    customExpenseCategories: getCustomExpenseCategories(updated.settings),
+    customExpenseUnits: getCustomExpenseUnits(updated.settings),
     settings: updated.settings,
   });
 }
