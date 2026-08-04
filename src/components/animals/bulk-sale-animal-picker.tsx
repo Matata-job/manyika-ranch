@@ -28,8 +28,6 @@ import { resolveTagColor } from "@/lib/tag-color";
 import { cn } from "@/lib/utils";
 import { Columns3, Filter, Search } from "lucide-react";
 
-export const MAX_SALE_CAMPS = 5;
-
 const SELLABLE_STATUSES = new Set(["ACTIVE", "QUARANTINE", "MISSING"]);
 
 export type BulkSaleAnimal = {
@@ -173,13 +171,16 @@ export function BulkSaleAnimalPicker({
     onCampIdsChange(
       campIds.includes(id)
         ? campIds.filter((c) => c !== id)
-        : campIds.length >= MAX_SALE_CAMPS
-          ? campIds
-          : [...campIds, id]
+        : [...campIds, id]
     );
-    if (!campIds.includes(id) && campIds.length >= MAX_SALE_CAMPS) {
-      window.alert(t("bulkSaleMaxCamps", { n: MAX_SALE_CAMPS }));
-    }
+  }
+
+  const allCampsSelected =
+    camps.length > 0 && campIds.length === camps.length;
+
+  function toggleAllCamps() {
+    if (allCampsSelected) onCampIdsChange([]);
+    else onCampIdsChange(camps.map((c) => c.id));
   }
 
   const canLoad = onlyMarked || campIds.length > 0;
@@ -243,11 +244,14 @@ export function BulkSaleAnimalPicker({
       const baseParams = buildParams();
       let list: BulkSaleAnimal[] = [];
 
-      if (onlyMarked && campIds.length === 0) {
+      if (
+        (onlyMarked && campIds.length === 0) ||
+        (campIds.length === camps.length && camps.length > 0)
+      ) {
         const res = await fetch(`/api/animals?${baseParams}`);
         const data = res.ok ? await res.json() : null;
         list = parseAnimalsList<BulkSaleAnimal>(data);
-      } else {
+      } else if (campIds.length > 0) {
         const results = await Promise.all(
           campIds.map(async (campId) => {
             const campParams = new URLSearchParams(baseParams);
@@ -296,6 +300,7 @@ export function BulkSaleAnimalPicker({
       buildParams,
       onlyMarked,
       campIds,
+      camps.length,
       tagColor,
       defaultTagColor,
       yearColors,
@@ -403,14 +408,29 @@ export function BulkSaleAnimalPicker({
           {!onlyMarked ? " *" : ""}
         </Label>
         <p className="text-xs text-muted-foreground">
-          {onlyMarked
-            ? t("optionalCampsOrAll", { n: MAX_SALE_CAMPS })
-            : t("selectCampsUpTo", { n: MAX_SALE_CAMPS })}
-          {!onlyMarked && campIds.length > 0 && (
-            <> · {campIds.length}/{MAX_SALE_CAMPS}</>
+          {onlyMarked ? t("optionalCampsOrAll") : t("selectCampsOrAll")}
+          {campIds.length > 0 && (
+            <>
+              {" "}
+              ·{" "}
+              {allCampsSelected
+                ? t("allCamps")
+                : t("campsSelectedCount", { n: campIds.length })}
+            </>
           )}
         </p>
         <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={toggleAllCamps}
+            className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
+              allCampsSelected
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-background hover:bg-muted border-border"
+            }`}
+          >
+            {t("allCamps")}
+          </button>
           {camps.map((c) => (
             <button
               key={c.id}
