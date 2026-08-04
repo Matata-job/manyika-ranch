@@ -78,6 +78,9 @@ const en = {
   campsAssignedToYou: "assigned to you",
   campsAcrossRanch: "across the ranch",
   noSupervisorAssigned: "No supervisor assigned",
+  campsViewMode: "Camp view",
+  campsViewPhotos: "With photos",
+  campsViewList: "List",
 
   // Roles
   roleOWNER: "Owner",
@@ -1209,6 +1212,9 @@ const sw: Dict = {
   campsAssignedToYou: "ulizopangiwa",
   campsAcrossRanch: "katika shamba lote",
   noSupervisorAssigned: "Hakuna msimamizi aliyepewa",
+  campsViewMode: "Mwonekano wa kambi",
+  campsViewPhotos: "Na picha",
+  campsViewList: "Orodha",
 
   roleOWNER: "Mmiliki",
   roleFARM_MANAGER: "Meneja wa Shamba",
