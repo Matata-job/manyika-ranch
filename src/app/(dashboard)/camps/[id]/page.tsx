@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -456,21 +456,20 @@ export default function CampDetailPage() {
         (camp.notes!.trim().length > 80 ? "…" : "")
       : t("noCampNotes");
   const registerHref = `/animals/new?camp=${camp.id}`;
-  const campAnimalFilterCount = useMemo(() => {
-    let n = 0;
-    if (animalFilters.sex !== "all") n += 1;
-    if (animalFilters.breed !== "all") n += 1;
-    if (animalFilters.owner !== "all") n += 1;
-    if (animalFilters.status !== "all") n += 1;
-    if (animalFilters.herdPlan !== "all") n += 1;
-    if (animalFilters.castrated !== "all") n += 1;
-    if (animalFilters.pregnant !== "all") n += 1;
-    if (animalFilters.ageGroup !== "all") n += 1;
-    if (animalFilters.ageMinMonths || animalFilters.ageMaxMonths) n += 1;
-    if (animalFilters.dobFrom || animalFilters.dobTo) n += 1;
-    if (animalFilters.tagColor) n += 1;
-    return n;
-  }, [animalFilters]);
+  let campAnimalFilterCount = 0;
+  if (animalFilters.sex !== "all") campAnimalFilterCount += 1;
+  if (animalFilters.breed !== "all") campAnimalFilterCount += 1;
+  if (animalFilters.owner !== "all") campAnimalFilterCount += 1;
+  if (animalFilters.status !== "all") campAnimalFilterCount += 1;
+  if (animalFilters.herdPlan !== "all") campAnimalFilterCount += 1;
+  if (animalFilters.castrated !== "all") campAnimalFilterCount += 1;
+  if (animalFilters.pregnant !== "all") campAnimalFilterCount += 1;
+  if (animalFilters.ageGroup !== "all") campAnimalFilterCount += 1;
+  if (animalFilters.ageMinMonths || animalFilters.ageMaxMonths) {
+    campAnimalFilterCount += 1;
+  }
+  if (animalFilters.dobFrom || animalFilters.dobTo) campAnimalFilterCount += 1;
+  if (animalFilters.tagColor) campAnimalFilterCount += 1;
   const campAnimalColumnsVisible = (id: AnimalColumnId) =>
     animalColumns.includes(id);
 
