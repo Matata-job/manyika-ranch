@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Images, Rows3 } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 import { TagColorSwatch } from "@/components/eartag-badge";
-import { CowHeadIcon } from "@/components/icons/cow-head-icon";
 import { cn } from "@/lib/utils";
 
 export type CampListItem = {
@@ -38,28 +37,13 @@ function campPlaceholderLabel(name: string, code: string | null): string {
   return name.trim().slice(0, 3).toUpperCase() || "?";
 }
 
-function CampThumb({
-  camp,
-  size = "md",
-}: {
-  camp: CampListItem;
-  size?: "sm" | "md";
-}) {
+function CampThumb({ camp }: { camp: CampListItem }) {
   const coverUrl = camp.logoUrl || camp.coverUrl;
   const label = campPlaceholderLabel(camp.name, camp.code);
-  const box =
-    size === "sm"
-      ? "h-10 w-10 rounded-md text-[9px] leading-tight"
-      : "h-11 w-11 rounded-lg text-[10px] leading-tight";
 
   if (coverUrl) {
     return (
-      <div
-        className={cn(
-          "relative shrink-0 overflow-hidden bg-muted ring-1 ring-black/5",
-          box
-        )}
-      >
+      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-muted ring-1 ring-black/5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={coverUrl} alt="" className="h-full w-full object-cover" />
       </div>
@@ -69,11 +53,9 @@ function CampThumb({
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center justify-center px-0.5 text-center font-bold tracking-tight",
-        "bg-gradient-to-br from-stone-200 via-amber-50 to-stone-300 text-stone-700",
-        "dark:from-stone-700 dark:via-amber-950/40 dark:to-stone-800 dark:text-stone-200",
-        "ring-1 ring-black/5",
-        box
+        "flex h-12 w-12 shrink-0 items-center justify-center rounded-lg px-0.5 text-center",
+        "bg-stone-100 text-[10px] font-bold leading-tight tracking-tight text-stone-600",
+        "ring-1 ring-stone-200/80 dark:bg-stone-800 dark:text-stone-300 dark:ring-stone-700"
       )}
       aria-hidden
       title={label}
@@ -148,35 +130,35 @@ export function CampsDirectory({ camps, locale }: Props) {
       </div>
 
       {view === "photos" ? (
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {camps.map((camp) => (
             <PhotoCampCard key={camp.id} camp={camp} locale={locale} />
           ))}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border bg-card">
-          <ul className="divide-y">
+        <div className="overflow-hidden rounded-2xl border bg-card">
+          <ul className="divide-y divide-border/80">
             {camps.map((camp) => (
               <li key={camp.id}>
                 <Link
                   href={`/camps/${camp.id}`}
                   className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-muted/50 sm:px-4 sm:py-3",
-                    !camp.isActive && "opacity-70"
+                    "flex items-center gap-3.5 px-4 py-3 transition-colors hover:bg-muted/40",
+                    !camp.isActive && "opacity-65"
                   )}
                 >
-                  <CampThumb camp={camp} size="sm" />
+                  <CampThumb camp={camp} />
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    <div className="flex flex-wrap items-baseline gap-x-2">
                       {camp.code && (
-                        <span className="text-xs font-semibold tabular-nums text-muted-foreground">
+                        <span className="font-mono text-[11px] font-semibold tracking-wide text-muted-foreground">
                           {camp.code}
                         </span>
                       )}
                       <span
                         className={cn(
-                          "truncate font-semibold",
+                          "truncate text-[15px] font-semibold tracking-tight",
                           !camp.isActive && "text-muted-foreground"
                         )}
                       >
@@ -204,12 +186,14 @@ export function CampsDirectory({ camps, locale }: Props) {
                     </div>
                   )}
 
-                  <span className="inline-flex shrink-0 items-center gap-1 tabular-nums">
-                    <CowHeadIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-sm font-bold sm:text-base">
+                  <div className="shrink-0 text-right">
+                    <p className="text-lg font-bold tabular-nums leading-none tracking-tight">
                       {camp.animalCount}
-                    </span>
-                  </span>
+                    </p>
+                    <p className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                      {t("animalsTitle")}
+                    </p>
+                  </div>
                 </Link>
               </li>
             ))}
@@ -234,77 +218,68 @@ function PhotoCampCard({
   return (
     <Link
       href={`/camps/${camp.id}`}
-      className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      className="group block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
     >
       <article
         className={cn(
-          "flex h-full flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-all",
-          "hover:border-foreground/20 hover:shadow-md",
+          "relative overflow-hidden rounded-2xl border bg-card shadow-sm transition-all",
+          "hover:border-foreground/15 hover:shadow-md",
           !camp.isActive && "opacity-75"
         )}
       >
-        <div className="relative aspect-[16/10] overflow-hidden bg-stone-200 dark:bg-stone-800">
+        <div className="relative aspect-[5/4] overflow-hidden sm:aspect-[4/3]">
           {coverUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={coverUrl}
               alt=""
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
             />
           ) : (
             <div
-              className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-stone-300 via-amber-100/80 to-stone-400 dark:from-stone-700 dark:via-amber-950/40 dark:to-stone-900"
+              className="flex h-full w-full items-center justify-center bg-stone-100 dark:bg-stone-900"
               aria-hidden
             >
-              <CowHeadIcon className="h-8 w-8 text-stone-600/50 dark:text-stone-300/40" />
-              <span className="select-none px-3 text-center text-2xl font-bold tracking-wide text-stone-700/80 dark:text-stone-100/80 sm:text-3xl">
+              <span className="select-none font-mono text-3xl font-bold tracking-[0.08em] text-stone-400 dark:text-stone-600 sm:text-4xl">
                 {label}
               </span>
             </div>
           )}
 
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+          {/* Scrim for readable type */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-black/10" />
 
-          <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
-            {camp.code && coverUrl && (
-              <span className="rounded-md bg-background/95 px-2 py-0.5 text-xs font-semibold tracking-wide text-foreground shadow-sm backdrop-blur-sm">
+          <div className="absolute left-3 top-3 flex flex-wrap items-center gap-1.5">
+            {camp.code && (
+              <span className="rounded-full bg-white/95 px-2.5 py-0.5 font-mono text-[11px] font-semibold tracking-wide text-stone-900 shadow-sm">
                 {camp.code}
               </span>
             )}
             {!camp.isActive && (
-              <Badge
-                variant="secondary"
-                className="bg-background/90 font-normal shadow-sm"
-              >
+              <Badge className="border-0 bg-black/50 font-normal text-white backdrop-blur-sm">
                 {t("campInactive")}
               </Badge>
             )}
           </div>
-        </div>
 
-        <div className="flex flex-1 flex-col gap-2 p-4">
-          <h2
-            className={cn(
-              "truncate text-lg font-semibold leading-tight tracking-tight",
-              !camp.isActive && "text-muted-foreground"
-            )}
-          >
-            {camp.name}
-          </h2>
+          {camp.tagColor && (
+            <div className="absolute right-3 top-3 rounded-full bg-white/90 p-1 shadow-sm backdrop-blur-sm">
+              <TagColorSwatch color={camp.tagColor} locale={locale} />
+            </div>
+          )}
 
-          <div className="flex items-center justify-between gap-2">
-            <span className="inline-flex items-center gap-1.5">
-              <CowHeadIcon className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xl font-bold tabular-nums leading-none">
+          <div className="absolute inset-x-0 bottom-0 p-4 text-white">
+            <h2 className="truncate text-xl font-semibold tracking-tight drop-shadow-sm">
+              {camp.name}
+            </h2>
+            <p className="mt-1 flex items-baseline gap-1.5 text-sm text-white/85">
+              <span className="text-2xl font-bold tabular-nums leading-none text-white">
                 {camp.animalCount}
               </span>
-              <span className="text-sm text-muted-foreground">
+              <span className="tracking-wide">
                 {t("animalsTitle").toLowerCase()}
               </span>
-            </span>
-            {camp.tagColor && (
-              <TagColorSwatch color={camp.tagColor} locale={locale} />
-            )}
+            </p>
           </div>
         </div>
       </article>
