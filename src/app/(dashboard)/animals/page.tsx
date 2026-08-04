@@ -17,6 +17,7 @@ import { cn, formatAge, type AgeDisplayMode } from "@/lib/utils";
 import { parseAnimalsPage } from "@/lib/animals-api";
 import { EartagBadge } from "@/components/eartag-badge";
 import { TagColorFilter } from "@/components/animals/tag-color-filter";
+import { MultiTogglePills } from "@/components/animals/multi-toggle-pills";
 import { HerdPlanFilter } from "@/components/animals/herd-plan-filter";
 import { useLocale, useT } from "@/components/providers/locale-provider";
 import { Label } from "@/components/ui/label";
@@ -33,6 +34,7 @@ import {
   ListPagination,
 } from "@/components/list-pagination";
 import { ChoicePills } from "@/components/choice-pills";
+import { joinMultiParam, parseMultiParam } from "@/lib/multi-filter";
 
 interface Animal {
   id: string;
@@ -687,10 +689,17 @@ function AnimalsPageContent() {
                 {t("eartagColor")}
               </Label>
               <TagColorFilter
-                value={filters.tagColor === "all" ? null : filters.tagColor}
-                onChange={(code) => updateFilter("tagColor", code || "all")}
+                value={
+                  filters.tagColor === "all"
+                    ? []
+                    : parseMultiParam(filters.tagColor)
+                }
+                onChange={(codes) =>
+                  updateFilter("tagColor", joinMultiParam(codes) || "all")
+                }
                 showHelp={false}
               />
+              <p className="text-xs text-muted-foreground">{t("filterMultiHint")}</p>
             </section>
 
             <section className="space-y-2.5">
@@ -824,19 +833,16 @@ function AnimalsPageContent() {
               <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 {t("breed")}
               </Label>
-              <Select value={filters.breed} onValueChange={(v) => updateFilter("breed", v)}>
-                <SelectTrigger className="h-10 rounded-lg">
-                  <SelectValue placeholder={t("breed")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t("allBreeds")}</SelectItem>
-                  {breeds.map((b) => (
-                    <SelectItem key={b.id} value={b.name}>
-                      {b.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MultiTogglePills
+                options={breeds.map((b) => ({ value: b.name, label: b.name }))}
+                value={
+                  filters.breed === "all" ? [] : parseMultiParam(filters.breed)
+                }
+                onChange={(codes) =>
+                  updateFilter("breed", joinMultiParam(codes) || "all")
+                }
+                allLabel={t("allBreeds")}
+              />
             </section>
 
             <section className="space-y-2.5">
@@ -873,19 +879,16 @@ function AnimalsPageContent() {
               <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 {t("owner")}
               </Label>
-              <Select value={filters.owner} onValueChange={(v) => updateFilter("owner", v)}>
-                <SelectTrigger className="h-10 rounded-lg">
-                  <SelectValue placeholder={t("owner")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t("allOwners")}</SelectItem>
-                  {owners.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>
-                      {o.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MultiTogglePills
+                options={owners.map((o) => ({ value: o.id, label: o.name }))}
+                value={
+                  filters.owner === "all" ? [] : parseMultiParam(filters.owner)
+                }
+                onChange={(codes) =>
+                  updateFilter("owner", joinMultiParam(codes) || "all")
+                }
+                allLabel={t("allOwners")}
+              />
             </section>
           </div>
 

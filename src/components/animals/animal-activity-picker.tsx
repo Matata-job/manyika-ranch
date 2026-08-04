@@ -14,6 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EartagBadge } from "@/components/eartag-badge";
 import { TagColorFilter } from "@/components/animals/tag-color-filter";
+import { MultiTogglePills } from "@/components/animals/multi-toggle-pills";
 import {
   CustomizeColumnsPanel,
   loadColumnPrefs,
@@ -23,6 +24,7 @@ import { HerdPlanFilter } from "@/components/animals/herd-plan-filter";
 import { ChoicePills } from "@/components/choice-pills";
 import { useLocale, useT } from "@/components/providers/locale-provider";
 import { parseAnimalsList } from "@/lib/animals-api";
+import { joinMultiParam } from "@/lib/multi-filter";
 import { lifecycleKind, lifecycleLabelKey } from "@/lib/lifecycle";
 import { herdPlanBadgeVariant, herdPlanLabelKey } from "@/lib/herd-plan";
 import { resolveTagColor } from "@/lib/tag-color";
@@ -73,9 +75,9 @@ export function AnimalActivityPicker({
   const [search, setSearch] = useState("");
   const [camp, setCamp] = useState("all");
   const [sex, setSex] = useState("all");
-  const [breed, setBreed] = useState("all");
+  const [breedsSelected, setBreedsSelected] = useState<string[]>([]);
   const [status, setStatus] = useState(statusFilterDefault);
-  const [tagColor, setTagColor] = useState<string | null>(null);
+  const [tagColors, setTagColors] = useState<string[]>([]);
   const [herdPlan, setHerdPlan] = useState("all");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [columnsOpen, setColumnsOpen] = useState(false);
@@ -117,10 +119,12 @@ export function AnimalActivityPicker({
     const params = new URLSearchParams({ limit: "5000", sort: "eartag_asc" });
     if (camp !== "all") params.set("camp", camp);
     if (sex !== "all") params.set("sex", sex);
-    if (breed !== "all") params.set("breed", breed);
+    const breedParam = joinMultiParam(breedsSelected);
+    if (breedParam) params.set("breed", breedParam);
     if (status && status !== "ALL") params.set("status", status);
     if (search.trim()) params.set("search", search.trim());
-    if (tagColor) params.set("tagColor", tagColor);
+    const tagParam = joinMultiParam(tagColors);
+    if (tagParam) params.set("tagColor", tagParam);
     if (herdPlan !== "all") params.set("herdPlan", herdPlan);
     const res = await fetch(`/api/animals?${params}`);
     const data = res.ok ? await res.json() : null;
@@ -129,7 +133,8 @@ export function AnimalActivityPicker({
       list = list.filter((a) => a.status !== "DECEASED" && a.status !== "SOLD");
     }
     // Client refine by resolved colour (includes year map)
-    if (tagColor) {
+    if (tagColors.length > 0) {
+      const allowed = new Set(tagColors);
       list = list.filter((a) => {
         const resolved = resolveTagColor({
           animalTagColor: a.tagColor,
@@ -139,7 +144,7 @@ export function AnimalActivityPicker({
           ageMonths: a.ageMonths,
           yearColors,
         }).color;
-        return resolved === tagColor;
+        return resolved != null && allowed.has(resolved);
       });
     }
     setAnimals(list);
@@ -147,10 +152,10 @@ export function AnimalActivityPicker({
   }, [
     camp,
     sex,
-    breed,
+    breedsSelected,
     status,
     search,
-    tagColor,
+    tagColors,
     herdPlan,
     statusFilterDefault,
     defaultTagColor,
@@ -168,12 +173,12 @@ export function AnimalActivityPicker({
     let n = 0;
     if (camp !== "all") n += 1;
     if (sex !== "all") n += 1;
-    if (breed !== "all") n += 1;
+    if (breedsSelected.length > 0) n += 1;
     if (status !== statusFilterDefault) n += 1;
-    if (tagColor) n += 1;
+    if (tagColors.length > 0) n += 1;
     if (herdPlan !== "all") n += 1;
     return n;
-  }, [camp, sex, breed, status, tagColor, herdPlan, statusFilterDefault]);
+  }, [camp, sex, breedsSelected, status, tagColors, herdPlan, statusFilterDefault]);
 
   const allSelected = animals.length > 0 && animals.every((a) => selected.has(a.id));
   const someSelected = animals.some((a) => selected.has(a.id)) && !allSelected;
@@ -204,9 +209,9 @@ export function AnimalActivityPicker({
   function clearFilters() {
     setCamp("all");
     setSex("all");
-    setBreed("all");
+    setBreedsSelected([]);
     setStatus(statusFilterDefault);
-    setTagColor(null);
+    setTagColors([]);
     setHerdPlan("all");
   }
 
@@ -267,25 +272,23 @@ export function AnimalActivityPicker({
 
       {filtersOpen && (
         <div className="rounded-lg border bg-muted/20 p-4 space-y-4">
+          <p className="text-xs text-muted-foreground">{t("filterMultiHint")}</p>
           <div className="space-y-2">
             <Label>{t("eartagColor")}</Label>
-            <TagColorFilter value={tagColor} onChange={setTagColor} />
+            <TagColorFilter
+              value={tagColors}
+              onChange={setTagColors}
+              showHelp={false}
+            />
           </div>
           <div className="space-y-2">
             <Label>{t("breed")}</Label>
-            <Select value={breed} onValueChange={setBreed}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("allBreeds")}</SelectItem>
-                {breeds.map((b) => (
-                  <SelectItem key={b} value={b}>
-                    {b}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <MultiTogglePills
+              options={breeds.map((b) => ({ value: b, label: b }))}
+              value={breedsSelected}
+              onChange={setBreedsSelected}
+              allLabel={t("allBreeds")}
+            />
           </div>
           <HerdPlanFilter value={herdPlan} onChange={setHerdPlan} />
           <div className="space-y-2">

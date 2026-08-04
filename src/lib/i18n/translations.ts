@@ -571,6 +571,7 @@ const en = {
   eartagColor: "Ear tag colour",
   eartagColorFilterHelp:
     "Shown colour priority: animal → birth year → camp → ranch default.",
+  filterMultiHint: "You can select more than one option at once.",
   clearAll: "Clear all",
   reset: "Reset",
   allBreeds: "All breeds",
@@ -1629,6 +1630,7 @@ const sw: Dict = {
   eartagColor: "Rangi ya lebo",
   eartagColorFilterHelp:
     "Mpangilio wa rangi inayoonekana: mnyama → mwaka wa kuzaliwa → kambi → chaguo-msingi la shamba.",
+  filterMultiHint: "Unaweza kuchagua zaidi ya chaguo moja kwa wakati mmoja.",
   clearAll: "Futa yote",
   reset: "Weka upya",
   allBreeds: "Mifugo yote",

@@ -4,16 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { EartagBadge } from "@/components/eartag-badge";
 import { TagColorFilter } from "@/components/animals/tag-color-filter";
+import { MultiTogglePills } from "@/components/animals/multi-toggle-pills";
 import {
   CustomizeColumnsPanel,
   loadColumnPrefs,
@@ -24,6 +18,7 @@ import { ChoicePills } from "@/components/choice-pills";
 import { useLocale, useT } from "@/components/providers/locale-provider";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { parseAnimalsList } from "@/lib/animals-api";
+import { joinMultiParam } from "@/lib/multi-filter";
 import { lifecycleKind, lifecycleLabelKey } from "@/lib/lifecycle";
 import { herdPlanBadgeVariant, herdPlanLabelKey } from "@/lib/herd-plan";
 import { resolveTagColor } from "@/lib/tag-color";
@@ -110,8 +105,8 @@ export function BulkSaleAnimalPicker({
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [sex, setSex] = useState("all");
-  const [breed, setBreed] = useState("all");
-  const [owner, setOwner] = useState("all");
+  const [breedsSelected, setBreedsSelected] = useState<string[]>([]);
+  const [ownersSelected, setOwnersSelected] = useState<string[]>([]);
   const [status, setStatus] = useState("all");
   const [herdPlan, setHerdPlan] = useState("all");
   const [castrated, setCastrated] = useState("all");
@@ -121,7 +116,7 @@ export function BulkSaleAnimalPicker({
   const [ageMaxMonths, setAgeMaxMonths] = useState("");
   const [dobFrom, setDobFrom] = useState("");
   const [dobTo, setDobTo] = useState("");
-  const [tagColor, setTagColor] = useState<string | null>(null);
+  const [tagColors, setTagColors] = useState<string[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [columnsOpen, setColumnsOpen] = useState(false);
   const [columns, setColumns] = useState<AnimalColumnId[]>(() =>
@@ -182,8 +177,10 @@ export function BulkSaleAnimalPicker({
       sort: "eartag_asc",
     });
     if (sex !== "all") params.set("sex", sex);
-    if (breed !== "all") params.set("breed", breed);
-    if (owner !== "all") params.set("owner", owner);
+    const breedParam = joinMultiParam(breedsSelected);
+    if (breedParam) params.set("breed", breedParam);
+    const ownerParam = joinMultiParam(ownersSelected);
+    if (ownerParam) params.set("owner", ownerParam);
     if (status !== "all") params.set("status", status);
     if (!onlyMarked && herdPlan !== "all") params.set("herdPlan", herdPlan);
     if (onlyMarked) params.set("herdPlan", "SELL_NEXT_CYCLE");
@@ -205,12 +202,13 @@ export function BulkSaleAnimalPicker({
       if (dobTo) params.set("dobTo", dobTo);
     }
     if (search.trim()) params.set("search", search.trim());
-    if (tagColor) params.set("tagColor", tagColor);
+    const tagParam = joinMultiParam(tagColors);
+    if (tagParam) params.set("tagColor", tagParam);
     return params;
   }, [
     sex,
-    breed,
-    owner,
+    breedsSelected,
+    ownersSelected,
     status,
     herdPlan,
     onlyMarked,
@@ -222,7 +220,7 @@ export function BulkSaleAnimalPicker({
     dobFrom,
     dobTo,
     search,
-    tagColor,
+    tagColors,
   ]);
 
   const load = useCallback(
@@ -263,7 +261,8 @@ export function BulkSaleAnimalPicker({
 
       list = list.filter((a) => SELLABLE_STATUSES.has(a.status));
 
-      if (tagColor) {
+      if (tagColors.length > 0) {
+        const allowed = new Set(tagColors);
         list = list.filter((a) => {
           const resolved = resolveTagColor({
             animalTagColor: a.tagColor,
@@ -273,7 +272,7 @@ export function BulkSaleAnimalPicker({
             ageMonths: a.ageMonths,
             yearColors,
           }).color;
-          return resolved === tagColor;
+          return resolved != null && allowed.has(resolved);
         });
       }
 
@@ -293,7 +292,7 @@ export function BulkSaleAnimalPicker({
       onlyMarked,
       campIds,
       camps.length,
-      tagColor,
+      tagColors,
       defaultTagColor,
       yearColors,
       onSelectedChange,
@@ -320,26 +319,26 @@ export function BulkSaleAnimalPicker({
   const activeFilterCount = useMemo(() => {
     let n = 0;
     if (sex !== "all") n += 1;
-    if (breed !== "all") n += 1;
-    if (owner !== "all") n += 1;
+    if (breedsSelected.length > 0) n += 1;
+    if (ownersSelected.length > 0) n += 1;
     if (status !== "all") n += 1;
     if (!onlyMarked && herdPlan !== "all") n += 1;
     if (castrated !== "all") n += 1;
     if (pregnant !== "all") n += 1;
     if (ageGroup !== "all") n += 1;
-    if (tagColor) n += 1;
+    if (tagColors.length > 0) n += 1;
     return n;
   }, [
     sex,
-    breed,
-    owner,
+    breedsSelected,
+    ownersSelected,
     status,
     herdPlan,
     onlyMarked,
     castrated,
     pregnant,
     ageGroup,
-    tagColor,
+    tagColors,
   ]);
 
   const allSelected =
@@ -368,8 +367,8 @@ export function BulkSaleAnimalPicker({
 
   function clearFilters() {
     setSex("all");
-    setBreed("all");
-    setOwner("all");
+    setBreedsSelected([]);
+    setOwnersSelected([]);
     setStatus("all");
     setHerdPlan("all");
     setCastrated("all");
@@ -379,7 +378,7 @@ export function BulkSaleAnimalPicker({
     setAgeMaxMonths("");
     setDobFrom("");
     setDobTo("");
-    setTagColor(null);
+    setTagColors([]);
   }
 
   const colVisible = (id: AnimalColumnId) => columns.includes(id);
@@ -485,9 +484,14 @@ export function BulkSaleAnimalPicker({
 
           {filtersOpen && (
             <div className="rounded-lg border bg-muted/20 p-4 space-y-4">
+              <p className="text-xs text-muted-foreground">{t("filterMultiHint")}</p>
               <div className="space-y-2">
                 <Label>{t("eartagColor")}</Label>
-                <TagColorFilter value={tagColor} onChange={setTagColor} />
+                <TagColorFilter
+                  value={tagColors}
+                  onChange={setTagColors}
+                  showHelp={false}
+                />
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
@@ -516,39 +520,23 @@ export function BulkSaleAnimalPicker({
                   />
                 </div>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>{t("breed")}</Label>
-                  <Select value={breed} onValueChange={setBreed}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{t("allBreeds")}</SelectItem>
-                      {breeds.map((b) => (
-                        <SelectItem key={b} value={b}>
-                          {b}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>{t("owner")}</Label>
-                  <Select value={owner} onValueChange={setOwner}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{t("allOwners")}</SelectItem>
-                      {owners.map((o) => (
-                        <SelectItem key={o.id} value={o.id}>
-                          {o.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-2">
+                <Label>{t("breed")}</Label>
+                <MultiTogglePills
+                  options={breeds.map((b) => ({ value: b, label: b }))}
+                  value={breedsSelected}
+                  onChange={setBreedsSelected}
+                  allLabel={t("allBreeds")}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t("owner")}</Label>
+                <MultiTogglePills
+                  options={owners.map((o) => ({ value: o.id, label: o.name }))}
+                  value={ownersSelected}
+                  onChange={setOwnersSelected}
+                  allLabel={t("allOwners")}
+                />
               </div>
               {!onlyMarked && (
                 <HerdPlanFilter value={herdPlan} onChange={setHerdPlan} />

@@ -31,6 +31,7 @@ import {
 } from "@/components/camp-photo-gallery";
 import { TagColorFilter } from "@/components/animals/tag-color-filter";
 import { HerdPlanFilter } from "@/components/animals/herd-plan-filter";
+import { MultiTogglePills } from "@/components/animals/multi-toggle-pills";
 import {
   CustomizeColumnsPanel,
   loadColumnPrefs,
@@ -38,6 +39,7 @@ import {
 } from "@/components/animals/customize-columns";
 import { ChoicePills } from "@/components/choice-pills";
 import { parseAnimalsList } from "@/lib/animals-api";
+import { joinMultiParam } from "@/lib/multi-filter";
 import { herdPlanBadgeVariant, herdPlanLabelKey } from "@/lib/herd-plan";
 import { lifecycleKind, lifecycleLabelKey } from "@/lib/lifecycle";
 import { cn } from "@/lib/utils";
@@ -128,8 +130,8 @@ type CampAnimal = {
 type CampAnimalFilters = {
   search: string;
   sex: string;
-  breed: string;
-  owner: string;
+  breeds: string[];
+  owners: string[];
   status: string;
   herdPlan: string;
   castrated: string;
@@ -139,15 +141,15 @@ type CampAnimalFilters = {
   ageMaxMonths: string;
   dobFrom: string;
   dobTo: string;
-  tagColor: string | null;
+  tagColors: string[];
   sort: string;
 };
 
 const CAMP_ANIMAL_FILTERS_DEFAULT: CampAnimalFilters = {
   search: "",
   sex: "all",
-  breed: "all",
-  owner: "all",
+  breeds: [],
+  owners: [],
   status: "ACTIVE",
   herdPlan: "all",
   castrated: "all",
@@ -157,7 +159,7 @@ const CAMP_ANIMAL_FILTERS_DEFAULT: CampAnimalFilters = {
   ageMaxMonths: "",
   dobFrom: "",
   dobTo: "",
-  tagColor: null,
+  tagColors: [],
   sort: "eartag_asc",
 };
 
@@ -231,8 +233,10 @@ export default function CampDetailPage() {
     });
     if (animalFilters.search.trim()) params.set("search", animalFilters.search.trim());
     if (animalFilters.sex !== "all") params.set("sex", animalFilters.sex);
-    if (animalFilters.breed !== "all") params.set("breed", animalFilters.breed);
-    if (animalFilters.owner !== "all") params.set("owner", animalFilters.owner);
+    const breedParam = joinMultiParam(animalFilters.breeds);
+    if (breedParam) params.set("breed", breedParam);
+    const ownerParam = joinMultiParam(animalFilters.owners);
+    if (ownerParam) params.set("owner", ownerParam);
     if (animalFilters.status !== "all") params.set("status", animalFilters.status);
     if (animalFilters.herdPlan !== "all") params.set("herdPlan", animalFilters.herdPlan);
     if (animalFilters.castrated !== "all") {
@@ -252,13 +256,15 @@ export default function CampDetailPage() {
     }
     if (animalFilters.dobFrom) params.set("dobFrom", animalFilters.dobFrom);
     if (animalFilters.dobTo) params.set("dobTo", animalFilters.dobTo);
-    if (animalFilters.tagColor) params.set("tagColor", animalFilters.tagColor);
+    const tagParam = joinMultiParam(animalFilters.tagColors);
+    if (tagParam) params.set("tagColor", tagParam);
 
     try {
       const res = await fetch(`/api/animals?${params}`);
       const data = res.ok ? await res.json() : null;
       let animals = parseAnimalsList<CampAnimal>(data);
-      if (animalFilters.tagColor) {
+      if (animalFilters.tagColors.length > 0) {
+        const allowed = new Set(animalFilters.tagColors);
         animals = animals.filter((a) => {
           const resolved = resolveTagColor({
             animalTagColor: a.tagColor,
@@ -268,7 +274,7 @@ export default function CampDetailPage() {
             ageMonths: a.ageMonths,
             yearColors,
           }).color;
-          return resolved === animalFilters.tagColor;
+          return resolved != null && allowed.has(resolved);
         });
       }
       setCampAnimals(animals);
@@ -527,8 +533,8 @@ export default function CampDetailPage() {
   const registerHref = `/animals/new?camp=${camp.id}`;
   let campAnimalFilterCount = 0;
   if (animalFilters.sex !== "all") campAnimalFilterCount += 1;
-  if (animalFilters.breed !== "all") campAnimalFilterCount += 1;
-  if (animalFilters.owner !== "all") campAnimalFilterCount += 1;
+  if (animalFilters.breeds.length > 0) campAnimalFilterCount += 1;
+  if (animalFilters.owners.length > 0) campAnimalFilterCount += 1;
   if (animalFilters.status !== "all") campAnimalFilterCount += 1;
   if (animalFilters.herdPlan !== "all") campAnimalFilterCount += 1;
   if (animalFilters.castrated !== "all") campAnimalFilterCount += 1;
@@ -538,7 +544,7 @@ export default function CampDetailPage() {
     campAnimalFilterCount += 1;
   }
   if (animalFilters.dobFrom || animalFilters.dobTo) campAnimalFilterCount += 1;
-  if (animalFilters.tagColor) campAnimalFilterCount += 1;
+  if (animalFilters.tagColors.length > 0) campAnimalFilterCount += 1;
   const campAnimalColumnsVisible = (id: AnimalColumnId) =>
     animalColumns.includes(id);
 
@@ -987,16 +993,17 @@ export default function CampDetailPage() {
 
               {animalsFiltersOpen && (
                 <div className="rounded-xl border border-border/80 bg-card shadow-sm p-5 space-y-6">
+                  <p className="text-xs text-muted-foreground">{t("filterMultiHint")}</p>
                   <section className="space-y-2.5">
                     <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       {t("eartagColor")}
                     </Label>
                     <TagColorFilter
-                      value={animalFilters.tagColor}
-                      onChange={(code) =>
+                      value={animalFilters.tagColors}
+                      onChange={(codes) =>
                         setAnimalFilters((prev) => ({
                           ...prev,
-                          tagColor: code || null,
+                          tagColors: codes,
                         }))
                       }
                       showHelp={false}
@@ -1046,54 +1053,39 @@ export default function CampDetailPage() {
                     />
                   </section>
 
-                  <div className="grid gap-6 sm:grid-cols-2">
-                    <section className="space-y-2.5">
-                      <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        {t("breed")}
-                      </Label>
-                      <Select
-                        value={animalFilters.breed}
-                        onValueChange={(value) =>
-                          setAnimalFilters((prev) => ({ ...prev, breed: value }))
-                        }
-                      >
-                        <SelectTrigger className="h-10 rounded-lg">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">{t("allBreeds")}</SelectItem>
-                          {breeds.map((breed) => (
-                            <SelectItem key={breed} value={breed}>
-                              {breed}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </section>
-                    <section className="space-y-2.5">
-                      <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        {t("owner")}
-                      </Label>
-                      <Select
-                        value={animalFilters.owner}
-                        onValueChange={(value) =>
-                          setAnimalFilters((prev) => ({ ...prev, owner: value }))
-                        }
-                      >
-                        <SelectTrigger className="h-10 rounded-lg">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">{t("allOwners")}</SelectItem>
-                          {owners.map((owner) => (
-                            <SelectItem key={owner.id} value={owner.id}>
-                              {owner.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </section>
-                  </div>
+                  <section className="space-y-2.5">
+                    <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {t("breed")}
+                    </Label>
+                    <MultiTogglePills
+                      options={breeds.map((breed) => ({
+                        value: breed,
+                        label: breed,
+                      }))}
+                      value={animalFilters.breeds}
+                      onChange={(codes) =>
+                        setAnimalFilters((prev) => ({ ...prev, breeds: codes }))
+                      }
+                      allLabel={t("allBreeds")}
+                    />
+                  </section>
+
+                  <section className="space-y-2.5">
+                    <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {t("owner")}
+                    </Label>
+                    <MultiTogglePills
+                      options={owners.map((owner) => ({
+                        value: owner.id,
+                        label: owner.name,
+                      }))}
+                      value={animalFilters.owners}
+                      onChange={(codes) =>
+                        setAnimalFilters((prev) => ({ ...prev, owners: codes }))
+                      }
+                      allLabel={t("allOwners")}
+                    />
+                  </section>
 
                   <section className="space-y-2.5">
                     <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

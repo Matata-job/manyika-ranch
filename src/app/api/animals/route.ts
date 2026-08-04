@@ -11,6 +11,7 @@ import { logAnimalEvent } from "@/lib/services/event-service";
 import type { Role, Sex, AnimalStatus, Prisma } from "@prisma/client";
 import { ageGroupWhere, ageMonthsRangeWhere, dobRangeWhere } from "@/lib/reports/age-filter";
 import { normalizeTagColor } from "@/lib/tag-color";
+import { parseMultiParam } from "@/lib/multi-filter";
 
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 5000;
@@ -21,11 +22,11 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const campId = searchParams.get("camp");
-  const ownerId = searchParams.get("owner");
+  const ownerIds = parseMultiParam(searchParams.get("owner"));
   const status = searchParams.get("status");
   const search = searchParams.get("search");
   const sex = searchParams.get("sex");
-  const breed = searchParams.get("breed");
+  const breeds = parseMultiParam(searchParams.get("breed"));
   const castrated = searchParams.get("castrated");
   const pregnant = searchParams.get("pregnant");
   const herdPlan = searchParams.get("herdPlan");
@@ -34,7 +35,9 @@ export async function GET(req: NextRequest) {
   const ageMaxRaw = searchParams.get("ageMaxMonths");
   const dobFrom = searchParams.get("dobFrom");
   const dobTo = searchParams.get("dobTo");
-  const tagColorRaw = searchParams.get("tagColor");
+  const tagColors = parseMultiParam(searchParams.get("tagColor"))
+    .map((c) => normalizeTagColor(c))
+    .filter((c): c is string => !!c);
   const sort = searchParams.get("sort") || "eartag_asc";
   const limit = Math.min(
     Math.max(
@@ -80,14 +83,20 @@ export async function GET(req: NextRequest) {
 
   const where: Prisma.AnimalWhereInput = {
     ...scope,
-    ...(ownerId && ownerId !== "all" && result.user.role !== "EXTERNAL_OWNER"
-      ? { ownerId }
+    ...(ownerIds.length > 0 && result.user.role !== "EXTERNAL_OWNER"
+      ? ownerIds.length === 1
+        ? { ownerId: ownerIds[0] }
+        : { ownerId: { in: ownerIds } }
       : {}),
     ...(status && status !== "ALL" ? { status: status as AnimalStatus } : {}),
     ...(sex === "MALE" || sex === "FEMALE" || sex === "UNKNOWN"
       ? { sex: sex as Sex }
       : {}),
-    ...(breed && breed !== "all" ? { breed } : {}),
+    ...(breeds.length > 0
+      ? breeds.length === 1
+        ? { breed: breeds[0] }
+        : { breed: { in: breeds } }
+      : {}),
     ...(castrated === "true"
       ? { sex: "MALE" as Sex, isCastrated: true }
       : castrated === "false"
@@ -123,15 +132,15 @@ export async function GET(req: NextRequest) {
       ...(ageWhere ? [ageWhere] : []),
       ...(monthsWhere ? [monthsWhere] : []),
       ...(bornWhere ? [bornWhere] : []),
-      ...(normalizeTagColor(tagColorRaw)
+      ...(tagColors.length > 0
         ? [
             {
               OR: [
-                { tagColor: normalizeTagColor(tagColorRaw)! },
+                { tagColor: { in: tagColors } },
                 {
                   AND: [
                     { OR: [{ tagColor: null }, { tagColor: "" }] },
-                    { camp: { tagColor: normalizeTagColor(tagColorRaw)! } },
+                    { camp: { tagColor: { in: tagColors } } },
                   ],
                 },
               ],
