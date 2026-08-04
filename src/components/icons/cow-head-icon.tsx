@@ -1,6 +1,9 @@
 import type { SVGProps } from "react";
 
-/** Clean cattle-head mark for herd counts. */
+/**
+ * Bull / cow head — face-on with horns.
+ * Solid silhouette with eye & snout cutouts (evenodd).
+ */
 export function CowHeadIcon({
   className,
   ...props
@@ -8,63 +11,19 @@ export function CowHeadIcon({
   return (
     <svg
       viewBox="0 0 24 24"
-      fill="none"
+      fill="currentColor"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       aria-hidden
       {...props}
     >
-      {/* Horns */}
       <path
-        d="M8.2 9.2C6.4 7.2 5.2 4.8 5.5 3.6c.1-.4.6-.6 1-.4 1.3.6 2.4 2.2 3.1 3.6"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M6.8 2.2c-.5-.4-1.25.05-1.1.7.4 1.85 1.45 3.35 2.55 4.3-.7.25-1.35.65-1.85 1.15C4.3 6.95 2.85 4.9 2.35 3.25c-.15-.55-.95-.5-1.05.1C.95 5.7 2 8.15 3.7 9.85c-.55.6-.9 1.4-1 2.25-.15 1.25.55 2.35 1.65 2.75.2 1.95 1.2 3.5 2.55 4.4V21c0 .55.45 1 1 1h8.2c.55 0 1-.45 1-1v-1.75c1.35-.9 2.35-2.45 2.55-4.4 1.1-.4 1.8-1.5 1.65-2.75-.1-.85-.45-1.65-1-2.25 1.7-1.7 2.75-4.15 2.4-6.5-.1-.6-.9-.65-1.05-.1-.5 1.65-1.95 3.7-4.05 5.1-.5-.5-1.15-.9-1.85-1.15 1.1-.95 2.15-2.45 2.55-4.3.15-.65-.6-1.1-1.1-.7-1.55 1.25-2.55 3.1-3.05 4.65C9.35 5.3 8.35 3.45 6.8 2.2ZM9.55 10.15a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm4.9 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2ZM12 12.85c-1.7 0-3 1.15-3 2.35s1.3 2.35 3 2.35 3-1.15 3-2.35-1.3-2.35-3-2.35Z"
       />
-      <path
-        d="M15.8 9.2c1.8-2 3-4.4 2.7-5.6-.1-.4-.6-.6-1-.4-1.3.6-2.4 2.2-3.1 3.6"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {/* Ears */}
-      <path
-        d="M7.2 11.2c-1.4.2-2.4 1.2-2.6 2.4-.1.6.4 1.1 1 1 .8-.1 1.6-.7 2.1-1.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M16.8 11.2c1.4.2 2.4 1.2 2.6 2.4.1.6-.4 1.1-1 1-.8-.1-1.6-.7-2.1-1.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {/* Face */}
-      <path
-        d="M8.4 9.5c.9-1.5 2.1-2.3 3.6-2.3s2.7.8 3.6 2.3c.8 1.3 1 2.8.6 4.4-.5 2.1-2.1 3.8-4.2 3.8s-3.7-1.7-4.2-3.8c-.4-1.6-.2-3.1.6-4.4Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-      {/* Eyes */}
-      <circle cx="10.1" cy="11.6" r="0.85" fill="currentColor" />
-      <circle cx="13.9" cy="11.6" r="0.85" fill="currentColor" />
-      {/* Snout */}
-      <ellipse
-        cx="12"
-        cy="15.1"
-        rx="2.1"
-        ry="1.55"
-        stroke="currentColor"
-        strokeWidth="1.4"
-      />
-      <circle cx="11.15" cy="15" r="0.35" fill="currentColor" />
-      <circle cx="12.85" cy="15" r="0.35" fill="currentColor" />
+      <ellipse cx="10.85" cy="15.05" rx="0.42" ry="0.58" />
+      <ellipse cx="13.15" cy="15.05" rx="0.42" ry="0.58" />
     </svg>
   );
 }
