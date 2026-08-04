@@ -695,7 +695,7 @@ const en = {
     "Dams and sires must be at least {n} months (sires not castrated).",
   bulkHerdPlan: "Set herd plan",
   bulkHerdPlanHelp:
-    "Select animals in the filter below, then Keep, Sell next cycle, Ploughing Animal, or Clear plan.",
+    "Select animals in the filter below, then Keep, Sell next cycle, Ploughing, or Clear plan.",
   bulkHerdPlanResult: "Updated {n} animals ({skipped} skipped).",
   clearHerdPlan: "Clear plan",
   deselectAll: "Deselect all",
@@ -706,7 +706,7 @@ const en = {
   herdPlanExcluded: "No special plan",
   herdPlanKeepBreeding: "Keep for breeding",
   herdPlanSellNextCycle: "Sell next cycle",
-  herdPlanKulima: "Ploughing Animal",
+  herdPlanKulima: "Ploughing",
   herdPlanKulimaCategory: "Ploughing animals",
   herdPlanKulimaDefaultNote: "Ploughing",
   herdPlanHelp:
@@ -1750,7 +1750,7 @@ const sw: Dict = {
     "Mama na baba lazima wawe angalau miezi {n} (dume wasiohaswa).",
   bulkHerdPlan: "Weka mpango wa mifugo",
   bulkHerdPlanHelp:
-    "Chagua wanyama kwenye kichujio, kisha Hifadhi, Uza mzunguko ujao, Mnyama wa kulimia, au Ondoa mpango.",
+    "Chagua wanyama kwenye kichujio, kisha Hifadhi, Uza mzunguko ujao, Wa Kulimia, au Ondoa mpango.",
   bulkHerdPlanResult: "Imesasishwa wanyama {n} ({skipped} wamerukwa).",
   clearHerdPlan: "Ondoa mpango",
   deselectAll: "Ondoa uteuzi wote",
@@ -1761,11 +1761,11 @@ const sw: Dict = {
   herdPlanExcluded: "Hakuna mpango maalum",
   herdPlanKeepBreeding: "Hifadhi kwa uzazi",
   herdPlanSellNextCycle: "Uza mzunguko ujao",
-  herdPlanKulima: "Mnyama wa kulimia",
+  herdPlanKulima: "Wa Kulimia",
   herdPlanKulimaCategory: "Wanyama wa Kulimia",
   herdPlanKulimaDefaultNote: "Kulimia",
   herdPlanHelp:
-    "Mpango mmoja kwa kila mnyama. Chaguo-msingi ni hakuna mpango maalum. Kulimia = mnyama wa kulimia — hubaki kambi yake. Uzazi na Mauzo hutumia hii.",
+    "Mpango mmoja kwa kila mnyama. Chaguo-msingi ni hakuna mpango maalum. Kulimia = Wa Kulimia — hubaki kambi yake. Uzazi na Mauzo hutumia hii.",
   optionalPlanningNoteKulima:
     "Maelezo ya hiari (jozi, mkulima, mwaka wa mafunzo). Acha tupu kwa “Kulimia”.",
   optionalPlanningNote: "Maelezo ya hiari (kwa nini)?",

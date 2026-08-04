@@ -104,7 +104,7 @@ export async function PATCH(req: NextRequest) {
     EXCLUDED: "Herd plan cleared (excluded)",
     KEEP_BREEDING: "Marked keep for breeding",
     SELL_NEXT_CYCLE: "Marked sell next cycle",
-    KULIMA: "Marked ploughing animal (Kulimia)",
+    KULIMA: "Marked ploughing (Kulimia)",
   } as const;
 
   const changed = animals.filter((a) => a.herdPlan !== herdPlan);
