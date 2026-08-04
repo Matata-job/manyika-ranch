@@ -1230,6 +1230,7 @@ export default function AnimalDetailPage() {
               animalId={id}
               initialPhotos={animal.photos || []}
               coverUrl={animal.photoUrl}
+              eartag={animal.eartag}
               canEdit={
                 (!isClosed && canUpdateRecords) || (isDeceased && canEdit)
               }

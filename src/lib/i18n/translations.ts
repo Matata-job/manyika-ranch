@@ -1000,6 +1000,9 @@ const en = {
   none: "None",
   photosHelperText: "You can add multiple photos. Date is recorded automatically.",
   photoUploadFailed: "Photo upload failed",
+  downloadPhoto: "Download",
+  photoActualSize: "File size",
+  photoZoomHint: "Pinch or scroll to zoom · double-tap to reset · drag when zoomed",
   failedToCreateAnimal: "Failed to create animal",
 
   // Finance — income
@@ -2103,6 +2106,9 @@ const sw: Dict = {
   none: "Hakuna",
   photosHelperText: "Unaweza kuongeza picha nyingi. Tarehe hurekodiwa kiotomatiki.",
   photoUploadFailed: "Kupakia picha kumeshindwa",
+  downloadPhoto: "Pakua",
+  photoActualSize: "Ukubwa wa faili",
+  photoZoomHint: "Bana au skroli kukuza · gusa mara mbili kuweka upya · buruta ukiwa umekuza",
   failedToCreateAnimal: "Imeshindwa kusajili mnyama",
 
   otherIncomeTitle: "Mapato mengine",
