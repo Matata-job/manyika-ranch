@@ -11,6 +11,7 @@ export function OptionalSection({
   summary,
   children,
   className,
+  embedded = false,
 }: {
   open: boolean;
   onToggle: () => void;
@@ -18,18 +19,25 @@ export function OptionalSection({
   summary?: string;
   children: React.ReactNode;
   className?: string;
+  /** Inside a grouped card — no outer border/radius. */
+  embedded?: boolean;
 }) {
   return (
-    <div className={cn("rounded-lg border", className)}>
+    <div className={cn(!embedded && "rounded-lg border", className)}>
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"
+        className={cn(
+          "flex w-full items-center justify-between gap-3 text-left hover:bg-muted/30 transition-colors",
+          embedded ? "px-4 py-3" : "px-3 py-2.5"
+        )}
       >
         <div className="min-w-0">
           <p className="text-sm font-medium">{title}</p>
           {!open && summary && (
-            <p className="truncate text-xs text-muted-foreground">{summary}</p>
+            <p className="truncate text-xs text-muted-foreground mt-0.5">
+              {summary}
+            </p>
           )}
         </div>
         {open ? (
@@ -38,7 +46,16 @@ export function OptionalSection({
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
         )}
       </button>
-      {open && <div className="space-y-3 border-t px-3 py-3">{children}</div>}
+      {open && (
+        <div
+          className={cn(
+            "space-y-3 border-t bg-muted/10",
+            embedded ? "px-4 py-4" : "px-3 py-3"
+          )}
+        >
+          {children}
+        </div>
+      )}
     </div>
   );
 }

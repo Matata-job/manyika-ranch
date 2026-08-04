@@ -512,12 +512,18 @@ export default function CampDetailPage() {
   const journalNotes = camp.journalNotes || [];
   const hasJournalNotes = journalNotes.length > 0;
   const notesSummary = hasJournalNotes
-    ? journalNotes[0].body.trim().slice(0, 80) +
-      (journalNotes[0].body.trim().length > 80 ? "…" : "")
+    ? t("campNoteCount", { n: journalNotes.length })
     : hasLegacyNotes
-      ? camp.notes!.trim().slice(0, 80) +
-        (camp.notes!.trim().length > 80 ? "…" : "")
+      ? t("legacyCampNotes")
       : t("noCampNotes");
+  const locationSummary =
+    camp.latitude != null && camp.longitude != null
+      ? `${camp.latitude}, ${camp.longitude}`
+      : t("noLocationSet");
+  const photosSummary =
+    (camp.photos?.length || 0) > 0
+      ? t("photoCount", { n: camp.photos.length })
+      : t("noCampPhotos");
   const registerHref = `/animals/new?camp=${camp.id}`;
   let campAnimalFilterCount = 0;
   if (animalFilters.sex !== "all") campAnimalFilterCount += 1;
@@ -721,46 +727,63 @@ export default function CampDetailPage() {
                     {sexLine}
                   </p>
                 )}
-                {camp.tagColor && (
-                  <TagColorSwatch
-                    color={camp.tagColor}
-                    locale={locale}
-                    className="pt-0.5"
-                  />
-                )}
               </div>
 
-              {(camp.sizeAcres != null ||
+              {(camp.tagColor ||
+                camp.sizeAcres != null ||
                 camp.waterSources ||
                 camp.assignments.length > 0) && (
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground border-t pt-4">
+                <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2 border-t pt-4 text-sm">
+                  {camp.tagColor && (
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <dt className="text-muted-foreground">{t("tagColorCamp")}</dt>
+                      <dd>
+                        <TagColorSwatch
+                          color={camp.tagColor}
+                          locale={locale}
+                        />
+                      </dd>
+                    </div>
+                  )}
                   {camp.sizeAcres != null && (
-                    <span>
-                      {camp.sizeAcres} {t("acres")}
-                    </span>
+                    <div className="flex flex-wrap items-baseline gap-x-2">
+                      <dt className="text-muted-foreground">{t("sizeAcres")}</dt>
+                      <dd className="font-medium">
+                        {camp.sizeAcres} {t("acres")}
+                      </dd>
+                    </div>
                   )}
                   {camp.waterSources && (
-                    <span>
-                      {t("waterSources")}: {camp.waterSources}
-                    </span>
+                    <div className="flex flex-wrap items-baseline gap-x-2 sm:col-span-2">
+                      <dt className="shrink-0 text-muted-foreground">
+                        {t("waterSources")}
+                      </dt>
+                      <dd className="font-medium">{camp.waterSources}</dd>
+                    </div>
                   )}
                   {camp.assignments.length > 0 && (
-                    <span>
-                      {t("supervisor")}:{" "}
-                      {camp.assignments.map((a) => a.user.name).join(", ")}
-                    </span>
+                    <div className="flex flex-wrap items-baseline gap-x-2 sm:col-span-2">
+                      <dt className="shrink-0 text-muted-foreground">
+                        {t("supervisor")}
+                      </dt>
+                      <dd className="font-medium">
+                        {camp.assignments.map((a) => a.user.name).join(", ")}
+                      </dd>
+                    </div>
                   )}
-                </div>
+                </dl>
               )}
             </div>
           </section>
 
-          <OptionalSection
-            open={showNotes}
-            onToggle={() => setShowNotes((v) => !v)}
-            title={t("campNotes")}
-            summary={notesSummary}
-          >
+          <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden divide-y">
+            <OptionalSection
+              embedded
+              open={showNotes}
+              onToggle={() => setShowNotes((v) => !v)}
+              title={t("campNotes")}
+              summary={notesSummary}
+            >
             <div className="space-y-4">
               <p className="text-xs text-muted-foreground">{t("campNotesHelp")}</p>
 
@@ -839,58 +862,51 @@ export default function CampDetailPage() {
                 </div>
               )}
             </div>
-          </OptionalSection>
+            </OptionalSection>
+
+            <OptionalSection
+              embedded
+              open={showLocation}
+              onToggle={() => setShowLocation((v) => !v)}
+              title={t("campLocation")}
+              summary={locationSummary}
+            >
+              {camp.latitude != null && camp.longitude != null ? (
+                <CampLocationPicker
+                  latitude={String(camp.latitude)}
+                  longitude={String(camp.longitude)}
+                  onChange={() => {}}
+                  disabled
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">{t("noLocationSet")}</p>
+              )}
+            </OptionalSection>
+
+            <OptionalSection
+              embedded
+              open={showPhotos}
+              onToggle={() => setShowPhotos((v) => !v)}
+              title={t("campPhotos")}
+              summary={photosSummary}
+            >
+              <CampPhotoGallery
+                campId={camp.id}
+                initialPhotos={camp.photos || []}
+                logoUrl={camp.logoUrl}
+                canEdit={canManage}
+                onPhotosChange={() => {
+                  void load();
+                  void loadCampAnimals();
+                }}
+                onLogoChange={(url) =>
+                  setCamp((c) => (c ? { ...c, logoUrl: url } : c))
+                }
+              />
+            </OptionalSection>
+          </div>
         </>
       )}
-
-      {!editing && (
-        <OptionalSection
-          open={showLocation}
-          onToggle={() => setShowLocation((v) => !v)}
-          title={t("campLocation")}
-          summary={
-            camp.latitude != null && camp.longitude != null
-              ? `${camp.latitude}, ${camp.longitude}`
-              : t("noLocationSet")
-          }
-        >
-          {camp.latitude != null && camp.longitude != null ? (
-            <CampLocationPicker
-              latitude={String(camp.latitude)}
-              longitude={String(camp.longitude)}
-              onChange={() => {}}
-              disabled
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">{t("noLocationSet")}</p>
-          )}
-        </OptionalSection>
-      )}
-
-      <OptionalSection
-        open={showPhotos}
-        onToggle={() => setShowPhotos((v) => !v)}
-        title={t("campPhotos")}
-        summary={
-          (camp.photos?.length || 0) > 0
-            ? t("photoCount", { n: camp.photos.length })
-            : t("noCampPhotos")
-        }
-      >
-        <CampPhotoGallery
-          campId={camp.id}
-          initialPhotos={camp.photos || []}
-          logoUrl={camp.logoUrl}
-          canEdit={canManage}
-          onPhotosChange={() => {
-            void load();
-            void loadCampAnimals();
-          }}
-          onLogoChange={(url) =>
-            setCamp((c) => (c ? { ...c, logoUrl: url } : c))
-          }
-        />
-      </OptionalSection>
 
       <div>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">

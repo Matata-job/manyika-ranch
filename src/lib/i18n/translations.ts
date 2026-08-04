@@ -395,6 +395,7 @@ const en = {
   removeLogo: "Remove logo",
   noCampPhotos: "No camp photos yet",
   campNotes: "Camp notes",
+  campNoteCount: "{n} note(s)",
   noCampNotes: "No notes for this camp yet",
   noCampNotesEditHint:
     "Add a dated note below — supervisors and owners can record camp updates here.",
@@ -1452,6 +1453,7 @@ const sw: Dict = {
   removeLogo: "Ondoa nembo",
   noCampPhotos: "Hakuna picha za kambi bado",
   campNotes: "Maelezo ya kambi",
+  campNoteCount: "Maelezo {n}",
   noCampNotes: "Hakuna maelezo ya kambi bado",
   noCampNotesEditHint:
     "Ongeza maelezo yenye tarehe hapa chini — wasimamizi na mmiliki wanaweza kurekodi masasisho ya kambi.",
