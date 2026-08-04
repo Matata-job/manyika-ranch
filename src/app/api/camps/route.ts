@@ -4,6 +4,7 @@ import { requirePermission, buildCampScope } from "@/lib/auth/api-guard";
 import { createAuditLog } from "@/lib/services/animal-service";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
+import { parseBoundary } from "@/lib/camp-boundary";
 
 function parseOptionalFloat(value: unknown): number | null | undefined {
   if (value === undefined) return undefined;
@@ -65,6 +66,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Camp name is required" }, { status: 400 });
   }
 
+  const boundary = body.boundary != null ? parseBoundary(body.boundary) : null;
+
   const camp = await prisma.camp.create({
     data: {
       ranchId: result.user.ranchId,
@@ -74,6 +77,7 @@ export async function POST(req: NextRequest) {
       legacyCode: body.legacyCode?.trim() || null,
       latitude: parseOptionalFloat(body.latitude) ?? null,
       longitude: parseOptionalFloat(body.longitude) ?? null,
+      ...(boundary ? { boundary } : {}),
       sizeAcres: parseOptionalFloat(body.sizeAcres) ?? null,
       logoUrl: body.logoUrl?.trim() || null,
       waterSources: body.waterSources?.trim() || null,

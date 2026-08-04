@@ -239,6 +239,8 @@ model Camp {
   legacyCode   String?
   latitude     Float?
   longitude    Float?
+  /** Closed camp border polygon: { type: "Polygon", ring: [[lat, lng], ...] } */
+  boundary     Json?
   /** Farm / camp size in acres */
   sizeAcres    Float?
   logoUrl      String?

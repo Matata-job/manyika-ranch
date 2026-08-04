@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireCampAccess, requirePermission } from "@/lib/auth/api-guard";
 import { createAuditLog } from "@/lib/services/animal-service";
+import { parseBoundary } from "@/lib/camp-boundary";
 
 function parseOptionalFloat(value: unknown): number | null | undefined {
   if (value === undefined) return undefined;
@@ -117,6 +119,20 @@ export async function PATCH(
   }
   if (body.latitude !== undefined) data.latitude = parseOptionalFloat(body.latitude);
   if (body.longitude !== undefined) data.longitude = parseOptionalFloat(body.longitude);
+  if (body.boundary !== undefined) {
+    if (body.boundary === null || body.boundary === "") {
+      data.boundary = Prisma.DbNull;
+    } else {
+      const parsed = parseBoundary(body.boundary);
+      if (!parsed) {
+        return NextResponse.json(
+          { error: "Invalid camp boundary (need at least 3 points)" },
+          { status: 400 }
+        );
+      }
+      data.boundary = parsed;
+    }
+  }
   if (body.sizeAcres !== undefined) data.sizeAcres = parseOptionalFloat(body.sizeAcres);
   if (body.logoUrl !== undefined) data.logoUrl = body.logoUrl?.trim() || null;
   if (body.waterSources !== undefined) {

@@ -40,6 +40,11 @@ import {
 import { ChoicePills } from "@/components/choice-pills";
 import { parseAnimalsList } from "@/lib/animals-api";
 import { joinMultiParam } from "@/lib/multi-filter";
+import {
+  boundaryPointCount,
+  parseBoundary,
+  type CampBoundary,
+} from "@/lib/camp-boundary";
 import { herdPlanBadgeVariant, herdPlanLabelKey } from "@/lib/herd-plan";
 import { lifecycleKind, lifecycleLabelKey } from "@/lib/lifecycle";
 import { cn } from "@/lib/utils";
@@ -76,6 +81,12 @@ const CampLocationPicker = dynamic(
   { ssr: false }
 );
 
+const CampBoundaryPicker = dynamic(
+  () =>
+    import("@/components/camp-boundary-picker").then((m) => m.CampBoundaryPicker),
+  { ssr: false }
+);
+
 interface CampDetail {
   id: string;
   name: string;
@@ -84,6 +95,7 @@ interface CampDetail {
   legacyCode?: string | null;
   latitude: number | null;
   longitude: number | null;
+  boundary?: unknown;
   sizeAcres: number | null;
   logoUrl: string | null;
   waterSources: string | null;
@@ -213,7 +225,17 @@ export default function CampDetailPage() {
   const [noteDate, setNoteDate] = useState(todayInputDate);
   const [noteBody, setNoteBody] = useState("");
   const [savingNote, setSavingNote] = useState(false);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    name: string;
+    code: string;
+    sizeAcres: string;
+    latitude: string;
+    longitude: string;
+    waterSources: string;
+    notes: string;
+    tagColor: string;
+    boundary: CampBoundary | null;
+  }>({
     name: "",
     code: "",
     sizeAcres: "",
@@ -222,6 +244,7 @@ export default function CampDetailPage() {
     waterSources: "",
     notes: "",
     tagColor: "",
+    boundary: null,
   });
 
   const loadCampAnimals = useCallback(async () => {
@@ -352,6 +375,7 @@ export default function CampDetailPage() {
           waterSources: data.waterSources || "",
           notes: data.notes || "",
           tagColor: data.tagColor || "",
+          boundary: parseBoundary(data.boundary),
         });
       }
       setLoading(false);
@@ -416,6 +440,7 @@ export default function CampDetailPage() {
         sizeAcres: form.sizeAcres || null,
         latitude: form.latitude || null,
         longitude: form.longitude || null,
+        boundary: parseBoundary(form.boundary),
         waterSources: form.waterSources || null,
         notes: form.notes || null,
         tagColor: form.tagColor || null,
@@ -526,6 +551,10 @@ export default function CampDetailPage() {
     camp.latitude != null && camp.longitude != null
       ? `${camp.latitude}, ${camp.longitude}`
       : t("noLocationSet");
+  const campBoundary = parseBoundary(camp.boundary);
+  const boundarySummary = campBoundary
+    ? t("campBoundarySet", { n: boundaryPointCount(campBoundary) })
+    : t("campBoundaryNotSet");
   const photosSummary =
     (camp.photos?.length || 0) > 0
       ? t("photoCount", { n: camp.photos.length })
@@ -609,6 +638,14 @@ export default function CampDetailPage() {
                   setForm({ ...form, latitude, longitude })
                 }
               />
+              <div className="border-t pt-4 mt-2">
+                <CampBoundaryPicker
+                  value={form.boundary}
+                  onChange={(boundary) => setForm({ ...form, boundary })}
+                  pinLat={form.latitude}
+                  pinLng={form.longitude}
+                />
+              </div>
             </OptionalSection>
             <div className="space-y-2">
               <Label>{t("waterSources")}</Label>
@@ -875,7 +912,7 @@ export default function CampDetailPage() {
               open={showLocation}
               onToggle={() => setShowLocation((v) => !v)}
               title={t("campLocation")}
-              summary={locationSummary}
+              summary={`${locationSummary} · ${boundarySummary}`}
             >
               {camp.latitude != null && camp.longitude != null ? (
                 <CampLocationPicker
@@ -887,6 +924,25 @@ export default function CampDetailPage() {
               ) : (
                 <p className="text-sm text-muted-foreground">{t("noLocationSet")}</p>
               )}
+              <div className="border-t pt-4 mt-2">
+                {campBoundary ? (
+                  <CampBoundaryPicker
+                    value={campBoundary}
+                    onChange={() => {}}
+                    pinLat={
+                      camp.latitude != null ? String(camp.latitude) : undefined
+                    }
+                    pinLng={
+                      camp.longitude != null ? String(camp.longitude) : undefined
+                    }
+                    disabled
+                  />
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {t("campBoundaryNotSet")}
+                  </p>
+                )}
+              </div>
             </OptionalSection>
 
             <OptionalSection
