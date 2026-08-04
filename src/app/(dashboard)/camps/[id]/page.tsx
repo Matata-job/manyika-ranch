@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -18,21 +18,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Pencil, Plus, StickyNote } from "lucide-react";
+import { ArrowLeft, Columns3, Filter, Pencil, Plus, Search, StickyNote } from "lucide-react";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 import { useLocale, useT } from "@/components/providers/locale-provider";
-import { TAG_COLORS, tagColorLabel } from "@/lib/tag-color";
-import { TagColorSwatch } from "@/components/eartag-badge";
+import { TAG_COLORS, resolveTagColor, tagColorLabel } from "@/lib/tag-color";
+import { EartagBadge, TagColorSwatch } from "@/components/eartag-badge";
 import { OptionalSection } from "@/components/optional-section";
 import {
   CampPhotoGallery,
   type CampPhoto,
 } from "@/components/camp-photo-gallery";
+import { TagColorFilter } from "@/components/animals/tag-color-filter";
+import { HerdPlanFilter } from "@/components/animals/herd-plan-filter";
 import {
-  DEFAULT_PAGE_SIZE,
-  ListPagination,
-} from "@/components/list-pagination";
+  CustomizeColumnsPanel,
+  loadColumnPrefs,
+  type AnimalColumnId,
+} from "@/components/animals/customize-columns";
+import { ChoicePills } from "@/components/choice-pills";
+import { parseAnimalsList } from "@/lib/animals-api";
+import { herdPlanBadgeVariant, herdPlanLabelKey } from "@/lib/herd-plan";
+import { lifecycleKind, lifecycleLabelKey } from "@/lib/lifecycle";
+import { cn } from "@/lib/utils";
 
 function todayInputDate(): string {
   const d = new Date();
@@ -97,6 +105,64 @@ interface CampDetail {
   journalNotes?: CampJournalNote[];
 }
 
+type CampAnimal = {
+  id: string;
+  eartag: string;
+  breed: string;
+  sex: string;
+  status: string;
+  ageMonths: number | null;
+  dob?: string | null;
+  dateOfBirth?: string | null;
+  isCastrated?: boolean | null;
+  isPregnant?: boolean | null;
+  tagColor?: string | null;
+  rfidChip?: string | null;
+  herdPlan?: "EXCLUDED" | "KEEP_BREEDING" | "SELL_NEXT_CYCLE" | "KULIMA";
+  camp?: { id: string; name: string; tagColor?: string | null };
+  owner?: { id: string; name: string } | null;
+  sire?: { id: string; eartag: string } | null;
+  dam?: { id: string; eartag: string } | null;
+};
+
+type CampAnimalFilters = {
+  search: string;
+  sex: string;
+  breed: string;
+  owner: string;
+  status: string;
+  herdPlan: string;
+  castrated: string;
+  pregnant: string;
+  ageGroup: string;
+  ageMinMonths: string;
+  ageMaxMonths: string;
+  dobFrom: string;
+  dobTo: string;
+  tagColor: string | null;
+  sort: string;
+};
+
+const CAMP_ANIMAL_FILTERS_DEFAULT: CampAnimalFilters = {
+  search: "",
+  sex: "all",
+  breed: "all",
+  owner: "all",
+  status: "ACTIVE",
+  herdPlan: "all",
+  castrated: "all",
+  pregnant: "all",
+  ageGroup: "all",
+  ageMinMonths: "",
+  ageMaxMonths: "",
+  dobFrom: "",
+  dobTo: "",
+  tagColor: null,
+  sort: "eartag_asc",
+};
+
+const CAMP_ANIMAL_COLUMN_STORAGE_KEY = "manyika.campAnimals.columns";
+
 export default function CampDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -110,8 +176,21 @@ export default function CampDetailPage() {
 
   const [camp, setCamp] = useState<CampDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [campAnimals, setCampAnimals] = useState<CampAnimal[]>([]);
   const [animalsLoading, setAnimalsLoading] = useState(false);
-  const [animalsOffset, setAnimalsOffset] = useState(0);
+  const [animalsSearch, setAnimalsSearch] = useState("");
+  const [animalsFiltersOpen, setAnimalsFiltersOpen] = useState(false);
+  const [animalsColumnsOpen, setAnimalsColumnsOpen] = useState(false);
+  const [animalColumns, setAnimalColumns] = useState<AnimalColumnId[]>(() =>
+    loadColumnPrefs(CAMP_ANIMAL_COLUMN_STORAGE_KEY, "bulkSale")
+  );
+  const [animalFilters, setAnimalFilters] = useState<CampAnimalFilters>(
+    CAMP_ANIMAL_FILTERS_DEFAULT
+  );
+  const [breeds, setBreeds] = useState<string[]>([]);
+  const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
+  const [yearColors, setYearColors] = useState<Record<string, string>>({});
+  const [defaultTagColor, setDefaultTagColor] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showLocation, setShowLocation] = useState(false);
@@ -133,41 +212,129 @@ export default function CampDetailPage() {
     tagColor: "",
   });
 
+  const loadCampAnimals = useCallback(async () => {
+    setAnimalsLoading(true);
+    const params = new URLSearchParams({
+      camp: id,
+      limit: "5000",
+      sort: animalFilters.sort,
+    });
+    if (animalFilters.search.trim()) params.set("search", animalFilters.search.trim());
+    if (animalFilters.sex !== "all") params.set("sex", animalFilters.sex);
+    if (animalFilters.breed !== "all") params.set("breed", animalFilters.breed);
+    if (animalFilters.owner !== "all") params.set("owner", animalFilters.owner);
+    if (animalFilters.status !== "all") params.set("status", animalFilters.status);
+    if (animalFilters.herdPlan !== "all") params.set("herdPlan", animalFilters.herdPlan);
+    if (animalFilters.castrated !== "all") {
+      params.set("castrated", animalFilters.castrated);
+    }
+    if (animalFilters.pregnant !== "all") {
+      params.set("pregnant", animalFilters.pregnant);
+    }
+    if (animalFilters.ageGroup !== "all") {
+      params.set("ageGroup", animalFilters.ageGroup);
+    }
+    if (animalFilters.ageMinMonths) {
+      params.set("ageMinMonths", animalFilters.ageMinMonths);
+    }
+    if (animalFilters.ageMaxMonths) {
+      params.set("ageMaxMonths", animalFilters.ageMaxMonths);
+    }
+    if (animalFilters.dobFrom) params.set("dobFrom", animalFilters.dobFrom);
+    if (animalFilters.dobTo) params.set("dobTo", animalFilters.dobTo);
+    if (animalFilters.tagColor) params.set("tagColor", animalFilters.tagColor);
+
+    try {
+      const res = await fetch(`/api/animals?${params}`);
+      const data = res.ok ? await res.json() : null;
+      let animals = parseAnimalsList<CampAnimal>(data);
+      if (animalFilters.tagColor) {
+        animals = animals.filter((a) => {
+          const resolved = resolveTagColor({
+            animalTagColor: a.tagColor,
+            campTagColor: a.camp?.tagColor ?? camp?.tagColor ?? null,
+            defaultTagColor,
+            dob: a.dateOfBirth ?? a.dob,
+            ageMonths: a.ageMonths,
+            yearColors,
+          }).color;
+          return resolved === animalFilters.tagColor;
+        });
+      }
+      setCampAnimals(animals);
+    } finally {
+      setAnimalsLoading(false);
+    }
+  }, [animalFilters, camp?.tagColor, defaultTagColor, id, yearColors]);
+
   const load = useCallback(
-    async (offset = 0, opts?: { soft?: boolean }) => {
-      if (opts?.soft) setAnimalsLoading(true);
-      else setLoading(true);
-      const params = new URLSearchParams({
-        limit: String(DEFAULT_PAGE_SIZE),
-        offset: String(offset),
-      });
-      const res = await fetch(`/api/camps/${id}?${params}`);
+    async () => {
+      setLoading(true);
+      const res = await fetch(`/api/camps/${id}`);
       if (res.ok) {
         const data = await res.json();
         setCamp(data);
-        setAnimalsOffset(offset);
-        if (!opts?.soft) {
-          setForm({
-            name: data.name || "",
-            code: data.code || "",
-            sizeAcres: data.sizeAcres != null ? String(data.sizeAcres) : "",
-            latitude: data.latitude != null ? String(data.latitude) : "",
-            longitude: data.longitude != null ? String(data.longitude) : "",
-            waterSources: data.waterSources || "",
-            notes: data.notes || "",
-            tagColor: data.tagColor || "",
-          });
-        }
+        setForm({
+          name: data.name || "",
+          code: data.code || "",
+          sizeAcres: data.sizeAcres != null ? String(data.sizeAcres) : "",
+          latitude: data.latitude != null ? String(data.latitude) : "",
+          longitude: data.longitude != null ? String(data.longitude) : "",
+          waterSources: data.waterSources || "",
+          notes: data.notes || "",
+          tagColor: data.tagColor || "",
+        });
       }
       setLoading(false);
-      setAnimalsLoading(false);
     },
     [id]
   );
 
   useEffect(() => {
-    load(0);
+    load();
   }, [load]);
+
+  useEffect(() => {
+    fetch("/api/breeds")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const list = Array.isArray(d) ? d : d?.breeds || [];
+        setBreeds(
+          list
+            .map((b: { name?: string } | string) =>
+              typeof b === "string" ? b : b.name
+            )
+            .filter(Boolean)
+        );
+      })
+      .catch(() => {});
+    fetch("/api/owners")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => setOwners(Array.isArray(d) ? d : d?.owners || []))
+      .catch(() => {});
+    fetch("/api/ranch/settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return;
+        setYearColors(d.eartagYearColors || {});
+        setDefaultTagColor(d.defaultTagColor || null);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setAnimalFilters((prev) =>
+        prev.search === animalsSearch ? prev : { ...prev, search: animalsSearch }
+      );
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, [animalsSearch]);
+
+  useEffect(() => {
+    if (!camp) return;
+    loadCampAnimals();
+  }, [camp, loadCampAnimals]);
 
   async function saveDetails() {
     setSaving(true);
@@ -192,7 +359,8 @@ export default function CampDetailPage() {
       return;
     }
     setEditing(false);
-    load(animalsOffset, { soft: true });
+    await load();
+    await loadCampAnimals();
   }
 
   async function addCampNote() {
@@ -238,7 +406,8 @@ export default function CampDetailPage() {
       alert(err.error || t("failedToSave"));
       return;
     }
-    load(animalsOffset, { soft: true });
+    await load();
+    await loadCampAnimals();
   }
 
   async function softDeleteCamp() {
@@ -287,6 +456,23 @@ export default function CampDetailPage() {
         (camp.notes!.trim().length > 80 ? "…" : "")
       : t("noCampNotes");
   const registerHref = `/animals/new?camp=${camp.id}`;
+  const campAnimalFilterCount = useMemo(() => {
+    let n = 0;
+    if (animalFilters.sex !== "all") n += 1;
+    if (animalFilters.breed !== "all") n += 1;
+    if (animalFilters.owner !== "all") n += 1;
+    if (animalFilters.status !== "all") n += 1;
+    if (animalFilters.herdPlan !== "all") n += 1;
+    if (animalFilters.castrated !== "all") n += 1;
+    if (animalFilters.pregnant !== "all") n += 1;
+    if (animalFilters.ageGroup !== "all") n += 1;
+    if (animalFilters.ageMinMonths || animalFilters.ageMaxMonths) n += 1;
+    if (animalFilters.dobFrom || animalFilters.dobTo) n += 1;
+    if (animalFilters.tagColor) n += 1;
+    return n;
+  }, [animalFilters]);
+  const campAnimalColumnsVisible = (id: AnimalColumnId) =>
+    animalColumns.includes(id);
 
   return (
     <div className="space-y-6">
@@ -631,7 +817,10 @@ export default function CampDetailPage() {
           initialPhotos={camp.photos || []}
           logoUrl={camp.logoUrl}
           canEdit={canManage}
-          onPhotosChange={() => load(animalsOffset, { soft: true })}
+          onPhotosChange={() => {
+            void load();
+            void loadCampAnimals();
+          }}
           onLogoChange={(url) =>
             setCamp((c) => (c ? { ...c, logoUrl: url } : c))
           }
@@ -646,14 +835,42 @@ export default function CampDetailPage() {
               ({animalTotal})
             </span>
           </h2>
-          {canRegister && (
-            <Button asChild variant="outline" size="sm">
-              <Link href={registerHref}>
-                <Plus className="h-4 w-4 mr-2" />
-                {t("registerAnimal")}
-              </Link>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setAnimalsColumnsOpen(true)}
+            >
+              <Columns3 className="h-4 w-4 mr-1.5" />
+              {t("columnsCount", { n: animalColumns.length })}
             </Button>
-          )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={cn(
+                animalsFiltersOpen && "border-foreground/40 bg-muted/40"
+              )}
+              onClick={() => setAnimalsFiltersOpen((v) => !v)}
+            >
+              <Filter className="h-4 w-4 mr-1.5" />
+              {t("filters")}
+              {campAnimalFilterCount > 0 && (
+                <Badge variant="secondary" className="ml-1.5">
+                  {campAnimalFilterCount}
+                </Badge>
+              )}
+            </Button>
+            {canRegister && (
+              <Button asChild variant="outline" size="sm">
+                <Link href={registerHref}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t("registerAnimal")}
+                </Link>
+              </Button>
+            )}
+          </div>
         </div>
         {animalTotal === 0 ? (
           <div className="rounded-xl border border-dashed p-8 text-center space-y-3">
@@ -669,61 +886,465 @@ export default function CampDetailPage() {
           </div>
         ) : (
           <>
-            <div className="rounded-xl border overflow-hidden">
+            <div className="space-y-4">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  className="pl-8"
+                  placeholder={t("searchEartagBreed")}
+                  value={animalsSearch}
+                  onChange={(e) => setAnimalsSearch(e.target.value)}
+                />
+              </div>
+
+              {animalsFiltersOpen && (
+                <div className="rounded-lg border bg-muted/20 p-4 space-y-4">
+                  <div className="space-y-2">
+                    <Label>{t("eartagColor")}</Label>
+                    <TagColorFilter
+                      value={animalFilters.tagColor}
+                      onChange={(code) =>
+                        setAnimalFilters((prev) => ({
+                          ...prev,
+                          tagColor: code || null,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>{t("sex")}</Label>
+                      <ChoicePills
+                        options={[
+                          { value: "all", label: t("allSexes") },
+                          { value: "MALE", label: t("male") },
+                          { value: "FEMALE", label: t("female") },
+                          { value: "UNKNOWN", label: t("unknownSex") },
+                        ]}
+                        value={animalFilters.sex}
+                        onChange={(value) =>
+                          setAnimalFilters((prev) => ({
+                            ...prev,
+                            sex: value,
+                            castrated: value === "MALE" ? prev.castrated : "all",
+                            pregnant: value === "FEMALE" ? prev.pregnant : "all",
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>{t("status")}</Label>
+                      <ChoicePills
+                        options={[
+                          { value: "all", label: t("allStatuses") },
+                          { value: "ACTIVE", label: t("statusActive") },
+                          { value: "QUARANTINE", label: t("quarantine") },
+                          { value: "MISSING", label: t("statusMissing") },
+                          { value: "SOLD", label: t("statusSold") },
+                          { value: "DECEASED", label: t("statusDeceased") },
+                        ]}
+                        value={animalFilters.status}
+                        onChange={(value) =>
+                          setAnimalFilters((prev) => ({ ...prev, status: value }))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>{t("breed")}</Label>
+                      <Select
+                        value={animalFilters.breed}
+                        onValueChange={(value) =>
+                          setAnimalFilters((prev) => ({ ...prev, breed: value }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">{t("allBreeds")}</SelectItem>
+                          {breeds.map((breed) => (
+                            <SelectItem key={breed} value={breed}>
+                              {breed}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>{t("owner")}</Label>
+                      <Select
+                        value={animalFilters.owner}
+                        onValueChange={(value) =>
+                          setAnimalFilters((prev) => ({ ...prev, owner: value }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">{t("allOwners")}</SelectItem>
+                          {owners.map((owner) => (
+                            <SelectItem key={owner.id} value={owner.id}>
+                              {owner.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <HerdPlanFilter
+                    value={animalFilters.herdPlan}
+                    onChange={(value) =>
+                      setAnimalFilters((prev) => ({ ...prev, herdPlan: value }))
+                    }
+                  />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>{t("castrated")}</Label>
+                      <ChoicePills
+                        options={[
+                          { value: "all", label: t("all") },
+                          { value: "true", label: t("yes") },
+                          { value: "false", label: t("intactMales") },
+                        ]}
+                        value={animalFilters.castrated}
+                        onChange={(value) =>
+                          setAnimalFilters((prev) => ({
+                            ...prev,
+                            castrated: value,
+                            sex: value === "all" ? prev.sex : "MALE",
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>{t("pregnant")}</Label>
+                      <ChoicePills
+                        options={[
+                          { value: "all", label: t("all") },
+                          { value: "true", label: t("yes") },
+                          { value: "false", label: t("no") },
+                        ]}
+                        value={animalFilters.pregnant}
+                        onChange={(value) =>
+                          setAnimalFilters((prev) => ({
+                            ...prev,
+                            pregnant: value,
+                            sex: value === "all" ? prev.sex : "FEMALE",
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t("age")}</Label>
+                    <ChoicePills
+                      options={[
+                        { value: "all", label: t("allAges") },
+                        { value: "calf", label: t("calves") },
+                        { value: "yearling", label: t("weaners") },
+                        { value: "adult", label: t("adults") },
+                        { value: "mature", label: t("ageMature") },
+                      ]}
+                      value={animalFilters.ageGroup}
+                      onChange={(value) =>
+                        setAnimalFilters((prev) => ({
+                          ...prev,
+                          ageGroup: value,
+                          ageMinMonths: "",
+                          ageMaxMonths: "",
+                          dobFrom: "",
+                          dobTo: "",
+                        }))
+                      }
+                    />
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder={t("ageMinMonths")}
+                        value={animalFilters.ageMinMonths}
+                        onChange={(e) =>
+                          setAnimalFilters((prev) => ({
+                            ...prev,
+                            ageMinMonths: e.target.value,
+                            ageGroup: "all",
+                          }))
+                        }
+                      />
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder={t("ageMaxMonths")}
+                        value={animalFilters.ageMaxMonths}
+                        onChange={(e) =>
+                          setAnimalFilters((prev) => ({
+                            ...prev,
+                            ageMaxMonths: e.target.value,
+                            ageGroup: "all",
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Input
+                        type="date"
+                        value={animalFilters.dobFrom}
+                        onChange={(e) =>
+                          setAnimalFilters((prev) => ({
+                            ...prev,
+                            dobFrom: e.target.value,
+                            ageGroup: "all",
+                          }))
+                        }
+                      />
+                      <Input
+                        type="date"
+                        value={animalFilters.dobTo}
+                        onChange={(e) =>
+                          setAnimalFilters((prev) => ({
+                            ...prev,
+                            dobTo: e.target.value,
+                            ageGroup: "all",
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>{t("sortBy")}</Label>
+                      <Select
+                        value={animalFilters.sort}
+                        onValueChange={(value) =>
+                          setAnimalFilters((prev) => ({ ...prev, sort: value }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="eartag_asc">{t("eartag")} A-Z</SelectItem>
+                          <SelectItem value="eartag_desc">{t("eartag")} Z-A</SelectItem>
+                          <SelectItem value="breed_asc">{t("breed")} A-Z</SelectItem>
+                          <SelectItem value="sex_asc">{t("sex")} A-Z</SelectItem>
+                          <SelectItem value="age_desc">{t("age")} ↓</SelectItem>
+                          <SelectItem value="age_asc">{t("age")} ↑</SelectItem>
+                          <SelectItem value="newest">Newest</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex justify-between">
+                    <button
+                      type="button"
+                      className="text-sm text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        setAnimalsSearch("");
+                        setAnimalFilters(CAMP_ANIMAL_FILTERS_DEFAULT);
+                      }}
+                    >
+                      {t("clearAll")}
+                    </button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setAnimalsFiltersOpen(false)}
+                    >
+                      {t("apply")}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="rounded-xl border overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="p-3 text-left">{t("eartag")}</th>
-                    <th className="p-3 text-left">{t("breed")}</th>
-                    <th className="p-3 text-left">{t("sex")}</th>
-                    <th className="p-3 text-left">{t("age")}</th>
+                    {campAnimalColumnsVisible("eartag") && (
+                      <th className="p-3 text-left">{t("eartag")}</th>
+                    )}
+                    {campAnimalColumnsVisible("breed") && (
+                      <th className="p-3 text-left">{t("breed")}</th>
+                    )}
+                    {campAnimalColumnsVisible("sex") && (
+                      <th className="p-3 text-left">{t("sex")}</th>
+                    )}
+                    {campAnimalColumnsVisible("type") && (
+                      <th className="p-3 text-left">{t("lifecycleType")}</th>
+                    )}
+                    {campAnimalColumnsVisible("status") && (
+                      <th className="p-3 text-left">{t("status")}</th>
+                    )}
+                    {campAnimalColumnsVisible("age") && (
+                      <th className="p-3 text-left">{t("age")}</th>
+                    )}
+                    {campAnimalColumnsVisible("rfid") && (
+                      <th className="p-3 text-left">{t("rfidChip")}</th>
+                    )}
+                    {campAnimalColumnsVisible("herdPlan") && (
+                      <th className="p-3 text-left">{t("herdPlan")}</th>
+                    )}
+                    {campAnimalColumnsVisible("owner") && (
+                      <th className="p-3 text-left">{t("owner")}</th>
+                    )}
+                    {campAnimalColumnsVisible("dob") && (
+                      <th className="p-3 text-left">{t("dob")}</th>
+                    )}
+                    {campAnimalColumnsVisible("castrated") && (
+                      <th className="p-3 text-left">{t("castrated")}</th>
+                    )}
+                    {campAnimalColumnsVisible("pregnant") && (
+                      <th className="p-3 text-left">{t("pregnant")}</th>
+                    )}
+                    {campAnimalColumnsVisible("sire") && (
+                      <th className="p-3 text-left">{t("sire")}</th>
+                    )}
+                    {campAnimalColumnsVisible("dam") && (
+                      <th className="p-3 text-left">{t("dam")}</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
-                  {camp.animals.map((animal) => (
-                    <tr key={animal.id} className="border-b hover:bg-muted/30">
-                      <td className="p-3">
-                        <Link
-                          href={`/animals/${animal.id}`}
-                          className="text-primary hover:underline font-medium"
-                        >
-                          {animal.eartag}
-                        </Link>
-                      </td>
-                      <td className="p-3">{animal.breed}</td>
-                      <td className="p-3">
-                        <Badge variant="secondary">
-                          {animal.sex === "MALE"
-                            ? t("male")
-                            : animal.sex === "FEMALE"
-                              ? t("female")
-                              : t("unknownSex")}
-                        </Badge>
-                      </td>
-                      <td className="p-3">
-                        {animal.ageMonths != null
-                          ? `${Math.floor(animal.ageMonths / 12)}y ${animal.ageMonths % 12}mo`
-                          : "—"}
+                  {animalsLoading ? (
+                    <tr>
+                      <td className="p-3 text-muted-foreground" colSpan={13}>
+                        {t("loadingAnimals")}
                       </td>
                     </tr>
-                  ))}
+                  ) : campAnimals.length === 0 ? (
+                    <tr>
+                      <td className="p-3 text-muted-foreground" colSpan={13}>
+                        {t("noAnimalsMatch")}
+                      </td>
+                    </tr>
+                  ) : (
+                    campAnimals.map((animal) => {
+                      const lifecycle = lifecycleKind({
+                        sex: animal.sex,
+                        ageMonths: animal.ageMonths,
+                        isCastrated: animal.isCastrated,
+                      });
+                      return (
+                        <tr key={animal.id} className="border-b hover:bg-muted/30">
+                          {campAnimalColumnsVisible("eartag") && (
+                            <td className="p-3">
+                              <Link
+                                href={`/animals/${animal.id}`}
+                                className="text-primary hover:underline font-medium"
+                              >
+                                <EartagBadge
+                                  eartag={animal.eartag}
+                                  animalTagColor={animal.tagColor}
+                                  campTagColor={animal.camp?.tagColor ?? camp.tagColor}
+                                  defaultTagColor={defaultTagColor}
+                                  dob={animal.dateOfBirth ?? animal.dob}
+                                  ageMonths={animal.ageMonths}
+                                  yearColors={yearColors}
+                                  locale={locale}
+                                />
+                              </Link>
+                            </td>
+                          )}
+                          {campAnimalColumnsVisible("breed") && (
+                            <td className="p-3">{animal.breed}</td>
+                          )}
+                          {campAnimalColumnsVisible("sex") && (
+                            <td className="p-3">
+                              <Badge variant="secondary">
+                                {animal.sex === "MALE"
+                                  ? t("male")
+                                  : animal.sex === "FEMALE"
+                                    ? t("female")
+                                    : t("unknownSex")}
+                              </Badge>
+                            </td>
+                          )}
+                          {campAnimalColumnsVisible("type") && (
+                            <td className="p-3 text-muted-foreground">
+                              {t(lifecycleLabelKey(lifecycle))}
+                            </td>
+                          )}
+                          {campAnimalColumnsVisible("status") && (
+                            <td className="p-3">
+                              <Badge variant="outline">
+                                {animal.status === "ACTIVE"
+                                  ? t("statusActive")
+                                  : animal.status === "QUARANTINE"
+                                    ? t("quarantine")
+                                    : animal.status === "MISSING"
+                                      ? t("statusMissing")
+                                      : animal.status === "SOLD"
+                                        ? t("statusSold")
+                                        : t("statusDeceased")}
+                              </Badge>
+                            </td>
+                          )}
+                          {campAnimalColumnsVisible("age") && (
+                            <td className="p-3">
+                              {animal.ageMonths != null
+                                ? `${Math.floor(animal.ageMonths / 12)}y ${animal.ageMonths % 12}mo`
+                                : "—"}
+                            </td>
+                          )}
+                          {campAnimalColumnsVisible("rfid") && (
+                            <td className="p-3 font-mono text-xs">
+                              {animal.rfidChip || "—"}
+                            </td>
+                          )}
+                          {campAnimalColumnsVisible("herdPlan") && (
+                            <td className="p-3">
+                              {animal.herdPlan && animal.herdPlan !== "EXCLUDED" ? (
+                                <Badge variant={herdPlanBadgeVariant(animal.herdPlan)}>
+                                  {t(herdPlanLabelKey(animal.herdPlan))}
+                                </Badge>
+                              ) : (
+                                "—"
+                              )}
+                            </td>
+                          )}
+                          {campAnimalColumnsVisible("owner") && (
+                            <td className="p-3">{animal.owner?.name || "—"}</td>
+                          )}
+                          {campAnimalColumnsVisible("dob") && (
+                            <td className="p-3">
+                              {animal.dateOfBirth ?? animal.dob ?? "—"}
+                            </td>
+                          )}
+                          {campAnimalColumnsVisible("castrated") && (
+                            <td className="p-3">
+                              {animal.sex === "MALE"
+                                ? animal.isCastrated
+                                  ? t("yes")
+                                  : t("no")
+                                : "—"}
+                            </td>
+                          )}
+                          {campAnimalColumnsVisible("pregnant") && (
+                            <td className="p-3">
+                              {animal.sex === "FEMALE"
+                                ? animal.isPregnant
+                                  ? t("yes")
+                                  : t("no")
+                                : "—"}
+                            </td>
+                          )}
+                          {campAnimalColumnsVisible("sire") && (
+                            <td className="p-3">{animal.sire?.eartag || "—"}</td>
+                          )}
+                          {campAnimalColumnsVisible("dam") && (
+                            <td className="p-3">{animal.dam?.eartag || "—"}</td>
+                          )}
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
-            <ListPagination
-              total={animalTotal}
-              limit={DEFAULT_PAGE_SIZE}
-              offset={animalsOffset}
-              loading={animalsLoading}
-              onPrev={() =>
-                load(Math.max(0, animalsOffset - DEFAULT_PAGE_SIZE), {
-                  soft: true,
-                })
-              }
-              onNext={() =>
-                load(animalsOffset + DEFAULT_PAGE_SIZE, { soft: true })
-              }
-            />
+            </div>
           </>
         )}
       </div>
@@ -803,6 +1424,15 @@ export default function CampDetailPage() {
           </div>
         </OptionalSection>
       )}
+
+      <CustomizeColumnsPanel
+        open={animalsColumnsOpen}
+        onClose={() => setAnimalsColumnsOpen(false)}
+        storageKey={CAMP_ANIMAL_COLUMN_STORAGE_KEY}
+        value={animalColumns}
+        onChange={setAnimalColumns}
+        variant="bulkSale"
+      />
     </div>
   );
 }
