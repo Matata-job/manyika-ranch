@@ -13,6 +13,7 @@ import { ArrowLeft } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { parseAnimalsList } from "@/lib/animals-api";
+import { SuccessDialog } from "@/components/success-dialog";
 
 function treatmentTypeKey(type: string): TranslationKey {
   switch (type) {
@@ -93,7 +94,11 @@ export default function BulkTreatmentPage() {
       .then((d) => setSchedules(Array.isArray(d) ? d : []));
   }, []);
 
-  async function loadAnimals(nextCampId: string, nextSex: string) {
+  async function loadAnimals(
+    nextCampId: string,
+    nextSex: string,
+    autoSelectAll = true
+  ) {
     if (!nextCampId) {
       setAnimals([]);
       setSelected(new Set());
@@ -111,7 +116,7 @@ export default function BulkTreatmentPage() {
       (a) => a.status === "ACTIVE" || a.status === "QUARANTINE"
     );
     setAnimals(list);
-    setSelected(new Set(list.map((a) => a.id)));
+    setSelected(autoSelectAll ? new Set(list.map((a) => a.id)) : new Set());
     setLoadingAnimals(false);
   }
 
@@ -197,6 +202,8 @@ export default function BulkTreatmentPage() {
       date: "",
       notes: "",
     });
+    setSelected(new Set());
+    if (campId) loadAnimals(campId, sex, false);
   }
 
   return (
@@ -219,16 +226,20 @@ export default function BulkTreatmentPage() {
       </div>
 
       {result && (
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm">
+        <SuccessDialog
+          open
+          title={t("bulkTreatmentSuccessTitle")}
+          message={
+            <>
               {t("appliedToN", { n: result.applied })}
               {result.skipped > 0 && (
                 <> · {t("skippedInaccessible", { n: result.skipped })}</>
               )}
-            </p>
-          </CardContent>
-        </Card>
+            </>
+          }
+          closeLabel={t("ok")}
+          onClose={() => setResult(null)}
+        />
       )}
 
       <Card>

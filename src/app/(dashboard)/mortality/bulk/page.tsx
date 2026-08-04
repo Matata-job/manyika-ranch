@@ -18,6 +18,7 @@ import { ArrowLeft } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 import { AnimalActivityPicker } from "@/components/animals/animal-activity-picker";
 import { DeathCausePicker } from "@/components/animals/death-cause-picker";
+import { SuccessDialog } from "@/components/success-dialog";
 import {
   deathCauseKey,
   DISPOSAL_METHODS,
@@ -108,6 +109,19 @@ export default function DeadAnimalRecordPage() {
       isCulling: data.isCulling,
     });
     setSelected(new Set());
+    setCauseValue("CULLING");
+    setForm({
+      date: "",
+      causeDetail: "",
+      disposalMethod: "BURIED",
+      disposalNotes: "",
+      location: "",
+      notes: "",
+      isCulling: true,
+      insuranceClaim: false,
+      claimAmountTzs: "",
+      claimReference: "",
+    });
     setStep("select");
   }
 
@@ -131,18 +145,22 @@ export default function DeadAnimalRecordPage() {
       </div>
 
       {result && (
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm">
+        <SuccessDialog
+          open
+          title={t("bulkMortalitySuccessTitle")}
+          message={
+            <>
               {result.isCulling
                 ? t("bulkCullResult", { n: result.recorded })
                 : t("bulkDeathResult", { n: result.recorded })}
               {result.skipped > 0 && (
                 <> · {t("skippedInaccessible", { n: result.skipped })}</>
               )}
-            </p>
-          </CardContent>
-        </Card>
+            </>
+          }
+          closeLabel={t("ok")}
+          onClose={() => setResult(null)}
+        />
       )}
 
       {step === "select" ? (
