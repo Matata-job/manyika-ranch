@@ -220,8 +220,9 @@ export function CampMapPanel({
           centroid || (Number.isFinite(pinLat) && Number.isFinite(pinLng))
             ? 15
             : 9,
-        zoomControl: true,
+        zoomControl: false,
       });
+      L.control.zoom({ position: "topright" }).addTo(map);
 
       const imagery = L.tileLayer(
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
@@ -444,7 +445,7 @@ export function CampMapPanel({
           </div>
         )}
 
-        <div className="absolute left-3 top-3 z-[1000] max-w-[min(100%-1.5rem,16rem)] rounded-lg border border-white/20 bg-stone-950/75 px-3 py-2 text-xs text-stone-100 backdrop-blur-sm shadow-lg">
+        <div className="pointer-events-none absolute inset-x-3 bottom-3 z-[1000] max-w-[min(100%-1.5rem,18rem)] rounded-lg border border-white/20 bg-stone-950/75 px-3 py-2 text-xs text-stone-100 backdrop-blur-sm shadow-lg">
           <p className="font-medium tracking-wide">
             {!disabled
               ? mode === "pin"
@@ -463,13 +464,6 @@ export function CampMapPanel({
                 ? t("campBoundaryDraft", { n: draftCount })
                 : t("campBoundaryEmpty")}
           </p>
-          {acres != null && (
-            <p className="mt-1.5 font-semibold text-amber-200">
-              {t("campBoundaryAcresEstimate", {
-                acres: formatAcresEstimate(acres),
-              })}
-            </p>
-          )}
         </div>
       </div>
 
