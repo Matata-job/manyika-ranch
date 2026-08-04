@@ -14,20 +14,40 @@ export type AnimalColumnId =
   | "type"
   | "status"
   | "camp"
-  | "age";
+  | "age"
+  | "rfid"
+  | "herdPlan"
+  | "owner"
+  | "dob"
+  | "castrated"
+  | "pregnant"
+  | "sire"
+  | "dam";
 
-export const ANIMAL_COLUMN_DEFS: {
+type ColumnLabelKey =
+  | "eartag"
+  | "breed"
+  | "sex"
+  | "lifecycleType"
+  | "status"
+  | "camp"
+  | "age"
+  | "rfidChip"
+  | "herdPlan"
+  | "owner"
+  | "dob"
+  | "castrated"
+  | "pregnant"
+  | "sire"
+  | "dam";
+
+export type ColumnDef = {
   id: AnimalColumnId;
-  labelKey:
-    | "eartag"
-    | "breed"
-    | "sex"
-    | "lifecycleType"
-    | "status"
-    | "camp"
-    | "age";
+  labelKey: ColumnLabelKey;
   locked?: boolean;
-}[] = [
+};
+
+export const ANIMAL_COLUMN_DEFS: ColumnDef[] = [
   { id: "eartag", labelKey: "eartag", locked: true },
   { id: "breed", labelKey: "breed" },
   { id: "sex", labelKey: "sex" },
@@ -36,6 +56,28 @@ export const ANIMAL_COLUMN_DEFS: {
   { id: "camp", labelKey: "camp" },
   { id: "age", labelKey: "age" },
 ];
+
+export const BULK_SALE_EXTRA_COLUMN_DEFS: ColumnDef[] = [
+  { id: "rfid", labelKey: "rfidChip" },
+  { id: "herdPlan", labelKey: "herdPlan" },
+  { id: "owner", labelKey: "owner" },
+  { id: "dob", labelKey: "dob" },
+  { id: "castrated", labelKey: "castrated" },
+  { id: "pregnant", labelKey: "pregnant" },
+  { id: "sire", labelKey: "sire" },
+  { id: "dam", labelKey: "dam" },
+];
+
+export const BULK_SALE_COLUMN_DEFS: ColumnDef[] = [
+  ...ANIMAL_COLUMN_DEFS,
+  ...BULK_SALE_EXTRA_COLUMN_DEFS,
+];
+
+export type ColumnVariant = "picker" | "bulkSale";
+
+export function columnDefsFor(variant: ColumnVariant = "picker"): ColumnDef[] {
+  return variant === "bulkSale" ? BULK_SALE_COLUMN_DEFS : ANIMAL_COLUMN_DEFS;
+}
 
 const DEFAULT_VISIBLE: AnimalColumnId[] = [
   "eartag",
@@ -46,19 +88,35 @@ const DEFAULT_VISIBLE: AnimalColumnId[] = [
   "camp",
 ];
 
-export function loadColumnPrefs(storageKey: string): AnimalColumnId[] {
-  if (typeof window === "undefined") return DEFAULT_VISIBLE;
+const DEFAULT_BULK_SALE_VISIBLE: AnimalColumnId[] = [
+  "eartag",
+  "breed",
+  "sex",
+  "type",
+  "camp",
+  "herdPlan",
+  "age",
+];
+
+export function loadColumnPrefs(
+  storageKey: string,
+  variant: ColumnVariant = "picker"
+): AnimalColumnId[] {
+  const defs = columnDefsFor(variant);
+  const fallback =
+    variant === "bulkSale" ? DEFAULT_BULK_SALE_VISIBLE : DEFAULT_VISIBLE;
+  if (typeof window === "undefined") return fallback;
   try {
     const raw = localStorage.getItem(storageKey);
-    if (!raw) return DEFAULT_VISIBLE;
+    if (!raw) return fallback;
     const parsed = JSON.parse(raw) as string[];
     const valid = parsed.filter((id): id is AnimalColumnId =>
-      ANIMAL_COLUMN_DEFS.some((d) => d.id === id)
+      defs.some((d) => d.id === id)
     );
     if (!valid.includes("eartag")) valid.unshift("eartag");
-    return valid.length ? valid : DEFAULT_VISIBLE;
+    return valid.length ? valid : fallback;
   } catch {
-    return DEFAULT_VISIBLE;
+    return fallback;
   }
 }
 
@@ -76,16 +134,21 @@ export function CustomizeColumnsPanel({
   storageKey,
   value,
   onChange,
+  variant = "picker",
 }: {
   open: boolean;
   onClose: () => void;
   storageKey: string;
   value: AnimalColumnId[];
   onChange: (cols: AnimalColumnId[]) => void;
+  variant?: ColumnVariant;
 }) {
   const t = useT();
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState(value);
+  const defs = columnDefsFor(variant);
+  const defaultVisible =
+    variant === "bulkSale" ? DEFAULT_BULK_SALE_VISIBLE : DEFAULT_VISIBLE;
 
   useEffect(() => {
     if (open) setDraft(value);
@@ -93,11 +156,9 @@ export function CustomizeColumnsPanel({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return ANIMAL_COLUMN_DEFS;
-    return ANIMAL_COLUMN_DEFS.filter((d) =>
-      t(d.labelKey).toLowerCase().includes(q)
-    );
-  }, [query, t]);
+    if (!q) return defs;
+    return defs.filter((d) => t(d.labelKey).toLowerCase().includes(q));
+  }, [query, t, defs]);
 
   if (!open) return null;
 
@@ -180,16 +241,14 @@ export function CustomizeColumnsPanel({
             <button
               type="button"
               className="text-muted-foreground hover:text-foreground"
-              onClick={() => setDraft(DEFAULT_VISIBLE)}
+              onClick={() => setDraft(defaultVisible)}
             >
               {t("reset")}
             </button>
             <button
               type="button"
               className="text-muted-foreground hover:text-foreground"
-              onClick={() =>
-                setDraft(ANIMAL_COLUMN_DEFS.map((d) => d.id))
-              }
+              onClick={() => setDraft(defs.map((d) => d.id))}
             >
               {t("selectAll")}
             </button>

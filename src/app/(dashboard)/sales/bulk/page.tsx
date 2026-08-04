@@ -15,27 +15,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
-import { parseAnimalsList } from "@/lib/animals-api";
 import { formatCurrency } from "@/lib/utils";
 import { SuccessDialog } from "@/components/success-dialog";
+import { BulkSaleAnimalPicker } from "@/components/animals/bulk-sale-animal-picker";
 
 interface Camp {
   id: string;
   name: string;
-}
-
-interface AnimalRow {
-  id: string;
-  eartag: string;
-  breed: string;
-  sex: string;
-  status: string;
-  herdPlan?: "EXCLUDED" | "KEEP_BREEDING" | "SELL_NEXT_CYCLE";
-  herdPlanNote?: string | null;
-  camp?: { id: string; name: string };
 }
 
 interface Buyer {
@@ -43,8 +31,6 @@ interface Buyer {
   name: string;
   phone: string | null;
 }
-
-const MAX_SALE_CAMPS = 5;
 
 function BulkSalePageContent() {
   const t = useT();
@@ -55,11 +41,9 @@ function BulkSalePageContent() {
   const [camps, setCamps] = useState<Camp[]>([]);
   const [buyers, setBuyers] = useState<Buyer[]>([]);
   const [campIds, setCampIds] = useState<string[]>([]);
-  const [sex, setSex] = useState("all");
   const [onlyMarked, setOnlyMarked] = useState(preferSellNext);
-  const [animals, setAnimals] = useState<AnimalRow[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [loadingAnimals, setLoadingAnimals] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
   const [saving, setSaving] = useState(false);
   const [showExtras, setShowExtras] = useState(false);
   const [buyerMode, setBuyerMode] = useState<"existing" | "new">("existing");
@@ -94,105 +78,6 @@ function BulkSalePageContent() {
       .then((r) => (r.ok ? r.json() : []))
       .then((d) => setBuyers(Array.isArray(d) ? d : d.buyers || []));
   }, []);
-
-  function toggleCamp(id: string) {
-    setCampIds((prev) => {
-      if (prev.includes(id)) return prev.filter((c) => c !== id);
-      if (prev.length >= MAX_SALE_CAMPS) {
-        window.alert(t("bulkSaleMaxCamps", { n: MAX_SALE_CAMPS }));
-        return prev;
-      }
-      return [...prev, id];
-    });
-    setResult(null);
-  }
-
-  async function loadAnimals(
-    nextCampIds: string[],
-    nextSex: string,
-    markedOnly: boolean,
-    autoSelectAll = true
-  ) {
-    setLoadingAnimals(true);
-    const params = new URLSearchParams({
-      limit: "5000",
-      status: "ACTIVE",
-    });
-    if (nextSex !== "all") params.set("sex", nextSex);
-    if (markedOnly) params.set("herdPlan", "SELL_NEXT_CYCLE");
-
-    let list: AnimalRow[] = [];
-
-    if (markedOnly && nextCampIds.length === 0) {
-      const res = await fetch(`/api/animals?${params}`);
-      const data = res.ok ? await res.json() : null;
-      list = parseAnimalsList<AnimalRow>(data);
-    } else {
-      const results = await Promise.all(
-        nextCampIds.map(async (campId) => {
-          const campParams = new URLSearchParams(params);
-          campParams.set("camp", campId);
-          const res = await fetch(`/api/animals?${campParams}`);
-          const data = res.ok ? await res.json() : null;
-          return parseAnimalsList<AnimalRow>(data);
-        })
-      );
-      const byId = new Map<string, AnimalRow>();
-      for (const rows of results) {
-        for (const row of rows) {
-          if (!byId.has(row.id)) byId.set(row.id, row);
-        }
-      }
-      list = [...byId.values()].sort((a, b) =>
-        a.eartag.localeCompare(b.eartag, undefined, { numeric: true })
-      );
-    }
-
-    list = list.filter(
-      (a) =>
-        a.status === "ACTIVE" ||
-        a.status === "QUARANTINE" ||
-        a.status === "MISSING"
-    );
-    setAnimals(list);
-    setSelected(
-      autoSelectAll && markedOnly
-        ? new Set(list.map((a) => a.id))
-        : new Set()
-    );
-    setLoadingAnimals(false);
-  }
-
-  useEffect(() => {
-    if (onlyMarked || campIds.length > 0) {
-      loadAnimals(campIds, sex, onlyMarked);
-    } else {
-      setAnimals([]);
-      setSelected(new Set());
-    }
-  }, [campIds, sex, onlyMarked]);
-
-  const allSelected = animals.length > 0 && selected.size === animals.length;
-  const someSelected = selected.size > 0 && selected.size < animals.length;
-
-  function toggleAll() {
-    if (allSelected) setSelected(new Set());
-    else setSelected(new Set(animals.map((a) => a.id)));
-  }
-
-  function toggleOne(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  const selectedLabel = useMemo(
-    () => t("selectedOf", { selected: selected.size, total: animals.length }),
-    [selected.size, animals.length, t]
-  );
 
   const previewPrice = useMemo(() => {
     const n = selected.size;
@@ -286,7 +171,7 @@ function BulkSalePageContent() {
     setBuyerMode("existing");
     setShowExtras(false);
     setSelected(new Set());
-    loadAnimals(campIds, sex, onlyMarked, false);
+    setReloadToken((n) => n + 1);
     if (buyerMode === "new") {
       fetch("/api/buyers")
         .then((r) => (r.ok ? r.json() : []))
@@ -295,7 +180,7 @@ function BulkSalePageContent() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 max-w-5xl">
       <div>
         <Link
           href="/sales"
@@ -332,112 +217,20 @@ function BulkSalePageContent() {
         <CardHeader>
           <CardTitle>{t("chooseAnimals")}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <input
-              type="checkbox"
-              checked={onlyMarked}
-              onChange={(e) => {
-                setOnlyMarked(e.target.checked);
-                setResult(null);
-              }}
-            />
-            {t("onlyMarkedForSale")}
-          </label>
-          <div className="space-y-2">
-            <Label>
-              {t("camp")}
-              {!onlyMarked ? " *" : ""}
-            </Label>
-            <p className="text-xs text-muted-foreground">
-              {onlyMarked
-                ? t("optionalCampsOrAll", { n: MAX_SALE_CAMPS })
-                : t("selectCampsUpTo", { n: MAX_SALE_CAMPS })}
-              {!onlyMarked && campIds.length > 0 && (
-                <> · {campIds.length}/{MAX_SALE_CAMPS}</>
-              )}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {camps.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => toggleCamp(c.id)}
-                  className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
-                    campIds.includes(c.id)
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background hover:bg-muted border-border"
-                  }`}
-                >
-                  {c.name}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>{t("sexFilter")}</Label>
-            <Select value={sex} onValueChange={setSex}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("all")}</SelectItem>
-                <SelectItem value="MALE">{t("male")}</SelectItem>
-                <SelectItem value="FEMALE">{t("female")}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {!onlyMarked && campIds.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("selectCampLoad")}</p>
-          ) : loadingAnimals ? (
-            <p className="text-sm text-muted-foreground">{t("loadingAnimals")}</p>
-          ) : animals.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {onlyMarked ? t("noMarkedForSale") : t("noActiveAnimalsInCamps")}
-            </p>
-          ) : (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm font-medium">
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    ref={(el) => {
-                      if (el) el.indeterminate = someSelected;
-                    }}
-                    onChange={toggleAll}
-                  />
-                  {t("selectAll")}
-                </label>
-                <Badge variant="secondary">{selectedLabel}</Badge>
-              </div>
-              <div className="rounded-lg border max-h-72 overflow-y-auto divide-y">
-                {animals.map((a) => (
-                  <label
-                    key={a.id}
-                    className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-muted/50 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected.has(a.id)}
-                      onChange={() => toggleOne(a.id)}
-                    />
-                    <span className="font-medium">{a.eartag}</span>
-                    <span className="text-muted-foreground">
-                      {a.breed} · {a.sex}
-                      {a.camp?.name ? ` · ${a.camp.name}` : ""}
-                    </span>
-                    {a.herdPlan === "SELL_NEXT_CYCLE" && (
-                      <Badge variant="warning" className="ml-auto shrink-0">
-                        {t("herdPlanSellNextCycle")}
-                      </Badge>
-                    )}
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
+        <CardContent>
+          <BulkSaleAnimalPicker
+            selected={selected}
+            onSelectedChange={setSelected}
+            campIds={campIds}
+            onCampIdsChange={setCampIds}
+            camps={camps}
+            onlyMarked={onlyMarked}
+            onOnlyMarkedChange={(value) => {
+              setOnlyMarked(value);
+              setResult(null);
+            }}
+            reloadToken={reloadToken}
+          />
         </CardContent>
       </Card>
 
