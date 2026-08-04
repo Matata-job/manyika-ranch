@@ -569,7 +569,7 @@ const en = {
   filters: "Filters",
   eartagColor: "Ear tag colour",
   eartagColorFilterHelp:
-    "Filter by the colour shown on each animal (animal override → birth year → camp → ranch default). Set colours under Settings → Ranch, or on each camp / animal.",
+    "Shown colour priority: animal → birth year → camp → ranch default.",
   clearAll: "Clear all",
   reset: "Reset",
   allBreeds: "All breeds",
@@ -1624,7 +1624,7 @@ const sw: Dict = {
   filters: "Vichungi",
   eartagColor: "Rangi ya lebo",
   eartagColorFilterHelp:
-    "Chuja kwa rangi inayoonekana kwenye mnyama (badilisho la mnyama → mwaka wa kuzaliwa → kambi → chaguo-msingi la shamba). Weka rangi kwenye Mipangilio → Shamba, au kwenye kambi / mnyama.",
+    "Mpangilio wa rangi inayoonekana: mnyama → mwaka wa kuzaliwa → kambi → chaguo-msingi la shamba.",
   clearAll: "Futa yote",
   reset: "Weka upya",
   allBreeds: "Mifugo yote",
