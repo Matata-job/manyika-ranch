@@ -74,6 +74,10 @@ const en = {
     "Open an animal for details, or register a new one. Use filters to narrow the herd.",
   campsListHelp:
     "Open a camp for herd counts, notes, and register animals into that camp.",
+  campsListCount: "{n} camp(s)",
+  campsAssignedToYou: "assigned to you",
+  campsAcrossRanch: "across the ranch",
+  noSupervisorAssigned: "No supervisor assigned",
 
   // Roles
   roleOWNER: "Owner",
@@ -1201,6 +1205,10 @@ const sw: Dict = {
     "Fungua mnyama kwa maelezo, au sajili mpya. Tumia vichujio kupunguza orodha.",
   campsListHelp:
     "Fungua kambi kwa hesabu, maelezo, na usajili wanyama kwenye kambi hiyo.",
+  campsListCount: "kambi {n}",
+  campsAssignedToYou: "ulizopangiwa",
+  campsAcrossRanch: "katika shamba lote",
+  noSupervisorAssigned: "Hakuna msimamizi aliyepewa",
 
   roleOWNER: "Mmiliki",
   roleFARM_MANAGER: "Meneja wa Shamba",
