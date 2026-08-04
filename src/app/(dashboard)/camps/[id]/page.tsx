@@ -163,6 +163,15 @@ const CAMP_ANIMAL_FILTERS_DEFAULT: CampAnimalFilters = {
 
 const CAMP_ANIMAL_COLUMN_STORAGE_KEY = "manyika.campAnimals.columns";
 
+type AgeMode =
+  | "all"
+  | "calf"
+  | "yearling"
+  | "adult"
+  | "mature"
+  | "months"
+  | "born";
+
 export default function CampDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -187,6 +196,7 @@ export default function CampDetailPage() {
   const [animalFilters, setAnimalFilters] = useState<CampAnimalFilters>(
     CAMP_ANIMAL_FILTERS_DEFAULT
   );
+  const [ageFilterMode, setAgeFilterMode] = useState<AgeMode>("all");
   const [breeds, setBreeds] = useState<string[]>([]);
   const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
   const [yearColors, setYearColors] = useState<Record<string, string>>({});
@@ -266,6 +276,59 @@ export default function CampDetailPage() {
       setAnimalsLoading(false);
     }
   }, [animalFilters, camp?.tagColor, defaultTagColor, id, yearColors]);
+
+  function applyAgeFilterMode(mode: AgeMode) {
+    setAgeFilterMode(mode);
+    setAnimalFilters((prev) => {
+      const next: CampAnimalFilters = {
+        ...prev,
+        ageGroup: "all",
+        ageMinMonths: "",
+        ageMaxMonths: "",
+        dobFrom: "",
+        dobTo: "",
+      };
+      if (
+        mode === "calf" ||
+        mode === "yearling" ||
+        mode === "adult" ||
+        mode === "mature"
+      ) {
+        next.ageGroup = mode;
+      }
+      return next;
+    });
+  }
+
+  function updateAnimalFilter<K extends keyof CampAnimalFilters>(
+    key: K,
+    value: CampAnimalFilters[K]
+  ) {
+    setAnimalFilters((prev) => {
+      const next = { ...prev, [key]: value };
+      if (key === "ageMinMonths" || key === "ageMaxMonths") {
+        next.ageGroup = "all";
+      }
+      if (key === "dobFrom" || key === "dobTo") {
+        next.ageGroup = "all";
+        next.ageMinMonths = "";
+        next.ageMaxMonths = "";
+      }
+      return next;
+    });
+    if (key === "ageMinMonths" || key === "ageMaxMonths") {
+      setAgeFilterMode("months");
+    }
+    if (key === "dobFrom" || key === "dobTo") {
+      setAgeFilterMode("born");
+    }
+  }
+
+  function clearCampAnimalFilters() {
+    setAnimalsSearch("");
+    setAnimalFilters(CAMP_ANIMAL_FILTERS_DEFAULT);
+    setAgeFilterMode("all");
+  }
 
   const load = useCallback(
     async () => {
@@ -616,9 +679,12 @@ export default function CampDetailPage() {
                     )}
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2 shrink-0">
+                <div className="flex flex-col sm:flex-row flex-wrap gap-2 shrink-0 w-full sm:w-auto">
                   {canRegister && camp.isActive !== false && (
-                    <Button asChild>
+                    <Button
+                      asChild
+                      className="w-full sm:w-auto bg-foreground text-background hover:bg-foreground/90"
+                    >
                       <Link href={registerHref}>
                         <Plus className="h-4 w-4 mr-2" />
                         {t("registerAnimal")}
@@ -834,35 +900,42 @@ export default function CampDetailPage() {
               ({animalTotal})
             </span>
           </h2>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setAnimalsColumnsOpen(true)}
-            >
-              <Columns3 className="h-4 w-4 mr-1.5" />
-              {t("columnsCount", { n: animalColumns.length })}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className={cn(
-                animalsFiltersOpen && "border-foreground/40 bg-muted/40"
-              )}
-              onClick={() => setAnimalsFiltersOpen((v) => !v)}
-            >
-              <Filter className="h-4 w-4 mr-1.5" />
-              {t("filters")}
-              {campAnimalFilterCount > 0 && (
-                <Badge variant="secondary" className="ml-1.5">
-                  {campAnimalFilterCount}
-                </Badge>
-              )}
-            </Button>
+          <div className="flex flex-col-reverse sm:flex-row gap-2 w-full sm:w-auto">
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="flex-1 sm:flex-none h-10 rounded-lg"
+                onClick={() => setAnimalsColumnsOpen(true)}
+              >
+                <Columns3 className="h-4 w-4 mr-1.5" />
+                {t("columnsCount", { n: animalColumns.length })}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "flex-1 sm:flex-none h-10 rounded-lg",
+                  animalsFiltersOpen && "border-foreground/40 bg-muted/40"
+                )}
+                onClick={() => setAnimalsFiltersOpen((v) => !v)}
+              >
+                <Filter className="h-4 w-4 mr-1.5" />
+                {t("filters")}
+                {campAnimalFilterCount > 0 && (
+                  <Badge variant="secondary" className="ml-1.5">
+                    {campAnimalFilterCount}
+                  </Badge>
+                )}
+              </Button>
+            </div>
             {canRegister && (
-              <Button asChild variant="outline" size="sm">
+              <Button
+                asChild
+                className="w-full sm:w-auto h-10 rounded-lg bg-foreground text-background hover:bg-foreground/90"
+              >
                 <Link href={registerHref}>
                   <Plus className="h-4 w-4 mr-2" />
                   {t("registerAnimal")}
@@ -897,9 +970,11 @@ export default function CampDetailPage() {
               </div>
 
               {animalsFiltersOpen && (
-                <div className="rounded-lg border bg-muted/20 p-4 space-y-4">
-                  <div className="space-y-2">
-                    <Label>{t("eartagColor")}</Label>
+                <div className="rounded-xl border border-border/80 bg-card shadow-sm p-5 space-y-6">
+                  <section className="space-y-2.5">
+                    <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {t("eartagColor")}
+                    </Label>
                     <TagColorFilter
                       value={animalFilters.tagColor}
                       onChange={(code) =>
@@ -908,57 +983,65 @@ export default function CampDetailPage() {
                           tagColor: code || null,
                         }))
                       }
+                      showHelp={false}
                     />
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>{t("sex")}</Label>
-                      <ChoicePills
-                        options={[
-                          { value: "all", label: t("allSexes") },
-                          { value: "MALE", label: t("male") },
-                          { value: "FEMALE", label: t("female") },
-                          { value: "UNKNOWN", label: t("unknownSex") },
-                        ]}
-                        value={animalFilters.sex}
-                        onChange={(value) =>
-                          setAnimalFilters((prev) => ({
-                            ...prev,
-                            sex: value,
-                            castrated: value === "MALE" ? prev.castrated : "all",
-                            pregnant: value === "FEMALE" ? prev.pregnant : "all",
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>{t("status")}</Label>
-                      <ChoicePills
-                        options={[
-                          { value: "all", label: t("allStatuses") },
-                          { value: "ACTIVE", label: t("statusActive") },
-                          { value: "QUARANTINE", label: t("quarantine") },
-                          { value: "MISSING", label: t("statusMissing") },
-                          { value: "SOLD", label: t("statusSold") },
-                          { value: "DECEASED", label: t("statusDeceased") },
-                        ]}
-                        value={animalFilters.status}
-                        onChange={(value) =>
-                          setAnimalFilters((prev) => ({ ...prev, status: value }))
-                        }
-                      />
-                    </div>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>{t("breed")}</Label>
+                  </section>
+
+                  <section className="space-y-2.5">
+                    <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {t("sex")}
+                    </Label>
+                    <ChoicePills
+                      options={[
+                        { value: "all", label: t("allSexes") },
+                        { value: "MALE", label: t("male") },
+                        { value: "FEMALE", label: t("female") },
+                        { value: "UNKNOWN", label: t("unknownSex") },
+                      ]}
+                      value={animalFilters.sex}
+                      onChange={(value) =>
+                        setAnimalFilters((prev) => ({
+                          ...prev,
+                          sex: value,
+                          castrated: value === "MALE" ? prev.castrated : "all",
+                          pregnant: value === "FEMALE" ? prev.pregnant : "all",
+                        }))
+                      }
+                    />
+                  </section>
+
+                  <section className="space-y-2.5">
+                    <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {t("status")}
+                    </Label>
+                    <ChoicePills
+                      options={[
+                        { value: "all", label: t("allStatuses") },
+                        { value: "ACTIVE", label: t("statusActive") },
+                        { value: "QUARANTINE", label: t("quarantine") },
+                        { value: "MISSING", label: t("statusMissing") },
+                        { value: "SOLD", label: t("statusSold") },
+                        { value: "DECEASED", label: t("statusDeceased") },
+                      ]}
+                      value={animalFilters.status}
+                      onChange={(value) =>
+                        setAnimalFilters((prev) => ({ ...prev, status: value }))
+                      }
+                    />
+                  </section>
+
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <section className="space-y-2.5">
+                      <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {t("breed")}
+                      </Label>
                       <Select
                         value={animalFilters.breed}
                         onValueChange={(value) =>
                           setAnimalFilters((prev) => ({ ...prev, breed: value }))
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="h-10 rounded-lg">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -970,16 +1053,18 @@ export default function CampDetailPage() {
                           ))}
                         </SelectContent>
                       </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>{t("owner")}</Label>
+                    </section>
+                    <section className="space-y-2.5">
+                      <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {t("owner")}
+                      </Label>
                       <Select
                         value={animalFilters.owner}
                         onValueChange={(value) =>
                           setAnimalFilters((prev) => ({ ...prev, owner: value }))
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="h-10 rounded-lg">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -991,17 +1076,27 @@ export default function CampDetailPage() {
                           ))}
                         </SelectContent>
                       </Select>
-                    </div>
+                    </section>
                   </div>
-                  <HerdPlanFilter
-                    value={animalFilters.herdPlan}
-                    onChange={(value) =>
-                      setAnimalFilters((prev) => ({ ...prev, herdPlan: value }))
-                    }
-                  />
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>{t("castrated")}</Label>
+
+                  <section className="space-y-2.5">
+                    <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {t("herdPlan")}
+                    </Label>
+                    <HerdPlanFilter
+                      value={animalFilters.herdPlan}
+                      onChange={(value) =>
+                        setAnimalFilters((prev) => ({ ...prev, herdPlan: value }))
+                      }
+                      label={false}
+                    />
+                  </section>
+
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <section className="space-y-2.5">
+                      <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {t("castrated")}
+                      </Label>
                       <ChoicePills
                         options={[
                           { value: "all", label: t("all") },
@@ -1017,9 +1112,11 @@ export default function CampDetailPage() {
                           }))
                         }
                       />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>{t("pregnant")}</Label>
+                    </section>
+                    <section className="space-y-2.5">
+                      <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {t("pregnant")}
+                      </Label>
                       <ChoicePills
                         options={[
                           { value: "all", label: t("all") },
@@ -1035,10 +1132,13 @@ export default function CampDetailPage() {
                           }))
                         }
                       />
-                    </div>
+                    </section>
                   </div>
-                  <div className="space-y-2">
-                    <Label>{t("age")}</Label>
+
+                  <section className="space-y-2.5">
+                    <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {t("ageFilter")}
+                    </Label>
                     <ChoicePills
                       options={[
                         { value: "all", label: t("allAges") },
@@ -1046,110 +1146,115 @@ export default function CampDetailPage() {
                         { value: "yearling", label: t("weaners") },
                         { value: "adult", label: t("adults") },
                         { value: "mature", label: t("ageMature") },
+                        { value: "months", label: t("ageModeMonths") },
+                        { value: "born", label: t("ageModeBorn") },
                       ]}
-                      value={animalFilters.ageGroup}
-                      onChange={(value) =>
-                        setAnimalFilters((prev) => ({
-                          ...prev,
-                          ageGroup: value,
-                          ageMinMonths: "",
-                          ageMaxMonths: "",
-                          dobFrom: "",
-                          dobTo: "",
-                        }))
-                      }
+                      value={ageFilterMode}
+                      onChange={applyAgeFilterMode}
                     />
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Input
-                        type="number"
-                        min={0}
-                        placeholder={t("ageMinMonths")}
-                        value={animalFilters.ageMinMonths}
-                        onChange={(e) =>
-                          setAnimalFilters((prev) => ({
-                            ...prev,
-                            ageMinMonths: e.target.value,
-                            ageGroup: "all",
-                          }))
-                        }
-                      />
-                      <Input
-                        type="number"
-                        min={0}
-                        placeholder={t("ageMaxMonths")}
-                        value={animalFilters.ageMaxMonths}
-                        onChange={(e) =>
-                          setAnimalFilters((prev) => ({
-                            ...prev,
-                            ageMaxMonths: e.target.value,
-                            ageGroup: "all",
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Input
-                        type="date"
-                        value={animalFilters.dobFrom}
-                        onChange={(e) =>
-                          setAnimalFilters((prev) => ({
-                            ...prev,
-                            dobFrom: e.target.value,
-                            ageGroup: "all",
-                          }))
-                        }
-                      />
-                      <Input
-                        type="date"
-                        value={animalFilters.dobTo}
-                        onChange={(e) =>
-                          setAnimalFilters((prev) => ({
-                            ...prev,
-                            dobTo: e.target.value,
-                            ageGroup: "all",
-                          }))
-                        }
-                      />
-                    </div>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>{t("sortBy")}</Label>
-                      <Select
-                        value={animalFilters.sort}
-                        onValueChange={(value) =>
-                          setAnimalFilters((prev) => ({ ...prev, sort: value }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="eartag_asc">{t("eartag")} A-Z</SelectItem>
-                          <SelectItem value="eartag_desc">{t("eartag")} Z-A</SelectItem>
-                          <SelectItem value="breed_asc">{t("breed")} A-Z</SelectItem>
-                          <SelectItem value="sex_asc">{t("sex")} A-Z</SelectItem>
-                          <SelectItem value="age_desc">{t("age")} ↓</SelectItem>
-                          <SelectItem value="age_asc">{t("age")} ↑</SelectItem>
-                          <SelectItem value="newest">Newest</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="flex justify-between">
+                    {ageFilterMode === "months" && (
+                      <div className="grid grid-cols-2 gap-3 pt-1">
+                        <div className="space-y-1.5">
+                          <p className="text-xs text-muted-foreground">
+                            {t("ageMinMonths")}
+                          </p>
+                          <Input
+                            type="number"
+                            min={0}
+                            className="h-10 rounded-lg"
+                            placeholder="0"
+                            value={animalFilters.ageMinMonths}
+                            onChange={(e) =>
+                              updateAnimalFilter("ageMinMonths", e.target.value)
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <p className="text-xs text-muted-foreground">
+                            {t("ageMaxMonths")}
+                          </p>
+                          <Input
+                            type="number"
+                            min={0}
+                            className="h-10 rounded-lg"
+                            placeholder="24"
+                            value={animalFilters.ageMaxMonths}
+                            onChange={(e) =>
+                              updateAnimalFilter("ageMaxMonths", e.target.value)
+                            }
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {ageFilterMode === "born" && (
+                      <div className="grid grid-cols-2 gap-3 pt-1">
+                        <div className="space-y-1.5">
+                          <p className="text-xs text-muted-foreground">
+                            {t("bornFrom")}
+                          </p>
+                          <Input
+                            type="date"
+                            className="h-10 rounded-lg"
+                            value={animalFilters.dobFrom}
+                            onChange={(e) =>
+                              updateAnimalFilter("dobFrom", e.target.value)
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <p className="text-xs text-muted-foreground">
+                            {t("bornTo")}
+                          </p>
+                          <Input
+                            type="date"
+                            className="h-10 rounded-lg"
+                            value={animalFilters.dobTo}
+                            onChange={(e) =>
+                              updateAnimalFilter("dobTo", e.target.value)
+                            }
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="space-y-2.5">
+                    <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {t("sortBy")}
+                    </Label>
+                    <Select
+                      value={animalFilters.sort}
+                      onValueChange={(value) =>
+                        setAnimalFilters((prev) => ({ ...prev, sort: value }))
+                      }
+                    >
+                      <SelectTrigger className="h-10 rounded-lg">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="eartag_asc">{t("eartag")} A-Z</SelectItem>
+                        <SelectItem value="eartag_desc">{t("eartag")} Z-A</SelectItem>
+                        <SelectItem value="breed_asc">{t("breed")} A-Z</SelectItem>
+                        <SelectItem value="sex_asc">{t("sex")} A-Z</SelectItem>
+                        <SelectItem value="age_desc">{t("age")} ↓</SelectItem>
+                        <SelectItem value="age_asc">{t("age")} ↑</SelectItem>
+                        <SelectItem value="newest">Newest</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </section>
+
+                  <div className="flex justify-between border-t pt-4">
                     <button
                       type="button"
                       className="text-sm text-muted-foreground hover:text-foreground"
-                      onClick={() => {
-                        setAnimalsSearch("");
-                        setAnimalFilters(CAMP_ANIMAL_FILTERS_DEFAULT);
-                      }}
+                      onClick={clearCampAnimalFilters}
                     >
                       {t("clearAll")}
                     </button>
                     <Button
                       type="button"
                       size="sm"
+                      className="rounded-lg"
                       onClick={() => setAnimalsFiltersOpen(false)}
                     >
                       {t("apply")}
