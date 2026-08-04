@@ -19,10 +19,12 @@ import {
   loadColumnPrefs,
   type AnimalColumnId,
 } from "@/components/animals/customize-columns";
+import { HerdPlanFilter } from "@/components/animals/herd-plan-filter";
 import { ChoicePills } from "@/components/choice-pills";
 import { useLocale, useT } from "@/components/providers/locale-provider";
 import { parseAnimalsList } from "@/lib/animals-api";
 import { lifecycleKind, lifecycleLabelKey } from "@/lib/lifecycle";
+import { herdPlanBadgeVariant, herdPlanLabelKey } from "@/lib/herd-plan";
 import { resolveTagColor } from "@/lib/tag-color";
 import { cn } from "@/lib/utils";
 import { Columns3, Filter, Search } from "lucide-react";
@@ -37,6 +39,8 @@ export type PickerAnimal = {
   dateOfBirth?: string | null;
   isCastrated?: boolean | null;
   tagColor?: string | null;
+  herdPlan?: "EXCLUDED" | "KEEP_BREEDING" | "SELL_NEXT_CYCLE" | "KULIMA";
+  herdPlanNote?: string | null;
   camp: { id: string; name: string; tagColor?: string | null };
 };
 
@@ -72,6 +76,7 @@ export function AnimalActivityPicker({
   const [breed, setBreed] = useState("all");
   const [status, setStatus] = useState(statusFilterDefault);
   const [tagColor, setTagColor] = useState<string | null>(null);
+  const [herdPlan, setHerdPlan] = useState("all");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [columnsOpen, setColumnsOpen] = useState(false);
   const [columns, setColumns] = useState<AnimalColumnId[]>(() =>
@@ -116,6 +121,7 @@ export function AnimalActivityPicker({
     if (status && status !== "ALL") params.set("status", status);
     if (search.trim()) params.set("search", search.trim());
     if (tagColor) params.set("tagColor", tagColor);
+    if (herdPlan !== "all") params.set("herdPlan", herdPlan);
     const res = await fetch(`/api/animals?${params}`);
     const data = res.ok ? await res.json() : null;
     let list = parseAnimalsList<PickerAnimal>(data);
@@ -145,6 +151,7 @@ export function AnimalActivityPicker({
     status,
     search,
     tagColor,
+    herdPlan,
     statusFilterDefault,
     defaultTagColor,
     yearColors,
@@ -164,8 +171,9 @@ export function AnimalActivityPicker({
     if (breed !== "all") n += 1;
     if (status !== statusFilterDefault) n += 1;
     if (tagColor) n += 1;
+    if (herdPlan !== "all") n += 1;
     return n;
-  }, [camp, sex, breed, status, tagColor, statusFilterDefault]);
+  }, [camp, sex, breed, status, tagColor, herdPlan, statusFilterDefault]);
 
   const allSelected = animals.length > 0 && animals.every((a) => selected.has(a.id));
   const someSelected = animals.some((a) => selected.has(a.id)) && !allSelected;
@@ -199,6 +207,7 @@ export function AnimalActivityPicker({
     setBreed("all");
     setStatus(statusFilterDefault);
     setTagColor(null);
+    setHerdPlan("all");
   }
 
   const colVisible = (id: AnimalColumnId) => columns.includes(id);
@@ -278,6 +287,7 @@ export function AnimalActivityPicker({
               </SelectContent>
             </Select>
           </div>
+          <HerdPlanFilter value={herdPlan} onChange={setHerdPlan} />
           <div className="space-y-2">
             <Label>{t("status")}</Label>
             <ChoicePills

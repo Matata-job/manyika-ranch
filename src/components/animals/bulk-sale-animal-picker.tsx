@@ -19,11 +19,13 @@ import {
   loadColumnPrefs,
   type AnimalColumnId,
 } from "@/components/animals/customize-columns";
+import { HerdPlanFilter } from "@/components/animals/herd-plan-filter";
 import { ChoicePills } from "@/components/choice-pills";
 import { useLocale, useT } from "@/components/providers/locale-provider";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { parseAnimalsList } from "@/lib/animals-api";
 import { lifecycleKind, lifecycleLabelKey } from "@/lib/lifecycle";
+import { herdPlanBadgeVariant, herdPlanLabelKey } from "@/lib/herd-plan";
 import { resolveTagColor } from "@/lib/tag-color";
 import { cn } from "@/lib/utils";
 import { Columns3, Filter, Search } from "lucide-react";
@@ -43,7 +45,7 @@ export type BulkSaleAnimal = {
   isPregnant?: boolean | null;
   tagColor?: string | null;
   rfidChip?: string | null;
-  herdPlan?: "EXCLUDED" | "KEEP_BREEDING" | "SELL_NEXT_CYCLE";
+  herdPlan?: "EXCLUDED" | "KEEP_BREEDING" | "SELL_NEXT_CYCLE" | "KULIMA";
   herdPlanNote?: string | null;
   camp?: { id: string; name: string; tagColor?: string | null };
   owner?: { id: string; name: string } | null;
@@ -64,20 +66,8 @@ type Props = {
   onOnlyMarkedChange: (value: boolean) => void;
   /** Increment after a successful sale to reload the list without auto-selecting. */
   reloadToken?: number;
+  onLoadedAnimalsChange?: (animals: BulkSaleAnimal[]) => void;
 };
-
-function herdPlanLabelKey(
-  plan: BulkSaleAnimal["herdPlan"]
-): TranslationKey {
-  switch (plan) {
-    case "KEEP_BREEDING":
-      return "herdPlanKeepBreeding";
-    case "SELL_NEXT_CYCLE":
-      return "herdPlanSellNextCycle";
-    default:
-      return "herdPlanExcluded";
-  }
-}
 
 function statusLabelKey(status: string): TranslationKey {
   switch (status) {
@@ -108,6 +98,7 @@ export function BulkSaleAnimalPicker({
   onlyMarked,
   onOnlyMarkedChange,
   reloadToken = 0,
+  onLoadedAnimalsChange,
 }: Props) {
   const t = useT();
   const { locale } = useLocale();
@@ -290,6 +281,7 @@ export function BulkSaleAnimalPicker({
         a.eartag.localeCompare(b.eartag, undefined, { numeric: true })
       );
       setAnimals(list);
+      onLoadedAnimalsChange?.(list);
       if (autoSelectMarked && onlyMarked) {
         onSelectedChange(new Set(list.map((a) => a.id)));
       }
@@ -305,6 +297,7 @@ export function BulkSaleAnimalPicker({
       defaultTagColor,
       yearColors,
       onSelectedChange,
+      onLoadedAnimalsChange,
     ]
   );
 
@@ -558,25 +551,7 @@ export function BulkSaleAnimalPicker({
                 </div>
               </div>
               {!onlyMarked && (
-                <div className="space-y-2">
-                  <Label>{t("herdPlan")}</Label>
-                  <ChoicePills
-                    options={[
-                      { value: "all", label: t("all") },
-                      {
-                        value: "SELL_NEXT_CYCLE",
-                        label: t("herdPlanSellNextCycle"),
-                      },
-                      {
-                        value: "KEEP_BREEDING",
-                        label: t("herdPlanKeepBreeding"),
-                      },
-                      { value: "EXCLUDED", label: t("herdPlanExcluded") },
-                    ]}
-                    value={herdPlan}
-                    onChange={setHerdPlan}
-                  />
-                </div>
+                <HerdPlanFilter value={herdPlan} onChange={setHerdPlan} />
               )}
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
@@ -859,14 +834,14 @@ export function BulkSaleAnimalPicker({
                         )}
                         {colVisible("herdPlan") && (
                           <td className="p-2 whitespace-nowrap">
-                            {a.herdPlan === "SELL_NEXT_CYCLE" ? (
-                              <Badge variant="warning">
+                            {a.herdPlan && a.herdPlan !== "EXCLUDED" ? (
+                              <Badge
+                                variant={herdPlanBadgeVariant(a.herdPlan)}
+                              >
                                 {t(herdPlanLabelKey(a.herdPlan))}
                               </Badge>
                             ) : (
-                              <span className="text-muted-foreground">
-                                {t(herdPlanLabelKey(a.herdPlan))}
-                              </span>
+                              <span className="text-muted-foreground">—</span>
                             )}
                           </td>
                         )}

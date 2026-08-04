@@ -99,12 +99,13 @@ export async function GET(req: NextRequest) {
         ? { sex: "FEMALE" as Sex, isPregnant: false }
         : {}),
     ...(herdPlan &&
-    ["EXCLUDED", "KEEP_BREEDING", "SELL_NEXT_CYCLE"].includes(herdPlan)
+    ["EXCLUDED", "KEEP_BREEDING", "SELL_NEXT_CYCLE", "KULIMA"].includes(herdPlan)
       ? {
           herdPlan: herdPlan as
             | "EXCLUDED"
             | "KEEP_BREEDING"
-            | "SELL_NEXT_CYCLE",
+            | "SELL_NEXT_CYCLE"
+            | "KULIMA",
         }
       : {}),
     AND: [

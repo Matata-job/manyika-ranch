@@ -41,7 +41,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "Invalid herd plan (EXCLUDED, KEEP_BREEDING, or SELL_NEXT_CYCLE)",
+          "Invalid herd plan (EXCLUDED, KEEP_BREEDING, SELL_NEXT_CYCLE, or KULIMA)",
       },
       { status: 400 }
     );
@@ -104,7 +104,8 @@ export async function PATCH(req: NextRequest) {
     EXCLUDED: "Herd plan cleared (excluded)",
     KEEP_BREEDING: "Marked keep for breeding",
     SELL_NEXT_CYCLE: "Marked sell next cycle",
-  };
+    KULIMA: "Marked plough team (kulima)",
+  } as const;
 
   const changed = animals.filter((a) => a.herdPlan !== herdPlan);
   await logAnimalEventsBulk(

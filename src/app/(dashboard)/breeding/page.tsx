@@ -26,8 +26,10 @@ import {
   herdPlanBadgeVariant,
   herdPlanLabelKey,
   isBreedingEligibleAge,
+  KULIMA_DEFAULT_NOTE,
   type HerdPlanValue,
 } from "@/lib/herd-plan";
+import { HerdPlanFilter } from "@/components/animals/herd-plan-filter";
 
 interface BreedingEvent {
   id: string;
@@ -62,6 +64,7 @@ type Filters = {
   ageMinMonths: string;
   ageMaxMonths: string;
   search: string;
+  herdPlan: string;
 };
 
 const DEFAULT_FILTERS: Filters = {
@@ -71,6 +74,7 @@ const DEFAULT_FILTERS: Filters = {
   ageMinMonths: "",
   ageMaxMonths: "",
   search: "",
+  herdPlan: "all",
 };
 
 export default function BreedingPage() {
@@ -125,6 +129,7 @@ export default function BreedingPage() {
     if (f.camp !== "all") params.set("camp", f.camp);
     if (f.sex !== "all") params.set("sex", f.sex);
     if (f.search.trim()) params.set("search", f.search.trim());
+    if (f.herdPlan !== "all") params.set("herdPlan", f.herdPlan);
     if (f.ageMinMonths || f.ageMaxMonths) {
       if (f.ageMinMonths) params.set("ageMinMonths", f.ageMinMonths);
       if (f.ageMaxMonths) params.set("ageMaxMonths", f.ageMaxMonths);
@@ -237,8 +242,12 @@ export default function BreedingPage() {
     if (selected.size === 0) return;
     let note: string | null | undefined;
     if (plan !== "EXCLUDED") {
-      const entered = window.prompt(t("optionalPlanningNote"), "") ?? "";
-      note = entered.trim() || null;
+      const promptText =
+        plan === "KULIMA" ? t("optionalPlanningNoteKulima") : t("optionalPlanningNote");
+      const entered = window.prompt(promptText, "") ?? "";
+      note =
+        entered.trim() ||
+        (plan === "KULIMA" ? KULIMA_DEFAULT_NOTE : null);
     } else {
       note = null;
     }
@@ -318,6 +327,7 @@ export default function BreedingPage() {
         (a) =>
           a.sex === "MALE" &&
           !a.isCastrated &&
+          a.herdPlan !== "KULIMA" &&
           isBreedingEligibleAge(a.ageMonths)
       ),
     [animals]
@@ -460,6 +470,12 @@ export default function BreedingPage() {
               />
             </div>
           </div>
+          <div className="mt-4">
+            <HerdPlanFilter
+              value={filters.herdPlan}
+              onChange={(v) => updateFilter("herdPlan", v)}
+            />
+          </div>
           <p className="text-xs text-muted-foreground mt-2">
             {t("breedingCustomAgeHelp")}
           </p>
@@ -557,6 +573,14 @@ export default function BreedingPage() {
               <Button
                 type="button"
                 size="sm"
+                disabled={selected.size === 0 || bulkSaving}
+                onClick={() => applyBulkPlan("KULIMA")}
+              >
+                {t("herdPlanKulima")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
                 variant="outline"
                 disabled={selected.size === 0 || bulkSaving}
                 onClick={() => applyBulkPlan("EXCLUDED")}
@@ -633,6 +657,7 @@ export default function BreedingPage() {
                         {a.ageMonths != null ? ` (${a.ageMonths}m)` : ""}
                         {a.herdPlan === "KEEP_BREEDING" ? ` ★` : ""}
                         {a.herdPlan === "SELL_NEXT_CYCLE" ? ` ⚠` : ""}
+                        {a.herdPlan === "KULIMA" ? ` · ${t("herdPlanKulima")}` : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -657,6 +682,7 @@ export default function BreedingPage() {
                         {a.ageMonths != null ? ` (${a.ageMonths}m)` : ""}
                         {a.herdPlan === "KEEP_BREEDING" ? ` ★` : ""}
                         {a.herdPlan === "SELL_NEXT_CYCLE" ? ` ⚠` : ""}
+                        {a.herdPlan === "KULIMA" ? ` · ${t("herdPlanKulima")}` : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>

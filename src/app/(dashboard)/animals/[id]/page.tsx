@@ -93,7 +93,7 @@ interface AnimalDetail {
   sex: string;
   isCastrated?: boolean;
   isPregnant?: boolean;
-  herdPlan?: "EXCLUDED" | "KEEP_BREEDING" | "SELL_NEXT_CYCLE";
+  herdPlan?: "EXCLUDED" | "KEEP_BREEDING" | "SELL_NEXT_CYCLE" | "KULIMA";
   herdPlanNote?: string | null;
   herdPlanAt?: string | null;
   dob: string | null;

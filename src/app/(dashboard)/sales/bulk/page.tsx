@@ -19,7 +19,7 @@ import { ArrowLeft } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 import { formatCurrency } from "@/lib/utils";
 import { SuccessDialog } from "@/components/success-dialog";
-import { BulkSaleAnimalPicker } from "@/components/animals/bulk-sale-animal-picker";
+import { BulkSaleAnimalPicker, type BulkSaleAnimal } from "@/components/animals/bulk-sale-animal-picker";
 
 interface Camp {
   id: string;
@@ -43,6 +43,7 @@ function BulkSalePageContent() {
   const [campIds, setCampIds] = useState<string[]>([]);
   const [onlyMarked, setOnlyMarked] = useState(preferSellNext);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [loadedAnimals, setLoadedAnimals] = useState<BulkSaleAnimal[]>([]);
   const [reloadToken, setReloadToken] = useState(0);
   const [saving, setSaving] = useState(false);
   const [showExtras, setShowExtras] = useState(false);
@@ -89,6 +90,15 @@ function BulkSalePageContent() {
     return price;
   }, [form.priceMode, form.priceTzs, selected.size]);
 
+  const kulimaSelectedCount = useMemo(
+    () =>
+      [...selected].filter(
+        (id) =>
+          loadedAnimals.find((a) => a.id === id)?.herdPlan === "KULIMA"
+      ).length,
+    [selected, loadedAnimals]
+  );
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (selected.size === 0) {
@@ -109,13 +119,20 @@ function BulkSalePageContent() {
     }
     if (
       !window.confirm(
-        t("confirmBulkSale", {
-          n: selected.size,
-          buyer:
-            buyerMode === "existing"
-              ? buyers.find((b) => b.id === form.buyerId)?.name || ""
-              : form.buyer.trim(),
-        })
+        [
+          t("confirmBulkSale", {
+            n: selected.size,
+            buyer:
+              buyerMode === "existing"
+                ? buyers.find((b) => b.id === form.buyerId)?.name || ""
+                : form.buyer.trim(),
+          }),
+          kulimaSelectedCount > 0
+            ? t("confirmBulkSaleKulimaWarning", { n: kulimaSelectedCount })
+            : "",
+        ]
+          .filter(Boolean)
+          .join("\n\n")
       )
     ) {
       return;
@@ -230,6 +247,7 @@ function BulkSalePageContent() {
               setResult(null);
             }}
             reloadToken={reloadToken}
+            onLoadedAnimalsChange={setLoadedAnimals}
           />
         </CardContent>
       </Card>

@@ -32,11 +32,12 @@ enum AnimalStatus {
   QUARANTINE
 }
 
-/** Herd planning: default excluded; keep for breeding; or sell next cycle. */
+/** Herd planning: default excluded; keep for breeding; sell next cycle; plough team (kulima). */
 enum HerdPlan {
   EXCLUDED
   KEEP_BREEDING
   SELL_NEXT_CYCLE
+  KULIMA
 }
 
 enum AcquisitionType {
@@ -316,7 +317,7 @@ model Animal {
   sex              Sex
   isCastrated      Boolean         @default(false)
   isPregnant       Boolean         @default(false)
-  /** EXCLUDED (default), KEEP_BREEDING, or SELL_NEXT_CYCLE */
+  /** EXCLUDED (default), KEEP_BREEDING, SELL_NEXT_CYCLE, or KULIMA (plough team) */
   herdPlan         HerdPlan        @default(EXCLUDED)
   herdPlanNote     String?
   herdPlanAt       DateTime?

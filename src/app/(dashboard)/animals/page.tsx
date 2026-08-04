@@ -17,6 +17,7 @@ import { cn, formatAge, type AgeDisplayMode } from "@/lib/utils";
 import { parseAnimalsPage } from "@/lib/animals-api";
 import { EartagBadge } from "@/components/eartag-badge";
 import { TagColorFilter } from "@/components/animals/tag-color-filter";
+import { HerdPlanFilter } from "@/components/animals/herd-plan-filter";
 import { useLocale, useT } from "@/components/providers/locale-provider";
 import { Label } from "@/components/ui/label";
 import {
@@ -67,6 +68,7 @@ type Filters = {
   castrated: string;
   pregnant: string;
   tagColor: string;
+  herdPlan: string;
   sort: string;
 };
 
@@ -89,6 +91,7 @@ const DEFAULTS: Filters = {
   castrated: "all",
   pregnant: "all",
   tagColor: "all",
+  herdPlan: "all",
   sort: "eartag_asc",
 };
 
@@ -110,6 +113,7 @@ const ADVANCED_KEYS: (keyof Filters)[] = [
   "castrated",
   "pregnant",
   "tagColor",
+  "herdPlan",
 ];
 
 function deriveAgeMode(f: Filters): AgeMode {
@@ -152,6 +156,7 @@ function filtersFromParams(params: URLSearchParams): Filters {
     castrated: params.get("castrated") || "all",
     pregnant: params.get("pregnant") || "all",
     tagColor: params.get("tagColor") || "all",
+    herdPlan: params.get("herdPlan") || "all",
     sort: params.get("sort") || "eartag_asc",
   };
 }
@@ -415,6 +420,7 @@ function AnimalsPageContent() {
     if (filters.castrated !== "all") params.set("castrated", filters.castrated);
     if (filters.pregnant !== "all") params.set("pregnant", filters.pregnant);
     if (filters.tagColor !== "all") params.set("tagColor", filters.tagColor);
+    if (filters.herdPlan !== "all") params.set("herdPlan", filters.herdPlan);
     if (filters.sort) params.set("sort", filters.sort);
     params.set("limit", String(PAGE_SIZE));
     params.set("offset", String(pageOffset));
@@ -850,6 +856,17 @@ function AnimalsPageContent() {
                   ))}
                 </SelectContent>
               </Select>
+            </section>
+
+            <section className="space-y-2.5">
+              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t("herdPlan")}
+              </Label>
+              <HerdPlanFilter
+                value={filters.herdPlan}
+                onChange={(v) => updateFilter("herdPlan", v)}
+                label={false}
+              />
             </section>
 
             <section className="space-y-2.5">

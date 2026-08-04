@@ -202,7 +202,7 @@ export async function PATCH(
   }
 
   const { isHerdPlan } = await import("@/lib/herd-plan");
-  let nextHerdPlan: "EXCLUDED" | "KEEP_BREEDING" | "SELL_NEXT_CYCLE" | undefined;
+  let nextHerdPlan: import("@/lib/herd-plan").HerdPlanValue | undefined;
   let nextHerdPlanNote: string | null | undefined;
   let nextHerdPlanAt: Date | null | undefined;
 
@@ -215,7 +215,7 @@ export async function PATCH(
     }
     if (!isHerdPlan(body.herdPlan)) {
       return NextResponse.json(
-        { error: "Invalid herd plan (EXCLUDED, KEEP_BREEDING, or SELL_NEXT_CYCLE)" },
+        { error: "Invalid herd plan (EXCLUDED, KEEP_BREEDING, SELL_NEXT_CYCLE, or KULIMA)" },
         { status: 400 }
       );
     }
@@ -396,7 +396,8 @@ export async function PATCH(
       EXCLUDED: "Herd plan cleared (excluded)",
       KEEP_BREEDING: "Marked keep for breeding",
       SELL_NEXT_CYCLE: "Marked sell next cycle",
-    };
+      KULIMA: "Marked plough team (kulima)",
+    } as const;
     await logAnimalEvent({
       animalId: id,
       type: "STATUS_CHANGE",
