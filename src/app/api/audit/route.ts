@@ -32,7 +32,7 @@ const FIELD_LABELS: Record<string, string> = {
   sizeAcres: "Acres",
   latitude: "Latitude",
   longitude: "Longitude",
-  waterSources: "Water sources",
+  waterSources: "Camp address",
   photoUrl: "Photo",
   role: "Role",
   email: "Email",
