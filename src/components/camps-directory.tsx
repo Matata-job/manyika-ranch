@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Images, List } from "lucide-react";
+import { Images, Rows3 } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 import { TagColorSwatch } from "@/components/eartag-badge";
 import { CowHeadIcon } from "@/components/icons/cow-head-icon";
@@ -27,21 +27,60 @@ type ViewMode = "photos" | "list";
 
 const STORAGE_KEY = "manyika-camps-view";
 
-function campInitials(name: string, code: string | null): string {
-  if (code?.trim()) {
-    const parts = code.trim().split(/[-_\s]+/).filter(Boolean);
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[parts.length - 1].slice(0, 2))
-        .toUpperCase()
-        .slice(0, 3);
-    }
-    return code.trim().slice(0, 3).toUpperCase();
-  }
+/** Prefer full camp code (e.g. MR-14); else short name initials. */
+function campPlaceholderLabel(name: string, code: string | null): string {
+  const c = code?.trim();
+  if (c) return c.toUpperCase();
   const words = name.trim().split(/\s+/).filter(Boolean);
   if (words.length >= 2) {
     return (words[0][0] + words[1][0]).toUpperCase();
   }
-  return name.trim().slice(0, 2).toUpperCase() || "?";
+  return name.trim().slice(0, 3).toUpperCase() || "?";
+}
+
+function CampThumb({
+  camp,
+  size = "md",
+}: {
+  camp: CampListItem;
+  size?: "sm" | "md";
+}) {
+  const coverUrl = camp.logoUrl || camp.coverUrl;
+  const label = campPlaceholderLabel(camp.name, camp.code);
+  const box =
+    size === "sm"
+      ? "h-10 w-10 rounded-md text-[9px] leading-tight"
+      : "h-11 w-11 rounded-lg text-[10px] leading-tight";
+
+  if (coverUrl) {
+    return (
+      <div
+        className={cn(
+          "relative shrink-0 overflow-hidden bg-muted ring-1 ring-black/5",
+          box
+        )}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={coverUrl} alt="" className="h-full w-full object-cover" />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "flex shrink-0 items-center justify-center px-0.5 text-center font-bold tracking-tight",
+        "bg-gradient-to-br from-stone-200 via-amber-50 to-stone-300 text-stone-700",
+        "dark:from-stone-700 dark:via-amber-950/40 dark:to-stone-800 dark:text-stone-200",
+        "ring-1 ring-black/5",
+        box
+      )}
+      aria-hidden
+      title={label}
+    >
+      <span className="line-clamp-2 break-all">{label}</span>
+    </div>
+  );
 }
 
 type Props = {
@@ -102,7 +141,7 @@ export function CampsDirectory({ camps, locale }: Props) {
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <List className="h-3.5 w-3.5" />
+            <Rows3 className="h-3.5 w-3.5" />
             {t("campsViewList")}
           </button>
         </div>
@@ -122,25 +161,16 @@ export function CampsDirectory({ camps, locale }: Props) {
                 <Link
                   href={`/camps/${camp.id}`}
                   className={cn(
-                    "flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-muted/50",
+                    "flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-muted/50 sm:px-4 sm:py-3",
                     !camp.isActive && "opacity-70"
                   )}
                 >
-                  <div
-                    className={cn(
-                      "flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-xs font-bold tracking-wide",
-                      "bg-gradient-to-br from-stone-200 to-amber-100 text-stone-700",
-                      "dark:from-stone-700 dark:to-amber-950/50 dark:text-stone-200"
-                    )}
-                    aria-hidden
-                  >
-                    {campInitials(camp.name, camp.code)}
-                  </div>
+                  <CampThumb camp={camp} size="sm" />
 
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                       {camp.code && (
-                        <span className="text-xs font-semibold text-muted-foreground">
+                        <span className="text-xs font-semibold tabular-nums text-muted-foreground">
                           {camp.code}
                         </span>
                       )}
@@ -153,7 +183,10 @@ export function CampsDirectory({ camps, locale }: Props) {
                         {camp.name}
                       </span>
                       {!camp.isActive && (
-                        <Badge variant="secondary" className="font-normal text-[10px]">
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] font-normal"
+                        >
                           {t("campInactive")}
                         </Badge>
                       )}
@@ -171,9 +204,11 @@ export function CampsDirectory({ camps, locale }: Props) {
                     </div>
                   )}
 
-                  <span className="inline-flex shrink-0 items-center gap-1.5 tabular-nums">
-                    <CowHeadIcon className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-base font-bold">{camp.animalCount}</span>
+                  <span className="inline-flex shrink-0 items-center gap-1 tabular-nums">
+                    <CowHeadIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-sm font-bold sm:text-base">
+                      {camp.animalCount}
+                    </span>
                   </span>
                 </Link>
               </li>
@@ -194,7 +229,7 @@ function PhotoCampCard({
 }) {
   const t = useT();
   const coverUrl = camp.logoUrl || camp.coverUrl;
-  const initials = campInitials(camp.name, camp.code);
+  const label = campPlaceholderLabel(camp.name, camp.code);
 
   return (
     <Link
@@ -218,11 +253,12 @@ function PhotoCampCard({
             />
           ) : (
             <div
-              className="flex h-full w-full items-center justify-center bg-gradient-to-br from-stone-300 via-amber-100/80 to-stone-400 dark:from-stone-700 dark:via-amber-950/40 dark:to-stone-900"
+              className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-stone-300 via-amber-100/80 to-stone-400 dark:from-stone-700 dark:via-amber-950/40 dark:to-stone-900"
               aria-hidden
             >
-              <span className="select-none text-4xl font-bold tracking-wide text-stone-700/70 dark:text-stone-200/70 sm:text-5xl">
-                {initials}
+              <CowHeadIcon className="h-8 w-8 text-stone-600/50 dark:text-stone-300/40" />
+              <span className="select-none px-3 text-center text-2xl font-bold tracking-wide text-stone-700/80 dark:text-stone-100/80 sm:text-3xl">
+                {label}
               </span>
             </div>
           )}
@@ -230,7 +266,7 @@ function PhotoCampCard({
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
 
           <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
-            {camp.code && (
+            {camp.code && coverUrl && (
               <span className="rounded-md bg-background/95 px-2 py-0.5 text-xs font-semibold tracking-wide text-foreground shadow-sm backdrop-blur-sm">
                 {camp.code}
               </span>
