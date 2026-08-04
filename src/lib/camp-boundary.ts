@@ -232,40 +232,66 @@ export function parseBoundaryFile(
   return parseBoundaryPaste(text);
 }
 
-export function boundaryPointCount(b: CampBoundary | null): number {
-  if (!b?.ring?.length) return 0;
-  // exclude closing duplicate
+export function openBoundaryRing(b: CampBoundary | null): LatLng[] {
+  if (!b?.ring?.length) return [];
   const ring = b.ring;
   if (
     ring.length >= 2 &&
     ring[0][0] === ring[ring.length - 1][0] &&
     ring[0][1] === ring[ring.length - 1][1]
   ) {
-    return ring.length - 1;
+    return ring.slice(0, -1);
   }
-  return ring.length;
+  return [...ring];
+}
+
+export function boundaryPointCount(b: CampBoundary | null): number {
+  return openBoundaryRing(b).length;
 }
 
 export function boundaryCentroid(
   b: CampBoundary | null
 ): { lat: number; lng: number } | null {
-  if (!b?.ring?.length) return null;
-  let n = b.ring.length;
-  let ring = b.ring;
-  if (
-    n >= 2 &&
-    ring[0][0] === ring[n - 1][0] &&
-    ring[0][1] === ring[n - 1][1]
-  ) {
-    ring = ring.slice(0, -1);
-    n = ring.length;
-  }
-  if (n === 0) return null;
+  const ring = openBoundaryRing(b);
+  if (ring.length === 0) return null;
   let lat = 0;
   let lng = 0;
   for (const p of ring) {
     lat += p[0];
     lng += p[1];
   }
-  return { lat: lat / n, lng: lng / n };
+  return { lat: lat / ring.length, lng: lng / ring.length };
+}
+
+/**
+ * Geodesic polygon area on a sphere (m²), then convert to acres.
+ * Returns null if the ring is not a valid closed polygon (≥3 vertices).
+ */
+export function boundaryAreaAcres(b: CampBoundary | null): number | null {
+  const ring = openBoundaryRing(parseBoundary(b));
+  if (ring.length < 3) return null;
+
+  const R = 6378137; // WGS84 approx radius (m)
+  let area = 0;
+  const n = ring.length;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const lat1 = (ring[i][0] * Math.PI) / 180;
+    const lat2 = (ring[j][0] * Math.PI) / 180;
+    const lng1 = (ring[i][1] * Math.PI) / 180;
+    const lng2 = (ring[j][1] * Math.PI) / 180;
+    area += (lng2 - lng1) * (2 + Math.sin(lat1) + Math.sin(lat2));
+  }
+  area = Math.abs((area * R * R) / 2);
+  const acres = area / 4046.8564224;
+  if (!Number.isFinite(acres) || acres <= 0) return null;
+  // Sensible ranch display: 2 decimals under 100, 1 decimal otherwise
+  if (acres < 100) return Math.round(acres * 100) / 100;
+  return Math.round(acres * 10) / 10;
+}
+
+export function formatAcresEstimate(acres: number): string {
+  if (acres < 100) return acres.toFixed(2);
+  if (acres < 1000) return acres.toFixed(1);
+  return String(Math.round(acres));
 }

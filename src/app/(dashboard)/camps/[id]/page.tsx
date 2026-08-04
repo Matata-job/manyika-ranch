@@ -41,7 +41,9 @@ import { ChoicePills } from "@/components/choice-pills";
 import { parseAnimalsList } from "@/lib/animals-api";
 import { joinMultiParam } from "@/lib/multi-filter";
 import {
+  boundaryAreaAcres,
   boundaryPointCount,
+  formatAcresEstimate,
   parseBoundary,
   type CampBoundary,
 } from "@/lib/camp-boundary";
@@ -75,15 +77,8 @@ type CampJournalNote = {
   author: { id: string; name: string } | null;
 };
 
-const CampLocationPicker = dynamic(
-  () =>
-    import("@/components/camp-location-picker").then((m) => m.CampLocationPicker),
-  { ssr: false }
-);
-
-const CampBoundaryPicker = dynamic(
-  () =>
-    import("@/components/camp-boundary-picker").then((m) => m.CampBoundaryPicker),
+const CampMapPanel = dynamic(
+  () => import("@/components/camp-map-panel").then((m) => m.CampMapPanel),
   { ssr: false }
 );
 
@@ -552,8 +547,12 @@ export default function CampDetailPage() {
       ? `${camp.latitude}, ${camp.longitude}`
       : t("noLocationSet");
   const campBoundary = parseBoundary(camp.boundary);
+  const boundaryAcres = boundaryAreaAcres(campBoundary);
   const boundarySummary = campBoundary
-    ? t("campBoundarySet", { n: boundaryPointCount(campBoundary) })
+    ? t("campBoundarySet", { n: boundaryPointCount(campBoundary) }) +
+      (boundaryAcres != null
+        ? ` · ≈ ${formatAcresEstimate(boundaryAcres)} ${t("acres")}`
+        : "")
     : t("campBoundaryNotSet");
   const photosSummary =
     (camp.photos?.length || 0) > 0
@@ -620,32 +619,43 @@ export default function CampDetailPage() {
                   setForm({ ...form, sizeAcres: e.target.value })
                 }
               />
+              {boundaryAreaAcres(parseBoundary(form.boundary)) != null && (
+                <p className="text-xs text-muted-foreground">
+                  {t("campBoundaryAcresEstimate", {
+                    acres: formatAcresEstimate(
+                      boundaryAreaAcres(parseBoundary(form.boundary))!
+                    ),
+                  })}
+                </p>
+              )}
             </div>
             <OptionalSection
               open={showLocation}
               onToggle={() => setShowLocation((v) => !v)}
-              title={t("campLocation")}
+              title={t("campMapTitle")}
               summary={
                 form.latitude && form.longitude
                   ? `${form.latitude}, ${form.longitude}`
                   : t("optionalTapToAdd")
               }
             >
-              <CampLocationPicker
+              <CampMapPanel
                 latitude={form.latitude}
                 longitude={form.longitude}
-                onChange={({ latitude, longitude }) =>
-                  setForm({ ...form, latitude, longitude })
+                onPinChange={({ latitude, longitude }) =>
+                  setForm((prev) => ({ ...prev, latitude, longitude }))
+                }
+                boundary={form.boundary}
+                onBoundaryChange={(boundary) =>
+                  setForm((prev) => ({ ...prev, boundary }))
+                }
+                onApplyAcresEstimate={(acres) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    sizeAcres: formatAcresEstimate(acres),
+                  }))
                 }
               />
-              <div className="border-t pt-4 mt-2">
-                <CampBoundaryPicker
-                  value={form.boundary}
-                  onChange={(boundary) => setForm({ ...form, boundary })}
-                  pinLat={form.latitude}
-                  pinLng={form.longitude}
-                />
-              </div>
             </OptionalSection>
             <div className="space-y-2">
               <Label>{t("waterSources")}</Label>
@@ -774,6 +784,7 @@ export default function CampDetailPage() {
 
               {(camp.tagColor ||
                 camp.sizeAcres != null ||
+                boundaryAcres != null ||
                 camp.waterSources ||
                 camp.assignments.length > 0) && (
                 <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2 border-t pt-4 text-sm">
@@ -788,11 +799,15 @@ export default function CampDetailPage() {
                       </dd>
                     </div>
                   )}
-                  {camp.sizeAcres != null && (
+                  {(camp.sizeAcres != null || boundaryAcres != null) && (
                     <div className="flex flex-wrap items-baseline gap-x-2">
                       <dt className="text-muted-foreground">{t("sizeAcres")}</dt>
                       <dd className="font-medium">
-                        {camp.sizeAcres} {t("acres")}
+                        {camp.sizeAcres != null
+                          ? `${camp.sizeAcres} ${t("acres")}`
+                          : t("campBoundaryAcresEstimate", {
+                              acres: formatAcresEstimate(boundaryAcres!),
+                            })}
                       </dd>
                     </div>
                   )}
@@ -911,38 +926,21 @@ export default function CampDetailPage() {
               embedded
               open={showLocation}
               onToggle={() => setShowLocation((v) => !v)}
-              title={t("campLocation")}
+              title={t("campMapTitle")}
               summary={`${locationSummary} · ${boundarySummary}`}
             >
-              {camp.latitude != null && camp.longitude != null ? (
-                <CampLocationPicker
-                  latitude={String(camp.latitude)}
-                  longitude={String(camp.longitude)}
-                  onChange={() => {}}
-                  disabled
-                />
-              ) : (
-                <p className="text-sm text-muted-foreground">{t("noLocationSet")}</p>
-              )}
-              <div className="border-t pt-4 mt-2">
-                {campBoundary ? (
-                  <CampBoundaryPicker
-                    value={campBoundary}
-                    onChange={() => {}}
-                    pinLat={
-                      camp.latitude != null ? String(camp.latitude) : undefined
-                    }
-                    pinLng={
-                      camp.longitude != null ? String(camp.longitude) : undefined
-                    }
-                    disabled
-                  />
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    {t("campBoundaryNotSet")}
-                  </p>
-                )}
-              </div>
+              <CampMapPanel
+                latitude={
+                  camp.latitude != null ? String(camp.latitude) : ""
+                }
+                longitude={
+                  camp.longitude != null ? String(camp.longitude) : ""
+                }
+                onPinChange={() => {}}
+                boundary={campBoundary}
+                onBoundaryChange={() => {}}
+                disabled
+              />
             </OptionalSection>
 
             <OptionalSection
