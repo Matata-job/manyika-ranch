@@ -407,8 +407,9 @@ const en = {
   campBoundaryFinishArea: "Finish this area",
   campBoundaryRemoveArea: "Remove",
   campBoundaryDownload: "Download GeoJSON",
-  campBoundaryUndo: "Undo last point",
+  campBoundaryUndo: "Undo last corner",
   campBoundaryClear: "Clear all borders",
+  campBoundaryClearShort: "Clear",
   campBoundaryPaste: "Paste coordinates",
   campBoundaryPasteHelp:
     "One point per line as latitude, longitude (e.g. -4.8121, 34.7510). JSON GeoJSON also works. Adds to existing areas.",
@@ -1522,8 +1523,9 @@ const sw: Dict = {
   campBoundaryFinishArea: "Maliza eneo hili",
   campBoundaryRemoveArea: "Ondoa",
   campBoundaryDownload: "Pakua GeoJSON",
-  campBoundaryUndo: "Tendua pointi ya mwisho",
+  campBoundaryUndo: "Tendua pembe ya mwisho",
   campBoundaryClear: "Futa mipaka yote",
+  campBoundaryClearShort: "Futa",
   campBoundaryPaste: "Bandika kuratibu",
   campBoundaryPasteHelp:
     "Pointi moja kwa mstari: latitudo, longitudo (mf. -4.8121, 34.7510). GeoJSON pia inakubaliwa. Inaongeza kwenye maeneo yaliyopo.",

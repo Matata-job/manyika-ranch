@@ -358,6 +358,24 @@ export function CampMapPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [online]);
 
+  // Keep Leaflet container classes stable — toggling cursor classes on the
+  // map div blanks tiles (black bg). Set cursor on Leaflet's own container.
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map) return;
+    const el = map.getContainer();
+    if (!disabled) {
+      el.style.cursor = mode === "border" ? "crosshair" : "pointer";
+    } else {
+      el.style.cursor = "";
+    }
+    // Mode toggle can shift layout; force tile reload
+    const id = window.setTimeout(() => {
+      map.invalidateSize({ animate: false });
+    }, 50);
+    return () => window.clearTimeout(id);
+  }, [mode, disabled]);
+
   useEffect(() => {
     const map = mapInstance.current;
     if (!map) return;
@@ -404,11 +422,19 @@ export function CampMapPanel({
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
         onPinChange({
-          latitude: pos.coords.latitude.toFixed(6),
-          longitude: pos.coords.longitude.toFixed(6),
+          latitude: lat.toFixed(6),
+          longitude: lng.toFixed(6),
         });
         setMode("pin");
+        const map = mapInstance.current;
+        if (map) {
+          map.setView([lat, lng], Math.max(map.getZoom(), 15), {
+            animate: true,
+          });
+        }
       },
       () => alert(t("geolocationFailed")),
       { enableHighAccuracy: true, timeout: 15000 }
@@ -423,6 +449,12 @@ export function CampMapPanel({
       longitude: c.lng.toFixed(6),
     });
     setMode("pin");
+    const map = mapInstance.current;
+    if (map) {
+      map.setView([c.lat, c.lng], Math.max(map.getZoom(), 15), {
+        animate: true,
+      });
+    }
   }
 
   function undoLast() {
@@ -433,11 +465,40 @@ export function CampMapPanel({
       publishDraft(next);
       return;
     }
-    const rings = boundaryRings(validBoundary);
-    if (rings.length === 0) return;
-    draftingIntoBoundaryRef.current = false;
-    onBoundaryChange(removeBoundaryArea(validBoundary, rings.length - 1));
+    // Peel the last corner from the last saved area (friendlier than deleting it)
+    const areas = boundaryAreas(validBoundary);
+    if (areas.length === 0) return;
+    const last = areas[areas.length - 1];
+    const frozen = boundaryRings(validBoundary).slice(0, -1);
+    if (last.length <= 3) {
+      draftingIntoBoundaryRef.current = false;
+      setDraftPoints([]);
+      draftRef.current = [];
+      boundaryRef.current = makeBoundaries(frozen);
+      onBoundaryChange(makeBoundaries(frozen));
+      return;
+    }
+    const nextDraft = last.slice(0, -1);
+    setDraftPoints(nextDraft);
+    draftRef.current = nextDraft;
+    boundaryRef.current = makeBoundaries(frozen);
+    // Sync refs before publish so we don't duplicate the peeled area
+    if (nextDraft.length >= 3) {
+      const closed = normalizeBoundaryRing(nextDraft);
+      draftingIntoBoundaryRef.current = Boolean(closed);
+      const next = closed
+        ? makeBoundaries([...frozen, closed])
+        : makeBoundaries(frozen);
+      boundaryRef.current = next;
+      onBoundaryChange(next);
+    } else {
+      draftingIntoBoundaryRef.current = false;
+      onBoundaryChange(makeBoundaries(frozen));
+    }
+    setMode("border");
   }
+
+  const canUndo = draftCount > 0 || areaCount > 0;
 
   function clearAll() {
     draftingIntoBoundaryRef.current = false;
@@ -589,16 +650,66 @@ export function CampMapPanel({
         {online ? (
           <div
             ref={mapRef}
-            className={cn(
-              "h-[22rem] sm:h-[28rem] w-full z-0 bg-stone-900",
-              !disabled &&
-                (mode === "border" ? "cursor-crosshair" : "cursor-pointer")
-            )}
+            className="h-[22rem] sm:h-[28rem] w-full z-0 bg-muted"
             aria-label={t("campMapTitle")}
           />
         ) : (
           <div className="flex h-40 items-center justify-center bg-muted/40 px-4 text-center text-sm text-muted-foreground">
             {t("mapUnavailableOffline")}
+          </div>
+        )}
+
+        {!disabled && (
+          <div className="absolute left-3 top-3 z-[1000] flex flex-col gap-1.5">
+            <button
+              type="button"
+              onClick={undoLast}
+              disabled={!canUndo}
+              className={cn(
+                "inline-flex h-10 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium shadow-md backdrop-blur-sm transition-colors",
+                canUndo
+                  ? "border-white/25 bg-stone-950/80 text-stone-50 hover:bg-stone-900"
+                  : "cursor-not-allowed border-white/10 bg-stone-950/40 text-stone-500"
+              )}
+              title={t("campBoundaryUndo")}
+            >
+              <Undo2 className="h-4 w-4" />
+              {t("campBoundaryUndo")}
+            </button>
+            {mode === "border" && (
+              <>
+                <button
+                  type="button"
+                  onClick={startNewArea}
+                  disabled={areaCount === 0 && draftCount < 3}
+                  className={cn(
+                    "inline-flex h-10 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium shadow-md backdrop-blur-sm transition-colors",
+                    areaCount > 0 || draftCount >= 3
+                      ? "border-white/25 bg-stone-950/80 text-stone-50 hover:bg-stone-900"
+                      : "cursor-not-allowed border-white/10 bg-stone-950/40 text-stone-500"
+                  )}
+                  title={t("campBoundaryAddArea")}
+                >
+                  <Plus className="h-4 w-4" />
+                  {t("campBoundaryAddArea")}
+                </button>
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  disabled={!canUndo}
+                  className={cn(
+                    "inline-flex h-10 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium shadow-md backdrop-blur-sm transition-colors",
+                    canUndo
+                      ? "border-white/25 bg-stone-950/80 text-red-200 hover:bg-stone-900"
+                      : "cursor-not-allowed border-white/10 bg-stone-950/40 text-stone-500"
+                  )}
+                  title={t("campBoundaryClear")}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {t("campBoundaryClearShort")}
+                </button>
+              </>
+            )}
           </div>
         )}
 
@@ -617,7 +728,6 @@ export function CampMapPanel({
           </p>
         </div>
       </div>
-
       {(perArea.length > 0 || totalAcres != null) && (
         <div className="space-y-2 rounded-lg border bg-muted/30 px-3 py-2.5 text-sm">
           {perArea.map((a) => (
@@ -697,8 +807,8 @@ export function CampMapPanel({
           <Button
             type="button"
             size="sm"
-            variant="outline"
-            disabled={draftCount === 0 && areaCount === 0}
+            variant="secondary"
+            disabled={!canUndo}
             onClick={undoLast}
           >
             <Undo2 className="h-4 w-4 mr-1" />
@@ -708,7 +818,7 @@ export function CampMapPanel({
             type="button"
             size="sm"
             variant="outline"
-            disabled={areaCount === 0 && draftCount === 0}
+            disabled={!canUndo}
             onClick={clearAll}
           >
             <Trash2 className="h-4 w-4 mr-1" />
