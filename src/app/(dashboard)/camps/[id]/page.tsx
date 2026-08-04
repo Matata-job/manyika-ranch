@@ -41,8 +41,9 @@ import { ChoicePills } from "@/components/choice-pills";
 import { parseAnimalsList } from "@/lib/animals-api";
 import { joinMultiParam } from "@/lib/multi-filter";
 import {
-  boundaryAreaAcres,
+  boundaryAreaCount,
   boundaryPointCount,
+  boundaryTotalAcresUnion,
   formatAcresEstimate,
   parseBoundary,
   type CampBoundary,
@@ -547,9 +548,13 @@ export default function CampDetailPage() {
       ? `${camp.latitude}, ${camp.longitude}`
       : t("noLocationSet");
   const campBoundary = parseBoundary(camp.boundary);
-  const boundaryAcres = boundaryAreaAcres(campBoundary);
+  const areaCount = boundaryAreaCount(campBoundary);
+  const { acres: boundaryAcres } = boundaryTotalAcresUnion(campBoundary);
   const boundarySummary = campBoundary
-    ? t("campBoundarySet", { n: boundaryPointCount(campBoundary) }) +
+    ? t("campBoundarySetAreas", {
+        areas: areaCount,
+        n: boundaryPointCount(campBoundary),
+      }) +
       (boundaryAcres != null
         ? ` · ≈ ${formatAcresEstimate(boundaryAcres)} ${t("acres")}`
         : "")
@@ -619,11 +624,13 @@ export default function CampDetailPage() {
                   setForm({ ...form, sizeAcres: e.target.value })
                 }
               />
-              {boundaryAreaAcres(parseBoundary(form.boundary)) != null && (
+              {boundaryTotalAcresUnion(parseBoundary(form.boundary)).acres !=
+                null && (
                 <p className="text-xs text-muted-foreground">
-                  {t("campBoundaryAcresEstimate", {
+                  {t("campBoundaryTotalAcres", {
                     acres: formatAcresEstimate(
-                      boundaryAreaAcres(parseBoundary(form.boundary))!
+                      boundaryTotalAcresUnion(parseBoundary(form.boundary))
+                        .acres!
                     ),
                   })}
                 </p>
@@ -655,6 +662,7 @@ export default function CampDetailPage() {
                     sizeAcres: formatAcresEstimate(acres),
                   }))
                 }
+                downloadName={form.name || camp.name || "camp-border"}
               />
             </OptionalSection>
             <div className="space-y-2">
@@ -940,6 +948,7 @@ export default function CampDetailPage() {
                 boundary={campBoundary}
                 onBoundaryChange={() => {}}
                 disabled
+                downloadName={camp.name || "camp-border"}
               />
             </OptionalSection>
 

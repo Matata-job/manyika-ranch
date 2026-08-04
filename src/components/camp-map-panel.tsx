@@ -12,18 +12,27 @@ import {
   Undo2,
   Upload,
   Crosshair,
+  Download,
+  Plus,
 } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 import {
-  boundaryAreaAcres,
+  addBoundaryAreas,
+  boundaryAllPoints,
+  boundaryAreaCount,
+  boundaryAreas,
   boundaryCentroid,
-  boundaryPointCount,
+  boundaryPerAreaAcres,
+  boundaryRings,
+  boundaryTotalAcresUnion,
+  downloadBoundaryGeoJson,
   formatAcresEstimate,
-  makeBoundary,
-  openBoundaryRing,
+  makeBoundaries,
+  normalizeBoundaryRing,
   parseBoundary,
   parseBoundaryFile,
   parseBoundaryPaste,
+  removeBoundaryArea,
   type CampBoundary,
   type LatLng,
 } from "@/lib/camp-boundary";
@@ -39,12 +48,17 @@ type Props = {
   onPinChange: (coords: { latitude: string; longitude: string }) => void;
   boundary: CampBoundary | null;
   onBoundaryChange: (next: CampBoundary | null) => void;
-  /** Called when estimated acres from border should fill farm size */
   onApplyAcresEstimate?: (acres: number) => void;
   disabled?: boolean;
   className?: string;
+  downloadName?: string;
 };
 
+/**
+ * Border drawing: points accumulate in `draft`. Once ≥3, the draft is written
+ * into `boundary` as the last area (form save-safe). “Add another area” freezes
+ * that ring and starts a new draft.
+ */
 export function CampMapPanel({
   latitude,
   longitude,
@@ -54,21 +68,28 @@ export function CampMapPanel({
   onApplyAcresEstimate,
   disabled = false,
   className,
+  downloadName = "camp-border",
 }: Props) {
   const t = useT();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<import("leaflet").Map | null>(null);
   const pinMarkerRef = useRef<import("leaflet").Marker | null>(null);
-  const polygonRef = useRef<import("leaflet").Polygon | null>(null);
+  const polygonLayersRef = useRef<import("leaflet").Polygon[]>([]);
   const polylineRef = useRef<import("leaflet").Polyline | null>(null);
   const vertexMarkersRef = useRef<import("leaflet").CircleMarker[]>([]);
   const modeRef = useRef<MapMode>("pin");
   const boundaryRef = useRef(boundary);
+  const draftRef = useRef<LatLng[]>([]);
+  /** When true, the last ring in boundary is the live draft (≥3 pts). */
+  const draftingIntoBoundaryRef = useRef(false);
   const pinRef = useRef({ latitude, longitude });
   const disabledRef = useRef(disabled);
+  const onBoundaryChangeRef = useRef(onBoundaryChange);
+  const onPinChangeRef = useRef(onPinChange);
 
   const [online, setOnline] = useState(true);
   const [mode, setMode] = useState<MapMode>("pin");
+  const [draftPoints, setDraftPoints] = useState<LatLng[]>([]);
   const [pasteText, setPasteText] = useState("");
   const [pasteError, setPasteError] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
@@ -77,13 +98,18 @@ export function CampMapPanel({
 
   modeRef.current = mode;
   boundaryRef.current = boundary;
+  draftRef.current = draftPoints;
   pinRef.current = { latitude, longitude };
   disabledRef.current = disabled;
+  onBoundaryChangeRef.current = onBoundaryChange;
+  onPinChangeRef.current = onPinChange;
 
   const validBoundary = parseBoundary(boundary);
-  const acres = boundaryAreaAcres(validBoundary);
-  const draftCount = openBoundaryRing(boundary).length;
-  const cornerCount = boundaryPointCount(validBoundary);
+  const areaCount = boundaryAreaCount(validBoundary);
+  const perArea = boundaryPerAreaAcres(validBoundary);
+  const { acres: totalAcres, usedUnion } =
+    boundaryTotalAcresUnion(validBoundary);
+  const draftCount = draftPoints.length;
   const hasPin =
     Number.isFinite(parseFloat(latitude)) &&
     Number.isFinite(parseFloat(longitude));
@@ -100,16 +126,40 @@ export function CampMapPanel({
     };
   }, []);
 
-  function commitBorderPoints(points: LatLng[]) {
-    if (points.length === 0) {
-      onBoundaryChange(null);
-      return;
+  /** Frozen rings (exclude live draft ring if drafting into boundary). */
+  function frozenRings(): LatLng[][] {
+    const rings = boundaryRings(boundaryRef.current);
+    if (draftingIntoBoundaryRef.current && rings.length > 0) {
+      return rings.slice(0, -1);
     }
+    return rings;
+  }
+
+  function publishDraft(points: LatLng[]) {
+    const frozen = frozenRings();
     if (points.length < 3) {
-      onBoundaryChange({ type: "Polygon", ring: points });
+      draftingIntoBoundaryRef.current = false;
+      onBoundaryChangeRef.current(makeBoundaries(frozen));
       return;
     }
-    onBoundaryChange(makeBoundary(points));
+    const closed = normalizeBoundaryRing(points);
+    if (!closed) {
+      draftingIntoBoundaryRef.current = false;
+      onBoundaryChangeRef.current(makeBoundaries(frozen));
+      return;
+    }
+    draftingIntoBoundaryRef.current = true;
+    onBoundaryChangeRef.current(makeBoundaries([...frozen, closed]));
+  }
+
+  function freezeDraft() {
+    draftingIntoBoundaryRef.current = false;
+    setDraftPoints([]);
+  }
+
+  function startNewArea() {
+    freezeDraft();
+    setMode("border");
   }
 
   async function redrawLayers(
@@ -131,7 +181,7 @@ export function CampMapPanel({
       if (!disabledRef.current) {
         marker.on("dragend", () => {
           const pos = marker.getLatLng();
-          onPinChange({
+          onPinChangeRef.current({
             latitude: pos.lat.toFixed(6),
             longitude: pos.lng.toFixed(6),
           });
@@ -140,10 +190,8 @@ export function CampMapPanel({
       pinMarkerRef.current = marker;
     }
 
-    if (polygonRef.current) {
-      map.removeLayer(polygonRef.current);
-      polygonRef.current = null;
-    }
+    for (const poly of polygonLayersRef.current) map.removeLayer(poly);
+    polygonLayersRef.current = [];
     if (polylineRef.current) {
       map.removeLayer(polylineRef.current);
       polylineRef.current = null;
@@ -151,37 +199,69 @@ export function CampMapPanel({
     for (const m of vertexMarkersRef.current) map.removeLayer(m);
     vertexMarkersRef.current = [];
 
-    const pts = openBoundaryRing(boundaryRef.current);
-    if (pts.length >= 3 && parseBoundary(boundaryRef.current)) {
-      polygonRef.current = L.polygon(pts, {
-        color: "#f5f0e6",
-        weight: 2.5,
-        fillColor: "#c4a35a",
-        fillOpacity: 0.35,
-      }).addTo(map);
-    } else if (pts.length >= 2) {
-      polylineRef.current = L.polyline(pts, {
-        color: "#f5f0e6",
-        weight: 2,
-        dashArray: "6 6",
-      }).addTo(map);
-    }
+    const completed = boundaryAreas(boundaryRef.current);
+    const draft = draftRef.current;
+    const liveDraft = draftingIntoBoundaryRef.current;
+    const frozenCount = liveDraft
+      ? Math.max(0, completed.length - 1)
+      : completed.length;
 
-    pts.forEach((p, i) => {
-      const m = L.circleMarker(p, {
-        radius: 6,
-        color: "#f5f0e6",
-        fillColor: "#1c1917",
-        fillOpacity: 1,
-        weight: 2,
+    completed.forEach((pts, areaIdx) => {
+      const isLive = liveDraft && areaIdx === completed.length - 1;
+      const poly = L.polygon(pts, {
+        color: isLive ? "#fbbf24" : "#f5f0e6",
+        weight: 2.5,
+        fillColor: isLive ? "#f59e0b" : "#c4a35a",
+        fillOpacity: 0.32,
+        dashArray: isLive ? "4 4" : undefined,
       }).addTo(map);
-      m.bindTooltip(String(i + 1), {
-        direction: "top",
-        offset: [0, -6],
-        className: "camp-map-vertex-tip",
+      poly.bindTooltip(t("campBoundaryAreaLabel", { n: areaIdx + 1 }), {
+        sticky: true,
       });
-      vertexMarkersRef.current.push(m);
+      polygonLayersRef.current.push(poly);
+
+      pts.forEach((p, i) => {
+        const m = L.circleMarker(p, {
+          radius: isLive ? 6 : 5,
+          color: isLive ? "#fbbf24" : "#f5f0e6",
+          fillColor: "#1c1917",
+          fillOpacity: 1,
+          weight: 2,
+        }).addTo(map);
+        m.bindTooltip(`${areaIdx + 1}.${i + 1}`, {
+          direction: "top",
+          offset: [0, -6],
+          className: "camp-map-vertex-tip",
+        });
+        vertexMarkersRef.current.push(m);
+      });
     });
+
+    // Incomplete draft (<3) not yet in boundary
+    if (!liveDraft && draft.length > 0) {
+      if (draft.length >= 2) {
+        polylineRef.current = L.polyline(draft, {
+          color: "#fbbf24",
+          weight: 2,
+          dashArray: "6 6",
+        }).addTo(map);
+      }
+      draft.forEach((p, i) => {
+        const m = L.circleMarker(p, {
+          radius: 6,
+          color: "#fbbf24",
+          fillColor: "#1c1917",
+          fillOpacity: 1,
+          weight: 2,
+        }).addTo(map);
+        m.bindTooltip(`${frozenCount + 1}.${i + 1}`, {
+          direction: "top",
+          offset: [0, -6],
+          className: "camp-map-vertex-tip",
+        });
+        vertexMarkersRef.current.push(m);
+      });
+    }
   }
 
   useEffect(() => {
@@ -224,43 +304,40 @@ export function CampMapPanel({
       });
       L.control.zoom({ position: "topright" }).addTo(map);
 
-      const imagery = L.tileLayer(
+      L.tileLayer(
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        {
-          attribution: "Tiles &copy; Esri",
-          maxZoom: 19,
-        }
-      );
-      const labels = L.tileLayer(
+        { attribution: "Tiles &copy; Esri", maxZoom: 19 }
+      ).addTo(map);
+      L.tileLayer(
         "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-        {
-          attribution: "",
-          maxZoom: 19,
-          opacity: 0.85,
-        }
-      );
-      imagery.addTo(map);
-      labels.addTo(map);
+        { attribution: "", maxZoom: 19, opacity: 0.85 }
+      ).addTo(map);
 
       mapInstance.current = map;
       await redrawLayers(L, map);
 
       map.on("click", (e: { latlng: { lat: number; lng: number } }) => {
         if (disabledRef.current) return;
-        const ll = {
-          lat: Number(e.latlng.lat.toFixed(6)),
-          lng: Number(e.latlng.lng.toFixed(6)),
-        };
+        const ll: LatLng = [
+          Number(e.latlng.lat.toFixed(6)),
+          Number(e.latlng.lng.toFixed(6)),
+        ];
         if (modeRef.current === "pin") {
-          onPinChange({
-            latitude: ll.lat.toFixed(6),
-            longitude: ll.lng.toFixed(6),
+          onPinChangeRef.current({
+            latitude: ll[0].toFixed(6),
+            longitude: ll[1].toFixed(6),
           });
           return;
         }
-        const pts = openBoundaryRing(boundaryRef.current);
-        pts.push([ll.lat, ll.lng]);
-        commitBorderPoints(pts);
+        setDraftPoints((prev) => {
+          const next = [...prev, ll];
+          // Defer publish so draftRef is updated via render cycle after setState
+          queueMicrotask(() => {
+            draftRef.current = next;
+            publishDraft(next);
+          });
+          return next;
+        });
       });
 
       setTimeout(() => map.invalidateSize(), 120);
@@ -273,7 +350,7 @@ export function CampMapPanel({
         mapInstance.current.remove();
         mapInstance.current = null;
         pinMarkerRef.current = null;
-        polygonRef.current = null;
+        polygonLayersRef.current = [];
         polylineRef.current = null;
         vertexMarkersRef.current = [];
       }
@@ -289,29 +366,36 @@ export function CampMapPanel({
       const L = (await import("leaflet")).default;
       if (cancelled) return;
       await redrawLayers(L, map);
-      const pts = openBoundaryRing(boundary);
-      if (pts.length >= 2) {
-        try {
-          map.fitBounds(pts as [number, number][], {
-            padding: [40, 40],
-            maxZoom: 17,
-          });
-        } catch {
-          /* ignore */
-        }
-      } else {
-        const lat = parseFloat(latitude);
-        const lng = parseFloat(longitude);
-        if (Number.isFinite(lat) && Number.isFinite(lng)) {
-          map.panTo([lat, lng]);
-        }
-      }
     })();
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boundary, latitude, longitude, disabled]);
+  }, [boundary, draftPoints, latitude, longitude, disabled]);
+
+  // Fit once when area count changes (not on every vertex while drawing)
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map) return;
+    const pts = boundaryAllPoints(boundary);
+    if (pts.length < 2) {
+      const lat = parseFloat(latitude);
+      const lng = parseFloat(longitude);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        map.panTo([lat, lng]);
+      }
+      return;
+    }
+    try {
+      map.fitBounds(pts as [number, number][], {
+        padding: [40, 40],
+        maxZoom: 17,
+      });
+    } catch {
+      /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [areaCount, online]);
 
   function useMyLocation() {
     if (!navigator.geolocation) {
@@ -342,10 +426,23 @@ export function CampMapPanel({
   }
 
   function undoLast() {
-    const pts = openBoundaryRing(boundary);
-    if (pts.length === 0) return;
-    pts.pop();
-    commitBorderPoints(pts);
+    if (draftPoints.length > 0) {
+      const next = draftPoints.slice(0, -1);
+      setDraftPoints(next);
+      draftRef.current = next;
+      publishDraft(next);
+      return;
+    }
+    const rings = boundaryRings(validBoundary);
+    if (rings.length === 0) return;
+    draftingIntoBoundaryRef.current = false;
+    onBoundaryChange(removeBoundaryArea(validBoundary, rings.length - 1));
+  }
+
+  function clearAll() {
+    draftingIntoBoundaryRef.current = false;
+    setDraftPoints([]);
+    onBoundaryChange(null);
   }
 
   function applyPaste() {
@@ -355,26 +452,72 @@ export function CampMapPanel({
       setPasteError(t("campBoundaryInvalid"));
       return;
     }
-    onBoundaryChange(parsed);
+    freezeDraft();
+    onBoundaryChange(addBoundaryAreas(makeBoundaries(frozenRings()), parsed));
     setPasteText("");
     setMode("border");
   }
 
-  async function onFile(file: File) {
+  async function onFiles(files: FileList | File[]) {
     setImportError(null);
-    try {
-      const text = await file.text();
-      const parsed = parseBoundaryFile(text, file.name);
-      if (!parsed) {
-        setImportError(t("campBoundaryInvalid"));
-        return;
+    const list = Array.from(files);
+    if (list.length === 0) return;
+    freezeDraft();
+    let next = makeBoundaries(frozenRings());
+    let ok = 0;
+    for (const file of list) {
+      try {
+        const text = await file.text();
+        const parsed = parseBoundaryFile(text, file.name);
+        if (!parsed) continue;
+        next = addBoundaryAreas(next, parsed);
+        ok += 1;
+      } catch {
+        /* skip */
       }
-      onBoundaryChange(parsed);
-      setMode("border");
-    } catch {
+    }
+    if (ok === 0) {
       setImportError(t("campBoundaryInvalid"));
+      return;
+    }
+    onBoundaryChange(next);
+    setMode("border");
+  }
+
+  function onDownload() {
+    if (!downloadBoundaryGeoJson(validBoundary, `${downloadName}.geojson`)) {
+      alert(t("campBoundaryEmpty"));
     }
   }
+
+  function removeAreaAt(index: number) {
+    const rings = boundaryRings(validBoundary);
+    if (index < 0 || index >= rings.length) return;
+    if (draftingIntoBoundaryRef.current) {
+      if (index === rings.length - 1) {
+        freezeDraft();
+        onBoundaryChange(makeBoundaries(rings.slice(0, -1)));
+        return;
+      }
+      onBoundaryChange(makeBoundaries(rings.filter((_, i) => i !== index)));
+      return;
+    }
+    onBoundaryChange(removeBoundaryArea(validBoundary, index));
+  }
+
+  const statusLine = (() => {
+    if (draftCount > 0 && draftCount < 3) {
+      return t("campBoundaryDraft", { n: draftCount });
+    }
+    if (areaCount > 1) {
+      return t("campBoundaryAreasCount", { n: areaCount });
+    }
+    if (areaCount === 1) {
+      const corners = boundaryAreas(validBoundary)[0]?.length ?? 0;
+      return t("campBoundaryPoints", { n: corners });
+    }
+    return t("campBoundaryEmpty");
+  })();
 
   return (
     <div className={cn("space-y-3", className)}>
@@ -385,17 +528,30 @@ export function CampMapPanel({
             {t("campMapHelp")}
           </p>
         </div>
-        {!disabled && (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={useMyLocation}
-          >
-            <LocateFixed className="h-4 w-4 mr-1" />
-            {t("useMyLocation")}
-          </Button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {areaCount > 0 && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={onDownload}
+            >
+              <Download className="h-4 w-4 mr-1" />
+              {t("campBoundaryDownload")}
+            </Button>
+          )}
+          {!disabled && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={useMyLocation}
+            >
+              <LocateFixed className="h-4 w-4 mr-1" />
+              {t("useMyLocation")}
+            </Button>
+          )}
+        </div>
       </div>
 
       {!disabled && (
@@ -435,7 +591,8 @@ export function CampMapPanel({
             ref={mapRef}
             className={cn(
               "h-[22rem] sm:h-[28rem] w-full z-0 bg-stone-900",
-              !disabled && (mode === "border" ? "cursor-crosshair" : "cursor-pointer")
+              !disabled &&
+                (mode === "border" ? "cursor-crosshair" : "cursor-pointer")
             )}
             aria-label={t("campMapTitle")}
           />
@@ -454,46 +611,73 @@ export function CampMapPanel({
               : t("campMapViewOnly")}
           </p>
           <p className="mt-1 text-stone-300">
-            {hasPin
-              ? `${latitude}, ${longitude}`
-              : t("noLocationSet")}
+            {hasPin ? `${latitude}, ${longitude}` : t("noLocationSet")}
             {" · "}
-            {validBoundary
-              ? t("campBoundaryPoints", { n: cornerCount })
-              : draftCount > 0
-                ? t("campBoundaryDraft", { n: draftCount })
-                : t("campBoundaryEmpty")}
+            {statusLine}
           </p>
         </div>
       </div>
 
-      {acres != null && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2.5 text-sm">
-          <span>
-            {t("campBoundaryAcresEstimate", {
-              acres: formatAcresEstimate(acres),
-            })}
-          </span>
-          {!disabled && onApplyAcresEstimate && (
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              onClick={() => onApplyAcresEstimate(acres)}
+      {(perArea.length > 0 || totalAcres != null) && (
+        <div className="space-y-2 rounded-lg border bg-muted/30 px-3 py-2.5 text-sm">
+          {perArea.map((a) => (
+            <div
+              key={a.index}
+              className="flex flex-wrap items-center justify-between gap-2"
             >
-              {t("campBoundaryUseAcres")}
-            </Button>
-          )}
-          {!disabled && validBoundary && (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={setPinToBorderCenter}
-            >
-              <Crosshair className="h-3.5 w-3.5 mr-1" />
-              {t("campMapPinToCenter")}
-            </Button>
+              <span>
+                {t("campBoundaryAreaAcres", {
+                  n: a.index + 1,
+                  acres: formatAcresEstimate(a.acres),
+                })}
+              </span>
+              {!disabled && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs text-destructive"
+                  onClick={() => removeAreaAt(a.index)}
+                >
+                  {t("campBoundaryRemoveArea")}
+                </Button>
+              )}
+            </div>
+          ))}
+          {totalAcres != null && (
+            <div className="flex flex-wrap items-center gap-2 border-t pt-2">
+              <span className="font-medium">
+                {t("campBoundaryTotalAcres", {
+                  acres: formatAcresEstimate(totalAcres),
+                })}
+              </span>
+              {usedUnion && areaCount > 1 && (
+                <span className="text-xs text-muted-foreground">
+                  {t("campBoundaryUnionNote")}
+                </span>
+              )}
+              {!disabled && onApplyAcresEstimate && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => onApplyAcresEstimate(totalAcres)}
+                >
+                  {t("campBoundaryUseAcres")}
+                </Button>
+              )}
+              {!disabled && validBoundary && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={setPinToBorderCenter}
+                >
+                  <Crosshair className="h-3.5 w-3.5 mr-1" />
+                  {t("campMapPinToCenter")}
+                </Button>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -504,7 +688,17 @@ export function CampMapPanel({
             type="button"
             size="sm"
             variant="outline"
-            disabled={draftCount === 0}
+            onClick={startNewArea}
+            disabled={areaCount === 0 && draftCount < 3}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            {t("campBoundaryAddArea")}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={draftCount === 0 && areaCount === 0}
             onClick={undoLast}
           >
             <Undo2 className="h-4 w-4 mr-1" />
@@ -514,8 +708,8 @@ export function CampMapPanel({
             type="button"
             size="sm"
             variant="outline"
-            disabled={!boundary}
-            onClick={() => onBoundaryChange(null)}
+            disabled={areaCount === 0 && draftCount === 0}
+            onClick={clearAll}
           >
             <Trash2 className="h-4 w-4 mr-1" />
             {t("campBoundaryClear")}
@@ -570,11 +764,11 @@ export function CampMapPanel({
             <input
               ref={fileRef}
               type="file"
+              multiple
               accept=".geojson,.json,.kml,.gpx,.csv,.txt"
               className="hidden"
               onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) void onFile(f);
+                if (e.target.files?.length) void onFiles(e.target.files);
                 e.target.value = "";
               }}
             />
@@ -585,7 +779,7 @@ export function CampMapPanel({
               onClick={() => fileRef.current?.click()}
             >
               <Upload className="h-4 w-4 mr-1" />
-              {t("campBoundaryChooseFile")}
+              {t("campBoundaryChooseFiles")}
             </Button>
             {importError && (
               <p className="text-xs text-destructive">{importError}</p>
@@ -623,3 +817,4 @@ export function CampMapPanel({
     </div>
   );
 }
+

@@ -126,7 +126,7 @@ export async function PATCH(
       const parsed = parseBoundary(body.boundary);
       if (!parsed) {
         return NextResponse.json(
-          { error: "Invalid camp boundary (need at least 3 points)" },
+          { error: "Invalid camp boundary (need at least one area with 3+ points)" },
           { status: 400 }
         );
       }

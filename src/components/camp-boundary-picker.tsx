@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Upload, Trash2, Undo2 } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 import {
+  boundaryAreas,
   boundaryCentroid,
   boundaryPointCount,
   makeBoundary,
@@ -63,16 +64,20 @@ export function CampBoundaryPicker({
   }, []);
 
   function openRing(b: CampBoundary | null): LatLng[] {
-    if (!b?.ring?.length) return [];
-    const ring = b.ring;
-    if (
-      ring.length >= 2 &&
-      ring[0][0] === ring[ring.length - 1][0] &&
-      ring[0][1] === ring[ring.length - 1][1]
-    ) {
-      return ring.slice(0, -1);
+    if (!b) return [];
+    if (b.type === "Polygon" && Array.isArray(b.ring)) {
+      const ring = b.ring;
+      if (
+        ring.length >= 2 &&
+        ring[0][0] === ring[ring.length - 1][0] &&
+        ring[0][1] === ring[ring.length - 1][1]
+      ) {
+        return ring.slice(0, -1);
+      }
+      return [...ring];
     }
-    return [...ring];
+    const areas = boundaryAreas(b);
+    return areas.length ? [...areas[areas.length - 1]] : [];
   }
 
   function commitPoints(points: LatLng[]) {
