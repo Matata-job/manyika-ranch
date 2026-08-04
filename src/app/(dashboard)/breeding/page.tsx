@@ -26,7 +26,6 @@ import {
   herdPlanBadgeVariant,
   herdPlanLabelKey,
   isBreedingEligibleAge,
-  KULIMA_DEFAULT_NOTE,
   type HerdPlanValue,
 } from "@/lib/herd-plan";
 import { HerdPlanFilter } from "@/components/animals/herd-plan-filter";
@@ -247,7 +246,7 @@ export default function BreedingPage() {
       const entered = window.prompt(promptText, "") ?? "";
       note =
         entered.trim() ||
-        (plan === "KULIMA" ? KULIMA_DEFAULT_NOTE : null);
+        (plan === "KULIMA" ? t("herdPlanKulimaDefaultNote") : null);
     } else {
       note = null;
     }

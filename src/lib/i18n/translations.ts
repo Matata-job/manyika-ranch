@@ -611,7 +611,7 @@ const en = {
   weightKgOptional: "Weight each (kg, optional)",
   confirmBulkSale: "Sell {n} animals to {buyer}? This cannot be undone easily.",
   confirmBulkSaleKulimaWarning:
-    "{n} plough-team (kulima) animal(s) in this sale. Continue only if retiring them.",
+    "{n} ploughing animal(s) in this sale. Continue only if retiring them.",
   recordBulkSale: "Record bulk sale",
   bulkSaleFailed: "Bulk sale failed",
   bulkSaleResult: "Sold {n} animals to {buyer} at {price} each",
@@ -694,7 +694,7 @@ const en = {
     "Dams and sires must be at least {n} months (sires not castrated).",
   bulkHerdPlan: "Set herd plan",
   bulkHerdPlanHelp:
-    "Select animals in the filter below, then Keep, Sell next cycle, Plough team (kulima), or Clear plan.",
+    "Select animals in the filter below, then Keep, Sell next cycle, Ploughing Animal, or Clear plan.",
   bulkHerdPlanResult: "Updated {n} animals ({skipped} skipped).",
   clearHerdPlan: "Clear plan",
   deselectAll: "Deselect all",
@@ -705,11 +705,13 @@ const en = {
   herdPlanExcluded: "No special plan",
   herdPlanKeepBreeding: "Keep for breeding",
   herdPlanSellNextCycle: "Sell next cycle",
-  herdPlanKulima: "Plough team (kulima)",
+  herdPlanKulima: "Ploughing Animal",
+  herdPlanKulimaCategory: "Ploughing animals",
+  herdPlanKulimaDefaultNote: "Ploughing",
   herdPlanHelp:
-    "One plan per animal. Default is no special plan. Kulima = draft/plough team (wakulimia) — stays in its home camp. Breeding and Sales use this.",
+    "One plan per animal. Default is no special plan. Ploughing (Kulimia) = draft/work animal — stays in its home camp. Breeding and Sales use this.",
   optionalPlanningNoteKulima:
-    "Optional note (pair, handler, training year). Leave blank for “Timu ya kulima”.",
+    "Optional note (pair, handler, training year). Leave blank for “Ploughing”.",
   optionalPlanningNote: "Optional note (why)?",
   saleCyclePriority: "Sell next cycle",
   saleCyclePriorityHelp:
@@ -1667,7 +1669,7 @@ const sw: Dict = {
   confirmBulkSale:
     "Uza wanyama {n} kwa {buyer}? Hii haiwezi kutenduliwa kwa urahisi.",
   confirmBulkSaleKulimaWarning:
-    "Wanyama {n} wa timu ya kulima wapo kwenye uuzaji huu. Endelea tu ukistaafisha.",
+    "Wanyama wa Kulimia {n} wapo kwenye uuzaji huu. Endelea tu ukistaafisha.",
   recordBulkSale: "Rekodi mauzo ya kundi",
   bulkSaleFailed: "Mauzo ya kundi yameshindwa",
   bulkSaleResult: "Wameuzwa {n} kwa {buyer} kwa {price} kila mmoja",
@@ -1746,7 +1748,7 @@ const sw: Dict = {
     "Mama na baba lazima wawe angalau miezi {n} (dume wasiohaswa).",
   bulkHerdPlan: "Weka mpango wa mifugo",
   bulkHerdPlanHelp:
-    "Chagua wanyama kwenye kichujio, kisha Hifadhi, Uza mzunguko ujao, Timu ya kulima, au Ondoa mpango.",
+    "Chagua wanyama kwenye kichujio, kisha Hifadhi, Uza mzunguko ujao, Mnyama wa kulimia, au Ondoa mpango.",
   bulkHerdPlanResult: "Imesasishwa wanyama {n} ({skipped} wamerukwa).",
   clearHerdPlan: "Ondoa mpango",
   deselectAll: "Ondoa uteuzi wote",
@@ -1757,11 +1759,13 @@ const sw: Dict = {
   herdPlanExcluded: "Hakuna mpango maalum",
   herdPlanKeepBreeding: "Hifadhi kwa uzazi",
   herdPlanSellNextCycle: "Uza mzunguko ujao",
-  herdPlanKulima: "Timu ya kulima (wakulimia)",
+  herdPlanKulima: "Mnyama wa kulimia",
+  herdPlanKulimaCategory: "Wanyama wa Kulimia",
+  herdPlanKulimaDefaultNote: "Kulimia",
   herdPlanHelp:
-    "Mpango mmoja kwa kila mnyama. Chaguo-msingi ni hakuna mpango maalum. Kulima = timu ya kulima — mnyama hubaki kambi yake. Uzazi na Mauzo hutumia hii.",
+    "Mpango mmoja kwa kila mnyama. Chaguo-msingi ni hakuna mpango maalum. Kulimia = mnyama wa kulimia — hubaki kambi yake. Uzazi na Mauzo hutumia hii.",
   optionalPlanningNoteKulima:
-    "Maelezo ya hiari (jozi, mkulima, mwaka wa mafunzo). Acha tupu kwa “Timu ya kulima”.",
+    "Maelezo ya hiari (jozi, mkulima, mwaka wa mafunzo). Acha tupu kwa “Kulimia”.",
   optionalPlanningNote: "Maelezo ya hiari (kwa nini)?",
   saleCyclePriority: "Uza mzunguko ujao",
   saleCyclePriorityHelp:

@@ -9,8 +9,8 @@ export const HERD_PLANS = [
 
 export type HerdPlanValue = (typeof HERD_PLANS)[number];
 
-/** Default note when marking plough team without a custom note. */
-export const KULIMA_DEFAULT_NOTE = "Timu ya kulima";
+/** Fallback default note (EN). Prefer `t("herdPlanKulimaDefaultNote")` in UI. */
+export const KULIMA_DEFAULT_NOTE = "Ploughing";
 
 /** Min age (months) for mating dam/sire and “suggested breeding stock”. */
 export const BREEDING_ELIGIBLE_MONTHS = 22;
