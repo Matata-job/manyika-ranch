@@ -64,4 +64,18 @@
   .category-pill-active {
     @apply border-foreground bg-foreground text-background;
   }
+  .camp-map-area-label-wrap {
+    background: transparent !important;
+    border: none !important;
+  }
+  .camp-map-area-label {
+    @apply whitespace-nowrap text-center text-xs font-semibold;
+    padding: 0.3rem 0.65rem;
+    border-radius: 0.375rem;
+    color: #fef08a;
+    background: rgba(28, 25, 23, 0.9);
+    border: 1px solid rgba(254, 240, 138, 0.55);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+    transform: translate(-50%, -50%);
+  }
 }

@@ -37,6 +37,7 @@ import {
   parseBoundaryPaste,
   removeBoundaryArea,
   renameBoundaryArea,
+  ringCentroid,
   type CampBoundary,
   type LatLng,
 } from "@/lib/camp-boundary";
@@ -90,6 +91,7 @@ export function CampMapPanel({
   const polygonLayersRef = useRef<import("leaflet").Polygon[]>([]);
   const polylineRef = useRef<import("leaflet").Polyline | null>(null);
   const vertexMarkersRef = useRef<import("leaflet").CircleMarker[]>([]);
+  const areaLabelRef = useRef<import("leaflet").Marker | null>(null);
   const modeRef = useRef<MapMode>("pin");
   const boundaryRef = useRef(boundary);
   const draftRef = useRef<LatLng[]>([]);
@@ -113,6 +115,7 @@ export function CampMapPanel({
   const [nameDrafts, setNameDrafts] = useState<Record<number, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
   const selectedAreaRef = useRef<number | null>(null);
+  const areaRowRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   modeRef.current = mode;
   boundaryRef.current = boundary;
@@ -149,6 +152,22 @@ export function CampMapPanel({
   useEffect(() => {
     setNameDrafts({});
   }, [boundary]);
+
+  useEffect(() => {
+    if (selectedAreaIndex == null) return;
+    areaRowRefs.current[selectedAreaIndex]?.scrollIntoView({
+      block: "nearest",
+      behavior: "smooth",
+    });
+  }, [selectedAreaIndex]);
+
+  function escapeMapLabel(text: string): string {
+    return text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
 
   function areaNameValue(index: number): string {
     if (nameDrafts[index] !== undefined) return nameDrafts[index];
@@ -242,6 +261,10 @@ export function CampMapPanel({
     }
     for (const m of vertexMarkersRef.current) map.removeLayer(m);
     vertexMarkersRef.current = [];
+    if (areaLabelRef.current) {
+      map.removeLayer(areaLabelRef.current);
+      areaLabelRef.current = null;
+    }
 
     const completed = boundaryAreas(boundaryRef.current);
     const draft = draftRef.current;
@@ -251,8 +274,17 @@ export function CampMapPanel({
       : completed.length;
     const selected = selectedAreaRef.current;
     const hasSelection = selected != null;
+    const showVertices =
+      !disabledRef.current && modeRef.current === "border";
 
-    completed.forEach((pts, areaIdx) => {
+    const drawOrder = completed.map((_, i) => i);
+    if (hasSelection && selected != null) {
+      const rest = drawOrder.filter((i) => i !== selected);
+      drawOrder.length = 0;
+      drawOrder.push(...rest, selected);
+    }
+
+    function drawArea(areaIdx: number, pts: LatLng[]) {
       const isLive = liveDraft && areaIdx === completed.length - 1;
       const isSelected = selected === areaIdx;
       const isDimmed = hasSelection && !isSelected && !isLive;
@@ -260,19 +292,25 @@ export function CampMapPanel({
       const stroke = isLive
         ? "#fbbf24"
         : isSelected
-          ? "#fde047"
+          ? "#fef08a"
           : isDimmed
-            ? "#a8a29e"
+            ? "#78716c"
             : "#f5f0e6";
       const fill = isLive
         ? "#f59e0b"
         : isSelected
           ? "#f59e0b"
           : isDimmed
-            ? "#78716c"
+            ? "#57534e"
             : "#c4a35a";
-      const fillOpacity = isLive ? 0.38 : isSelected ? 0.55 : isDimmed ? 0.12 : 0.32;
-      const weight = isSelected ? 3.5 : 2.5;
+      const fillOpacity = isLive
+        ? 0.38
+        : isSelected
+          ? 0.68
+          : isDimmed
+            ? 0.08
+            : 0.32;
+      const weight = isSelected ? 4 : isLive ? 2.5 : 2.5;
       const vertexStyle = isLive
         ? VERTEX_STYLE.live
         : isSelected
@@ -280,14 +318,23 @@ export function CampMapPanel({
           : isDimmed
             ? VERTEX_STYLE.dimmed
             : VERTEX_STYLE.normal;
-      const showVertices =
-        !disabledRef.current && modeRef.current === "border";
 
       const label = areaDisplayName(
         boundaryRef.current,
         areaIdx,
         t("campBoundaryAreaLabel", { n: areaIdx + 1 })
       );
+
+      if (isSelected && hasSelection) {
+        const halo = L.polygon(pts, {
+          color: "#fef08a",
+          weight: 10,
+          fill: false,
+          opacity: 0.45,
+          interactive: false,
+        }).addTo(map);
+        polygonLayersRef.current.push(halo);
+      }
 
       const poly = L.polygon(pts, {
         color: stroke,
@@ -296,12 +343,13 @@ export function CampMapPanel({
         fillOpacity,
         dashArray: isLive ? "4 4" : undefined,
       }).addTo(map);
-      poly.bindTooltip(label, { sticky: true });
+      poly.bindTooltip(label, { sticky: !isSelected });
       poly.on("click", (e) => {
         L.DomEvent.stopPropagation(e);
         selectArea(areaIdx);
       });
       polygonLayersRef.current.push(poly);
+      if (isSelected) poly.bringToFront();
 
       if (showVertices) {
         pts.forEach((p, i) => {
@@ -322,9 +370,29 @@ export function CampMapPanel({
             selectArea(areaIdx);
           });
           vertexMarkersRef.current.push(m);
+          if (isSelected) m.bringToFront();
         });
       }
-    });
+
+      if (isSelected && hasSelection) {
+        const c = ringCentroid(pts);
+        if (c) {
+          const icon = L.divIcon({
+            className: "camp-map-area-label-wrap",
+            html: `<div class="camp-map-area-label">${escapeMapLabel(label)}</div>`,
+          });
+          areaLabelRef.current = L.marker([c.lat, c.lng], {
+            icon,
+            interactive: false,
+            zIndexOffset: 1000,
+          }).addTo(map);
+        }
+      }
+    }
+
+    for (const areaIdx of drawOrder) {
+      drawArea(areaIdx, completed[areaIdx]);
+    }
 
     // Incomplete draft (<3) not yet in boundary
     if (!liveDraft && draft.length > 0) {
@@ -443,6 +511,7 @@ export function CampMapPanel({
         polygonLayersRef.current = [];
         polylineRef.current = null;
         vertexMarkersRef.current = [];
+        areaLabelRef.current = null;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -834,7 +903,7 @@ export function CampMapPanel({
         </div>
       </div>
       {(perArea.length > 0 || totalAcres != null) && (
-        <div className="space-y-1.5 text-sm">
+        <div className="space-y-1.5 text-sm rounded-lg border bg-card/50 p-2">
           {perArea.map((a) => {
             const label = areaDisplayName(
               validBoundary,
@@ -845,6 +914,9 @@ export function CampMapPanel({
             return (
               <div
                 key={a.index}
+                ref={(el) => {
+                  areaRowRefs.current[a.index] = el;
+                }}
                 role="button"
                 tabIndex={0}
                 onClick={() => selectArea(a.index)}
@@ -855,13 +927,28 @@ export function CampMapPanel({
                   }
                 }}
                 className={cn(
-                  "flex items-center gap-2 rounded-lg px-2 py-1.5 -mx-2 transition-colors",
-                  isSelected ? "bg-muted/70" : "hover:bg-muted/40"
+                  "flex items-center gap-2 rounded-lg px-2 py-2 transition-all",
+                  isSelected
+                    ? "border border-amber-400/70 bg-amber-50 shadow-sm ring-2 ring-amber-400/25 dark:bg-amber-950/25"
+                    : "border border-transparent hover:border-border hover:bg-muted/50"
                 )}
               >
+                {isSelected && (
+                  <span
+                    className="w-1 shrink-0 self-stretch rounded-full bg-amber-500"
+                    aria-hidden
+                  />
+                )}
                 <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2">
                   {disabled ? (
-                    <span className="min-w-0 truncate font-medium leading-tight">
+                    <span
+                      className={cn(
+                        "min-w-0 truncate leading-tight",
+                        isSelected
+                          ? "font-semibold text-amber-950 dark:text-amber-100"
+                          : "font-medium"
+                      )}
+                    >
                       {label}
                     </span>
                   ) : (
@@ -870,7 +957,10 @@ export function CampMapPanel({
                       placeholder={t("campBoundaryAreaNamePlaceholder", {
                         n: a.index + 1,
                       })}
-                      className="h-8 min-w-0 w-full text-sm"
+                      className={cn(
+                        "h-8 min-w-0 w-full text-sm",
+                        isSelected && "border-amber-400/60 bg-background"
+                      )}
                       onFocus={() => setSelectedAreaIndex(a.index)}
                       onChange={(e) =>
                         setNameDrafts((prev) => ({
@@ -884,7 +974,14 @@ export function CampMapPanel({
                       aria-label={t("campBoundaryAreaName")}
                     />
                   )}
-                  <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground tabular-nums sm:text-sm">
+                  <span
+                    className={cn(
+                      "shrink-0 whitespace-nowrap text-xs tabular-nums sm:text-sm",
+                      isSelected
+                        ? "font-medium text-amber-900/80 dark:text-amber-200/90"
+                        : "text-muted-foreground"
+                    )}
+                  >
                     ≈ {formatAcresEstimate(a.acres)} {t("acres")}
                   </span>
                 </div>

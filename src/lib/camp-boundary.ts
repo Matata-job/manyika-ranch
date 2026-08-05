@@ -442,6 +442,20 @@ export function renameBoundaryArea(
   return makeBoundaries(rings, names);
 }
 
+/** Centroid of a single open ring (for map labels). */
+export function ringCentroid(
+  openRing: LatLng[]
+): { lat: number; lng: number } | null {
+  if (openRing.length === 0) return null;
+  let lat = 0;
+  let lng = 0;
+  for (const p of openRing) {
+    lat += p[0];
+    lng += p[1];
+  }
+  return { lat: lat / openRing.length, lng: lng / openRing.length };
+}
+
 export function boundaryCentroid(
   b: CampBoundary | null
 ): { lat: number; lng: number } | null {
