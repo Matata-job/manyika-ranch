@@ -392,7 +392,7 @@ const en = {
   campMapHintPin: "Tap map or drag the pin to set camp location",
   campMapHintBorder:
     "Tap corners for this area (3+). Use Add another area for a separate patch.",
-  campMapViewOnly: "Camp location & border",
+  campMapViewOnly: "Tap a grazing area to highlight it",
   campMapPinToCenter: "Set pin to border centre",
   campMapShowTools: "Paste / import / lat-lng",
   campMapHideTools: "Hide paste & import",
@@ -1519,7 +1519,7 @@ const sw: Dict = {
   campMapHintPin: "Gusa ramani au buruta alama kuweka mahali pa kambi",
   campMapHintBorder:
     "Gusa pembe za eneo hili (pointi 3+). Tumia Ongeza eneo jingine kwa sehemu nyingine.",
-  campMapViewOnly: "Mahali na mipaka ya kambi",
+  campMapViewOnly: "Gusa eneo la malisho kuangazia",
   campMapPinToCenter: "Weka alama katikati ya mipaka",
   campMapShowTools: "Bandika / pakia / lat-lng",
   campMapHideTools: "Ficha bandika na upakiaji",

@@ -101,6 +101,7 @@ export function CampMapPanel({
   const [selectedAreaIndex, setSelectedAreaIndex] = useState<number | null>(
     null
   );
+  const [nameDrafts, setNameDrafts] = useState<Record<number, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
   const selectedAreaRef = useRef<number | null>(null);
 
@@ -135,6 +136,30 @@ export function CampMapPanel({
       window.removeEventListener("offline", off);
     };
   }, []);
+
+  useEffect(() => {
+    setNameDrafts({});
+  }, [boundary]);
+
+  function areaNameValue(index: number): string {
+    if (nameDrafts[index] !== undefined) return nameDrafts[index];
+    return areaNames[index] ?? "";
+  }
+
+  function commitAreaName(index: number) {
+    const draft = nameDrafts[index];
+    if (draft === undefined) return;
+    renameAreaAt(index, draft);
+    setNameDrafts((prev) => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
+  }
+
+  function selectArea(index: number) {
+    setSelectedAreaIndex((prev) => (prev === index ? null : index));
+  }
 
   /** Frozen rings (exclude live draft ring if drafting into boundary). */
   function frozenRings(): LatLng[][] {
@@ -257,12 +282,10 @@ export function CampMapPanel({
         dashArray: isLive ? "4 4" : undefined,
       }).addTo(map);
       poly.bindTooltip(label, { sticky: true });
-      if (!disabledRef.current) {
-        poly.on("click", (e) => {
-          L.DomEvent.stopPropagation(e);
-          setSelectedAreaIndex(areaIdx);
-        });
-      }
+      poly.on("click", (e) => {
+        L.DomEvent.stopPropagation(e);
+        selectArea(areaIdx);
+      });
       polygonLayersRef.current.push(poly);
 
       pts.forEach((p, i) => {
@@ -278,12 +301,10 @@ export function CampMapPanel({
           offset: [0, -6],
           className: "camp-map-vertex-tip",
         });
-        if (!disabledRef.current) {
-          m.on("click", (e) => {
-            L.DomEvent.stopPropagation(e);
-            setSelectedAreaIndex(areaIdx);
-          });
-        }
+        m.on("click", (e) => {
+          L.DomEvent.stopPropagation(e);
+          selectArea(areaIdx);
+        });
         vertexMarkersRef.current.push(m);
       });
     });
@@ -415,17 +436,17 @@ export function CampMapPanel({
     const map = mapInstance.current;
     if (!map) return;
     const el = map.getContainer();
-    if (!disabled) {
-      el.style.cursor = mode === "border" ? "crosshair" : "pointer";
+    if (disabled) {
+      el.style.cursor = areaCount > 0 ? "pointer" : "";
     } else {
-      el.style.cursor = "";
+      el.style.cursor = mode === "border" ? "crosshair" : "pointer";
     }
     // Mode toggle can shift layout; force tile reload
     const id = window.setTimeout(() => {
       map.invalidateSize({ animate: false });
     }, 50);
     return () => window.clearTimeout(id);
-  }, [mode, disabled]);
+  }, [mode, disabled, areaCount]);
 
   useEffect(() => {
     const map = mapInstance.current;
@@ -647,14 +668,98 @@ export function CampMapPanel({
 
   return (
     <div className={cn("space-y-3", className)}>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <Label className="text-base">{t("campMapTitle")}</Label>
-          <p className="text-xs text-muted-foreground mt-0.5 max-w-prose">
-            {t("campMapHelp")}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+      <div className="space-y-1">
+        <Label className="text-base">{t("campMapTitle")}</Label>
+        <p className="text-xs text-muted-foreground max-w-prose">
+          {disabled ? t("campMapViewOnly") : t("campMapHelp")}
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {!disabled && (
+          <div className="inline-flex rounded-lg border bg-muted/40 p-0.5 gap-0.5">
+            <button
+              type="button"
+              onClick={() => setMode("pin")}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                mode === "pin"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <MapPin className="h-3.5 w-3.5" />
+              {t("campMapModePin")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("border")}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                mode === "border"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Pentagon className="h-3.5 w-3.5" />
+              {t("campMapModeBorder")}
+            </button>
+          </div>
+        )}
+
+        {!disabled && (
+          <>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={!canUndo}
+              onClick={undoLast}
+            >
+              <Undo2 className="h-4 w-4" />
+              <span className="sr-only sm:not-sr-only sm:ml-1">{t("campBoundaryUndo")}</span>
+            </Button>
+            {mode === "border" && (
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={areaCount === 0 && draftCount < 3}
+                  onClick={startNewArea}
+                >
+                  <Plus className="h-4 w-4" />
+                  <span className="hidden sm:inline sm:ml-1">
+                    {t("campBoundaryAddArea")}
+                  </span>
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={!canUndo}
+                  onClick={clearAll}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span className="hidden sm:inline sm:ml-1">
+                    {t("campBoundaryClearShort")}
+                  </span>
+                </Button>
+              </>
+            )}
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => setToolsOpen((v) => !v)}
+            >
+              {toolsOpen ? t("campMapHideTools") : t("campMapShowTools")}
+            </Button>
+          </>
+        )}
+
+        <div className="ml-auto flex flex-wrap gap-2">
           {areaCount > 0 && (
             <Button
               type="button"
@@ -662,8 +767,10 @@ export function CampMapPanel({
               variant="outline"
               onClick={onDownload}
             >
-              <Download className="h-4 w-4 mr-1" />
-              {t("campBoundaryDownload")}
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline sm:ml-1">
+                {t("campBoundaryDownload")}
+              </span>
             </Button>
           )}
           {!disabled && (
@@ -673,43 +780,12 @@ export function CampMapPanel({
               variant="outline"
               onClick={useMyLocation}
             >
-              <LocateFixed className="h-4 w-4 mr-1" />
-              {t("useMyLocation")}
+              <LocateFixed className="h-4 w-4" />
+              <span className="hidden sm:inline sm:ml-1">{t("useMyLocation")}</span>
             </Button>
           )}
         </div>
       </div>
-
-      {!disabled && (
-        <div className="inline-flex rounded-lg border bg-muted/40 p-0.5 gap-0.5">
-          <button
-            type="button"
-            onClick={() => setMode("pin")}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-              mode === "pin"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <MapPin className="h-3.5 w-3.5" />
-            {t("campMapModePin")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("border")}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-              mode === "border"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Pentagon className="h-3.5 w-3.5" />
-            {t("campMapModeBorder")}
-          </button>
-        </div>
-      )}
 
       <div className="relative overflow-hidden rounded-xl border shadow-sm">
         {online ? (
@@ -724,61 +800,7 @@ export function CampMapPanel({
           </div>
         )}
 
-        {!disabled && (
-          <div className="absolute left-3 top-3 z-[1000] flex flex-col gap-1.5">
-            <button
-              type="button"
-              onClick={undoLast}
-              disabled={!canUndo}
-              className={cn(
-                "inline-flex h-10 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium shadow-md backdrop-blur-sm transition-colors",
-                canUndo
-                  ? "border-white/25 bg-stone-950/80 text-stone-50 hover:bg-stone-900"
-                  : "cursor-not-allowed border-white/10 bg-stone-950/40 text-stone-500"
-              )}
-              title={t("campBoundaryUndo")}
-            >
-              <Undo2 className="h-4 w-4" />
-              {t("campBoundaryUndo")}
-            </button>
-            {mode === "border" && (
-              <>
-                <button
-                  type="button"
-                  onClick={startNewArea}
-                  disabled={areaCount === 0 && draftCount < 3}
-                  className={cn(
-                    "inline-flex h-10 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium shadow-md backdrop-blur-sm transition-colors",
-                    areaCount > 0 || draftCount >= 3
-                      ? "border-white/25 bg-stone-950/80 text-stone-50 hover:bg-stone-900"
-                      : "cursor-not-allowed border-white/10 bg-stone-950/40 text-stone-500"
-                  )}
-                  title={t("campBoundaryAddArea")}
-                >
-                  <Plus className="h-4 w-4" />
-                  {t("campBoundaryAddArea")}
-                </button>
-                <button
-                  type="button"
-                  onClick={clearAll}
-                  disabled={!canUndo}
-                  className={cn(
-                    "inline-flex h-10 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium shadow-md backdrop-blur-sm transition-colors",
-                    canUndo
-                      ? "border-white/25 bg-stone-950/80 text-red-200 hover:bg-stone-900"
-                      : "cursor-not-allowed border-white/10 bg-stone-950/40 text-stone-500"
-                  )}
-                  title={t("campBoundaryClear")}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  {t("campBoundaryClearShort")}
-                </button>
-              </>
-            )}
-          </div>
-        )}
-
-        <div className="pointer-events-none absolute inset-x-3 bottom-3 z-[1000] max-w-[min(100%-1.5rem,18rem)] rounded-lg border border-white/20 bg-stone-950/75 px-3 py-2 text-xs text-stone-100 backdrop-blur-sm shadow-lg">
+        <div className="pointer-events-none absolute inset-x-3 bottom-3 z-[1000] max-w-[min(100%-1.5rem,20rem)] rounded-lg border border-white/20 bg-stone-950/75 px-3 py-2 text-xs text-stone-100 backdrop-blur-sm shadow-lg">
           <p className="font-medium tracking-wide">
             {!disabled
               ? mode === "pin"
@@ -794,41 +816,78 @@ export function CampMapPanel({
         </div>
       </div>
       {(perArea.length > 0 || totalAcres != null) && (
-        <div className="space-y-2 text-sm">
-          {perArea.map((a) => (
-            <div
-              key={a.index}
-              className="flex flex-wrap items-center gap-2 py-1"
-              onClick={() => !disabled && setSelectedAreaIndex(a.index)}
-            >
-              <Input
-                value={areaNames[a.index] ?? ""}
-                placeholder={t("campBoundaryAreaNamePlaceholder", {
-                  n: a.index + 1,
-                })}
-                disabled={disabled}
-                className="h-8 max-w-[14rem] text-sm"
-                onFocus={() => setSelectedAreaIndex(a.index)}
-                onChange={(e) => renameAreaAt(a.index, e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-                aria-label={t("campBoundaryAreaName")}
-              />
-              <span className="text-muted-foreground tabular-nums">
-                ≈ {formatAcresEstimate(a.acres)} {t("acres")}
-              </span>
-              {!disabled && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 text-xs text-destructive ml-auto"
-                  onClick={() => removeAreaAt(a.index)}
-                >
-                  {t("campBoundaryRemoveArea")}
-                </Button>
-              )}
-            </div>
-          ))}
+        <div className="space-y-1.5 text-sm">
+          {perArea.map((a) => {
+            const label = areaDisplayName(
+              validBoundary,
+              a.index,
+              t("campBoundaryAreaLabel", { n: a.index + 1 })
+            );
+            const isSelected = selectedAreaIndex === a.index;
+            return (
+              <div
+                key={a.index}
+                role="button"
+                tabIndex={0}
+                onClick={() => selectArea(a.index)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    selectArea(a.index);
+                  }
+                }}
+                className={cn(
+                  "flex items-center gap-2 rounded-lg px-2 py-1.5 -mx-2 transition-colors",
+                  isSelected ? "bg-muted/70" : "hover:bg-muted/40"
+                )}
+              >
+                <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2">
+                  {disabled ? (
+                    <span className="min-w-0 truncate font-medium leading-tight">
+                      {label}
+                    </span>
+                  ) : (
+                    <Input
+                      value={areaNameValue(a.index)}
+                      placeholder={t("campBoundaryAreaNamePlaceholder", {
+                        n: a.index + 1,
+                      })}
+                      className="h-8 min-w-0 w-full text-sm"
+                      onFocus={() => setSelectedAreaIndex(a.index)}
+                      onChange={(e) =>
+                        setNameDrafts((prev) => ({
+                          ...prev,
+                          [a.index]: e.target.value,
+                        }))
+                      }
+                      onBlur={() => commitAreaName(a.index)}
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
+                      aria-label={t("campBoundaryAreaName")}
+                    />
+                  )}
+                  <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground tabular-nums sm:text-sm">
+                    ≈ {formatAcresEstimate(a.acres)} {t("acres")}
+                  </span>
+                </div>
+                {!disabled && (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 shrink-0 text-destructive hover:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeAreaAt(a.index);
+                    }}
+                    aria-label={t("campBoundaryRemoveArea")}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            );
+          })}
           {totalAcres != null && (
             <div className="flex flex-wrap items-center gap-2 border-t pt-2 mt-1">
               <span className="font-medium">
@@ -864,49 +923,6 @@ export function CampMapPanel({
               )}
             </div>
           )}
-        </div>
-      )}
-
-      {!disabled && (
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={startNewArea}
-            disabled={areaCount === 0 && draftCount < 3}
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            {t("campBoundaryAddArea")}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            disabled={!canUndo}
-            onClick={undoLast}
-          >
-            <Undo2 className="h-4 w-4 mr-1" />
-            {t("campBoundaryUndo")}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={!canUndo}
-            onClick={clearAll}
-          >
-            <Trash2 className="h-4 w-4 mr-1" />
-            {t("campBoundaryClear")}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => setToolsOpen((v) => !v)}
-          >
-            {toolsOpen ? t("campMapHideTools") : t("campMapShowTools")}
-          </Button>
         </div>
       )}
 
