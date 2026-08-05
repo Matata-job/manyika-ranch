@@ -94,7 +94,7 @@ const DEFAULTS: Filters = {
   pregnant: "all",
   tagColor: "all",
   herdPlan: "all",
-  sort: "eartag_asc",
+  sort: "newest",
 };
 
 type AgeMode =
@@ -159,7 +159,7 @@ function filtersFromParams(params: URLSearchParams): Filters {
     pregnant: params.get("pregnant") || "all",
     tagColor: params.get("tagColor") || "all",
     herdPlan: params.get("herdPlan") || "all",
-    sort: params.get("sort") || "eartag_asc",
+    sort: params.get("sort") || "newest",
   };
 }
 

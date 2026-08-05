@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
   const tagColors = parseMultiParam(searchParams.get("tagColor"))
     .map((c) => normalizeTagColor(c))
     .filter((c): c is string => !!c);
-  const sort = searchParams.get("sort") || "eartag_asc";
+  const sort = searchParams.get("sort") || "newest";
   const limit = Math.min(
     Math.max(
       parseInt(searchParams.get("limit") || String(DEFAULT_LIMIT), 10) ||
