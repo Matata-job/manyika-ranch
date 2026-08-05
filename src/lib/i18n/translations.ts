@@ -81,6 +81,8 @@ const en = {
   campsViewMode: "Camp view",
   campsViewPhotos: "With photos",
   campsViewList: "List",
+  campAnimalsPhotoList: "List with photos",
+  campAnimalsPhotoCards: "Photo cards",
 
   // Roles
   roleOWNER: "Owner",
@@ -1217,6 +1219,8 @@ const sw: Dict = {
   campsViewMode: "Mwonekano wa kambi",
   campsViewPhotos: "Na picha",
   campsViewList: "Orodha",
+  campAnimalsPhotoList: "Orodha na picha",
+  campAnimalsPhotoCards: "Kadi za picha",
 
   roleOWNER: "Mmiliki",
   roleFARM_MANAGER: "Meneja wa Shamba",

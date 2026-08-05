@@ -176,7 +176,16 @@ const CAMP_ANIMAL_FILTERS_DEFAULT: CampAnimalFilters = {
 const CAMP_ANIMAL_COLUMN_STORAGE_KEY = "manyika.campAnimals.columns";
 const CAMP_ANIMALS_VIEW_KEY = "manyika.campAnimals.view";
 
-type CampAnimalsViewMode = "list" | "grid";
+type CampAnimalsViewMode = "table" | "photoList" | "photoGrid";
+
+function migrateCampAnimalsView(stored: string | null): CampAnimalsViewMode {
+  if (stored === "table" || stored === "photoList" || stored === "photoGrid") {
+    return stored;
+  }
+  if (stored === "list") return "table";
+  if (stored === "grid") return "photoGrid";
+  return "table";
+}
 
 function campAnimalSexShort(sex: string) {
   if (sex === "MALE") return "M";
@@ -217,7 +226,7 @@ export default function CampDetailPage() {
   const [animalsFiltersOpen, setAnimalsFiltersOpen] = useState(false);
   const [animalsColumnsOpen, setAnimalsColumnsOpen] = useState(false);
   const [campAnimalsView, setCampAnimalsView] =
-    useState<CampAnimalsViewMode>("list");
+    useState<CampAnimalsViewMode>("table");
   const [animalColumns, setAnimalColumns] = useState<AnimalColumnId[]>(() =>
     loadColumnPrefs(CAMP_ANIMAL_COLUMN_STORAGE_KEY, "bulkSale")
   );
@@ -262,16 +271,16 @@ export default function CampDetailPage() {
   });
 
   useEffect(() => {
-    const stored = localStorage.getItem(CAMP_ANIMALS_VIEW_KEY);
-    if (stored === "list" || stored === "grid") {
-      setCampAnimalsView(stored);
-    }
+    setCampAnimalsView(migrateCampAnimalsView(localStorage.getItem(CAMP_ANIMALS_VIEW_KEY)));
   }, []);
 
   function setCampAnimalsViewMode(mode: CampAnimalsViewMode) {
     setCampAnimalsView(mode);
     localStorage.setItem(CAMP_ANIMALS_VIEW_KEY, mode);
   }
+
+  const campAnimalsPhotoMode =
+    campAnimalsView === "photoList" || campAnimalsView === "photoGrid";
 
   const loadCampAnimals = useCallback(async () => {
     setAnimalsLoading(true);
@@ -1017,42 +1026,82 @@ export default function CampDetailPage() {
             </span>
           </h2>
           <div className="flex flex-col-reverse sm:flex-row gap-2 w-full sm:w-auto">
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <div
                 className="inline-flex h-10 items-center rounded-lg border border-muted-foreground/20 p-0.5 bg-muted/30"
                 role="group"
-                aria-label={t("viewList")}
+                aria-label={t("campsViewMode")}
               >
                 <button
                   type="button"
-                  onClick={() => setCampAnimalsViewMode("list")}
+                  onClick={() => setCampAnimalsViewMode("table")}
                   className={cn(
                     "inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors",
-                    campAnimalsView === "list"
+                    campAnimalsView === "table"
                       ? "bg-background text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   )}
-                  aria-pressed={campAnimalsView === "list"}
+                  aria-pressed={campAnimalsView === "table"}
                 >
                   <List className="h-3.5 w-3.5" />
-                  {t("viewList")}
+                  {t("campsViewList")}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setCampAnimalsViewMode("grid")}
+                  onClick={() =>
+                    setCampAnimalsViewMode(
+                      campAnimalsPhotoMode ? campAnimalsView : "photoList"
+                    )
+                  }
                   className={cn(
                     "inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors",
-                    campAnimalsView === "grid"
+                    campAnimalsPhotoMode
                       ? "bg-background text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   )}
-                  aria-pressed={campAnimalsView === "grid"}
+                  aria-pressed={campAnimalsPhotoMode}
                 >
                   <LayoutGrid className="h-3.5 w-3.5" />
-                  {t("viewGrid")}
+                  {t("campsViewPhotos")}
                 </button>
               </div>
-              {campAnimalsView === "list" && (
+              {campAnimalsPhotoMode && (
+                <div
+                  className="inline-flex h-10 items-center rounded-lg border border-muted-foreground/20 p-0.5 bg-muted/20"
+                  role="group"
+                  aria-label={t("campsViewPhotos")}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setCampAnimalsViewMode("photoList")}
+                    className={cn(
+                      "inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors",
+                      campAnimalsView === "photoList"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    aria-pressed={campAnimalsView === "photoList"}
+                  >
+                    <List className="h-3.5 w-3.5" />
+                    {t("campAnimalsPhotoList")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCampAnimalsViewMode("photoGrid")}
+                    className={cn(
+                      "inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors",
+                      campAnimalsView === "photoGrid"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    aria-pressed={campAnimalsView === "photoGrid"}
+                  >
+                    <LayoutGrid className="h-3.5 w-3.5" />
+                    {t("campAnimalsPhotoCards")}
+                  </button>
+                </div>
+              )}
+              {campAnimalsView === "table" && (
                 <Button
                   type="button"
                   variant="outline"
@@ -1410,7 +1459,7 @@ export default function CampDetailPage() {
                 <p className="p-4 text-sm text-muted-foreground">
                   {t("noAnimalsMatch")}
                 </p>
-              ) : campAnimalsView === "grid" ? (
+              ) : campAnimalsView === "photoGrid" ? (
                 <div className="grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {campAnimals.map((animal) => {
                     const lifecycle = lifecycleKind({
@@ -1464,6 +1513,87 @@ export default function CampDetailPage() {
                       </Link>
                     );
                   })}
+                </div>
+              ) : campAnimalsView === "photoList" ? (
+                <div className="overflow-hidden">
+                  <div className="hidden sm:grid grid-cols-[3rem_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_5.5rem] gap-3 px-4 py-2.5 text-[11px] uppercase tracking-wide text-muted-foreground border-b border-border/60 bg-muted/30">
+                    <span />
+                    <span>{t("eartag")}</span>
+                    <span>{t("breed")}</span>
+                    <span>{t("dob")}</span>
+                    <span className="text-right">{t("age")}</span>
+                  </div>
+                  <ul className="divide-y divide-border/50">
+                    {campAnimals.map((animal) => {
+                      const lifecycle = lifecycleKind({
+                        sex: animal.sex,
+                        ageMonths: animal.ageMonths,
+                        isCastrated: animal.isCastrated,
+                      });
+                      return (
+                        <li key={animal.id}>
+                          <Link
+                            href={`/animals/${animal.id}`}
+                            className="group grid grid-cols-[3rem_1fr] sm:grid-cols-[3rem_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_5.5rem] gap-3 items-center px-4 py-3 hover:bg-muted/35 transition-colors"
+                          >
+                            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-muted ring-1 ring-border/60">
+                              {animal.photoUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={animal.photoUrl}
+                                  alt=""
+                                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                />
+                              ) : (
+                                <span className="flex h-full w-full items-center justify-center text-sm font-semibold text-muted-foreground/80">
+                                  {campAnimalSexShort(animal.sex)}
+                                </span>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <EartagBadge
+                                  eartag={animal.eartag}
+                                  animalTagColor={animal.tagColor}
+                                  campTagColor={
+                                    animal.camp?.tagColor ?? camp.tagColor
+                                  }
+                                  defaultTagColor={defaultTagColor}
+                                  dob={animal.dateOfBirth ?? animal.dob}
+                                  ageMonths={animal.ageMonths}
+                                  yearColors={yearColors}
+                                  locale={locale}
+                                  className="group-hover:text-primary transition-colors"
+                                />
+                                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
+                                  {campAnimalSexShort(animal.sex)}
+                                </span>
+                                <Badge variant="outline" className="font-normal text-[10px] px-1.5 py-0 h-5">
+                                  {t(lifecycleLabelKey(lifecycle))}
+                                </Badge>
+                              </div>
+                              <p className="sm:hidden text-sm text-muted-foreground truncate mt-0.5">
+                                {animal.breed}
+                                {" · "}
+                                {formatCampAnimalAge(animal.ageMonths)}
+                                {" · "}
+                                {formatDate(animal.dateOfBirth ?? animal.dob)}
+                              </p>
+                            </div>
+                            <p className="hidden sm:block text-sm text-muted-foreground truncate">
+                              {animal.breed}
+                            </p>
+                            <p className="hidden sm:block text-sm text-muted-foreground truncate">
+                              {formatDate(animal.dateOfBirth ?? animal.dob)}
+                            </p>
+                            <p className="hidden sm:block text-sm text-muted-foreground text-right tabular-nums">
+                              {formatCampAnimalAge(animal.ageMonths)}
+                            </p>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
               ) : (
               <table className="w-full text-sm">
