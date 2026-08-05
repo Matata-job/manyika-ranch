@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Columns3, Filter, Pencil, Plus, Search, StickyNote } from "lucide-react";
+import { ArrowLeft, Columns3, Filter, LayoutGrid, List, Pencil, Plus, Search, StickyNote } from "lucide-react";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 import { useLocale, useT } from "@/components/providers/locale-provider";
@@ -51,7 +51,7 @@ import {
 } from "@/lib/camp-boundary";
 import { herdPlanBadgeVariant, herdPlanLabelKey } from "@/lib/herd-plan";
 import { lifecycleKind, lifecycleLabelKey } from "@/lib/lifecycle";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
 function todayInputDate(): string {
   const d = new Date();
@@ -130,6 +130,7 @@ type CampAnimal = {
   tagColor?: string | null;
   rfidChip?: string | null;
   herdPlan?: "EXCLUDED" | "KEEP_BREEDING" | "SELL_NEXT_CYCLE" | "KULIMA";
+  photoUrl?: string | null;
   camp?: { id: string; name: string; tagColor?: string | null };
   owner?: { id: string; name: string } | null;
   sire?: { id: string; eartag: string } | null;
@@ -173,6 +174,20 @@ const CAMP_ANIMAL_FILTERS_DEFAULT: CampAnimalFilters = {
 };
 
 const CAMP_ANIMAL_COLUMN_STORAGE_KEY = "manyika.campAnimals.columns";
+const CAMP_ANIMALS_VIEW_KEY = "manyika.campAnimals.view";
+
+type CampAnimalsViewMode = "list" | "grid";
+
+function campAnimalSexShort(sex: string) {
+  if (sex === "MALE") return "M";
+  if (sex === "FEMALE") return "F";
+  return "?";
+}
+
+function formatCampAnimalAge(ageMonths: number | null | undefined) {
+  if (ageMonths == null) return "—";
+  return `${Math.floor(ageMonths / 12)}y ${ageMonths % 12}mo`;
+}
 
 type AgeMode =
   | "all"
@@ -201,6 +216,8 @@ export default function CampDetailPage() {
   const [animalsSearch, setAnimalsSearch] = useState("");
   const [animalsFiltersOpen, setAnimalsFiltersOpen] = useState(false);
   const [animalsColumnsOpen, setAnimalsColumnsOpen] = useState(false);
+  const [campAnimalsView, setCampAnimalsView] =
+    useState<CampAnimalsViewMode>("list");
   const [animalColumns, setAnimalColumns] = useState<AnimalColumnId[]>(() =>
     loadColumnPrefs(CAMP_ANIMAL_COLUMN_STORAGE_KEY, "bulkSale")
   );
@@ -243,6 +260,18 @@ export default function CampDetailPage() {
     tagColor: "",
     boundary: null,
   });
+
+  useEffect(() => {
+    const stored = localStorage.getItem(CAMP_ANIMALS_VIEW_KEY);
+    if (stored === "list" || stored === "grid") {
+      setCampAnimalsView(stored);
+    }
+  }, []);
+
+  function setCampAnimalsViewMode(mode: CampAnimalsViewMode) {
+    setCampAnimalsView(mode);
+    localStorage.setItem(CAMP_ANIMALS_VIEW_KEY, mode);
+  }
 
   const loadCampAnimals = useCallback(async () => {
     setAnimalsLoading(true);
@@ -989,16 +1018,52 @@ export default function CampDetailPage() {
           </h2>
           <div className="flex flex-col-reverse sm:flex-row gap-2 w-full sm:w-auto">
             <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="flex-1 sm:flex-none h-10 rounded-lg"
-                onClick={() => setAnimalsColumnsOpen(true)}
+              <div
+                className="inline-flex h-10 items-center rounded-lg border border-muted-foreground/20 p-0.5 bg-muted/30"
+                role="group"
+                aria-label={t("viewList")}
               >
-                <Columns3 className="h-4 w-4 mr-1.5" />
-                {t("columnsCount", { n: animalColumns.length })}
-              </Button>
+                <button
+                  type="button"
+                  onClick={() => setCampAnimalsViewMode("list")}
+                  className={cn(
+                    "inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors",
+                    campAnimalsView === "list"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  aria-pressed={campAnimalsView === "list"}
+                >
+                  <List className="h-3.5 w-3.5" />
+                  {t("viewList")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCampAnimalsViewMode("grid")}
+                  className={cn(
+                    "inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors",
+                    campAnimalsView === "grid"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  aria-pressed={campAnimalsView === "grid"}
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  {t("viewGrid")}
+                </button>
+              </div>
+              {campAnimalsView === "list" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 sm:flex-none h-10 rounded-lg"
+                  onClick={() => setAnimalsColumnsOpen(true)}
+                >
+                  <Columns3 className="h-4 w-4 mr-1.5" />
+                  {t("columnsCount", { n: animalColumns.length })}
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"
@@ -1337,6 +1402,70 @@ export default function CampDetailPage() {
               )}
 
               <div className="rounded-xl border overflow-x-auto">
+              {animalsLoading ? (
+                <p className="p-4 text-sm text-muted-foreground">
+                  {t("loadingAnimals")}
+                </p>
+              ) : campAnimals.length === 0 ? (
+                <p className="p-4 text-sm text-muted-foreground">
+                  {t("noAnimalsMatch")}
+                </p>
+              ) : campAnimalsView === "grid" ? (
+                <div className="grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {campAnimals.map((animal) => {
+                    const lifecycle = lifecycleKind({
+                      sex: animal.sex,
+                      ageMonths: animal.ageMonths,
+                      isCastrated: animal.isCastrated,
+                    });
+                    return (
+                      <Link key={animal.id} href={`/animals/${animal.id}`}>
+                        <Card className="overflow-hidden h-full border-muted-foreground/10 shadow-none hover:border-muted-foreground/25 transition-colors">
+                          <div className="aspect-[4/3] bg-muted/50 flex items-center justify-center">
+                            {animal.photoUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={animal.photoUrl}
+                                alt={animal.eartag}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-2xl font-semibold text-muted-foreground/50">
+                                {campAnimalSexShort(animal.sex)}
+                              </span>
+                            )}
+                          </div>
+                          <div className="space-y-1.5 p-3.5">
+                            <EartagBadge
+                              eartag={animal.eartag}
+                              animalTagColor={animal.tagColor}
+                              campTagColor={
+                                animal.camp?.tagColor ?? camp.tagColor
+                              }
+                              defaultTagColor={defaultTagColor}
+                              dob={animal.dateOfBirth ?? animal.dob}
+                              ageMonths={animal.ageMonths}
+                              yearColors={yearColors}
+                              locale={locale}
+                            />
+                            <p className="text-sm text-muted-foreground truncate">
+                              {animal.breed}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatCampAnimalAge(animal.ageMonths)}
+                              {" · "}
+                              {formatDate(animal.dateOfBirth ?? animal.dob)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {t(lifecycleLabelKey(lifecycle))}
+                            </p>
+                          </div>
+                        </Card>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : (
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
@@ -1385,20 +1514,7 @@ export default function CampDetailPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {animalsLoading ? (
-                    <tr>
-                      <td className="p-3 text-muted-foreground" colSpan={13}>
-                        {t("loadingAnimals")}
-                      </td>
-                    </tr>
-                  ) : campAnimals.length === 0 ? (
-                    <tr>
-                      <td className="p-3 text-muted-foreground" colSpan={13}>
-                        {t("noAnimalsMatch")}
-                      </td>
-                    </tr>
-                  ) : (
-                    campAnimals.map((animal) => {
+                  {campAnimals.map((animal) => {
                       const lifecycle = lifecycleKind({
                         sex: animal.sex,
                         ageMonths: animal.ageMonths,
@@ -1461,9 +1577,7 @@ export default function CampDetailPage() {
                           )}
                           {campAnimalColumnsVisible("age") && (
                             <td className="p-3">
-                              {animal.ageMonths != null
-                                ? `${Math.floor(animal.ageMonths / 12)}y ${animal.ageMonths % 12}mo`
-                                : "—"}
+                              {formatCampAnimalAge(animal.ageMonths)}
                             </td>
                           )}
                           {campAnimalColumnsVisible("rfid") && (
@@ -1487,7 +1601,7 @@ export default function CampDetailPage() {
                           )}
                           {campAnimalColumnsVisible("dob") && (
                             <td className="p-3">
-                              {animal.dateOfBirth ?? animal.dob ?? "—"}
+                              {formatDate(animal.dateOfBirth ?? animal.dob)}
                             </td>
                           )}
                           {campAnimalColumnsVisible("castrated") && (
@@ -1516,10 +1630,10 @@ export default function CampDetailPage() {
                           )}
                         </tr>
                       );
-                    })
-                  )}
+                    })}
                 </tbody>
               </table>
+              )}
             </div>
             </div>
           </>
