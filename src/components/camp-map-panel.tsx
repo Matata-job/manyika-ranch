@@ -292,25 +292,25 @@ export function CampMapPanel({
       const stroke = isLive
         ? "#fbbf24"
         : isSelected
-          ? "#fef08a"
+          ? "#fde047"
           : isDimmed
-            ? "#78716c"
+            ? "#a8a29e"
             : "#f5f0e6";
       const fill = isLive
         ? "#f59e0b"
         : isSelected
           ? "#f59e0b"
           : isDimmed
-            ? "#57534e"
+            ? "#78716c"
             : "#c4a35a";
       const fillOpacity = isLive
         ? 0.38
         : isSelected
-          ? 0.68
+          ? 0.55
           : isDimmed
-            ? 0.08
+            ? 0.12
             : 0.32;
-      const weight = isSelected ? 4 : isLive ? 2.5 : 2.5;
+      const weight = isSelected ? 3.5 : 2.5;
       const vertexStyle = isLive
         ? VERTEX_STYLE.live
         : isSelected
@@ -324,17 +324,6 @@ export function CampMapPanel({
         areaIdx,
         t("campBoundaryAreaLabel", { n: areaIdx + 1 })
       );
-
-      if (isSelected && hasSelection) {
-        const halo = L.polygon(pts, {
-          color: "#fef08a",
-          weight: 10,
-          fill: false,
-          opacity: 0.45,
-          interactive: false,
-        }).addTo(map);
-        polygonLayersRef.current.push(halo);
-      }
 
       const poly = L.polygon(pts, {
         color: stroke,
@@ -379,7 +368,7 @@ export function CampMapPanel({
         if (c) {
           const icon = L.divIcon({
             className: "camp-map-area-label-wrap",
-            html: `<div class="camp-map-area-label">${escapeMapLabel(label)}</div>`,
+            html: `<div class="camp-map-area-label"><span class="camp-map-area-label-dot" aria-hidden="true"></span><span>${escapeMapLabel(label)}</span></div>`,
           });
           areaLabelRef.current = L.marker([c.lat, c.lng], {
             icon,
