@@ -44,6 +44,15 @@ import { cn } from "@/lib/utils";
 
 const DEFAULT_CENTER: [number, number] = [-4.8167, 34.75];
 
+/** Leaflet circleMarker radii in px — 3–5px is typical for GIS vertex handles. */
+const VERTEX_STYLE = {
+  normal: { radius: 4, weight: 1.5, stroke: "#44403c", fill: "#ffffff" },
+  selected: { radius: 5, weight: 2, stroke: "#d97706", fill: "#fffbeb" },
+  live: { radius: 4, weight: 1.5, stroke: "#f59e0b", fill: "#ffffff" },
+  dimmed: { radius: 3, weight: 1, stroke: "#a8a29e", fill: "#fafaf9" },
+  draft: { radius: 4, weight: 1.5, stroke: "#f59e0b", fill: "#ffffff" },
+} as const;
+
 type MapMode = "pin" | "border";
 
 type Props = {
@@ -264,9 +273,15 @@ export function CampMapPanel({
             : "#c4a35a";
       const fillOpacity = isLive ? 0.38 : isSelected ? 0.55 : isDimmed ? 0.12 : 0.32;
       const weight = isSelected ? 3.5 : 2.5;
-      const vertexRadius = isSelected ? 7 : isLive ? 6 : 5;
-      const vertexStroke = isSelected ? "#fde047" : isLive ? "#fbbf24" : "#f5f0e6";
-      const vertexFill = isSelected ? "#fde047" : "#1c1917";
+      const vertexStyle = isLive
+        ? VERTEX_STYLE.live
+        : isSelected
+          ? VERTEX_STYLE.selected
+          : isDimmed
+            ? VERTEX_STYLE.dimmed
+            : VERTEX_STYLE.normal;
+      const showVertices =
+        !disabledRef.current && modeRef.current === "border";
 
       const label = areaDisplayName(
         boundaryRef.current,
@@ -288,25 +303,27 @@ export function CampMapPanel({
       });
       polygonLayersRef.current.push(poly);
 
-      pts.forEach((p, i) => {
-        const m = L.circleMarker(p, {
-          radius: vertexRadius,
-          color: vertexStroke,
-          fillColor: vertexFill,
-          fillOpacity: 1,
-          weight: isSelected ? 2.5 : 2,
-        }).addTo(map);
-        m.bindTooltip(`${areaIdx + 1}.${i + 1}`, {
-          direction: "top",
-          offset: [0, -6],
-          className: "camp-map-vertex-tip",
+      if (showVertices) {
+        pts.forEach((p, i) => {
+          const m = L.circleMarker(p, {
+            radius: vertexStyle.radius,
+            color: vertexStyle.stroke,
+            fillColor: vertexStyle.fill,
+            fillOpacity: 1,
+            weight: vertexStyle.weight,
+          }).addTo(map);
+          m.bindTooltip(`${areaIdx + 1}.${i + 1}`, {
+            direction: "top",
+            offset: [0, -4],
+            className: "camp-map-vertex-tip",
+          });
+          m.on("click", (e) => {
+            L.DomEvent.stopPropagation(e);
+            selectArea(areaIdx);
+          });
+          vertexMarkersRef.current.push(m);
         });
-        m.on("click", (e) => {
-          L.DomEvent.stopPropagation(e);
-          selectArea(areaIdx);
-        });
-        vertexMarkersRef.current.push(m);
-      });
+      }
     });
 
     // Incomplete draft (<3) not yet in boundary
@@ -319,16 +336,17 @@ export function CampMapPanel({
         }).addTo(map);
       }
       draft.forEach((p, i) => {
+        const s = VERTEX_STYLE.draft;
         const m = L.circleMarker(p, {
-          radius: 6,
-          color: "#fbbf24",
-          fillColor: "#1c1917",
+          radius: s.radius,
+          color: s.stroke,
+          fillColor: s.fill,
           fillOpacity: 1,
-          weight: 2,
+          weight: s.weight,
         }).addTo(map);
         m.bindTooltip(`${frozenCount + 1}.${i + 1}`, {
           direction: "top",
-          offset: [0, -6],
+          offset: [0, -4],
           className: "camp-map-vertex-tip",
         });
         vertexMarkersRef.current.push(m);
@@ -461,7 +479,7 @@ export function CampMapPanel({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boundary, draftPoints, latitude, longitude, disabled, selectedAreaIndex]);
+  }, [boundary, draftPoints, latitude, longitude, disabled, selectedAreaIndex, mode]);
 
   // Fit once when area count changes (not on every vertex while drawing)
   useEffect(() => {
