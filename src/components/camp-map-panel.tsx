@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -18,8 +19,10 @@ import {
 import { useT } from "@/components/providers/locale-provider";
 import {
   addBoundaryAreas,
+  areaDisplayName,
   boundaryAllPoints,
   boundaryAreaCount,
+  boundaryAreaNames,
   boundaryAreas,
   boundaryCentroid,
   boundaryPerAreaAcres,
@@ -33,6 +36,7 @@ import {
   parseBoundaryFile,
   parseBoundaryPaste,
   removeBoundaryArea,
+  renameBoundaryArea,
   type CampBoundary,
   type LatLng,
 } from "@/lib/camp-boundary";
@@ -94,7 +98,11 @@ export function CampMapPanel({
   const [pasteError, setPasteError] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [selectedAreaIndex, setSelectedAreaIndex] = useState<number | null>(
+    null
+  );
   const fileRef = useRef<HTMLInputElement>(null);
+  const selectedAreaRef = useRef<number | null>(null);
 
   modeRef.current = mode;
   boundaryRef.current = boundary;
@@ -103,9 +111,11 @@ export function CampMapPanel({
   disabledRef.current = disabled;
   onBoundaryChangeRef.current = onBoundaryChange;
   onPinChangeRef.current = onPinChange;
+  selectedAreaRef.current = selectedAreaIndex;
 
   const validBoundary = parseBoundary(boundary);
   const areaCount = boundaryAreaCount(validBoundary);
+  const areaNames = boundaryAreaNames(validBoundary);
   const perArea = boundaryPerAreaAcres(validBoundary);
   const { acres: totalAcres, usedUnion } =
     boundaryTotalAcresUnion(validBoundary);
@@ -205,34 +215,75 @@ export function CampMapPanel({
     const frozenCount = liveDraft
       ? Math.max(0, completed.length - 1)
       : completed.length;
+    const selected = selectedAreaRef.current;
+    const hasSelection = selected != null;
 
     completed.forEach((pts, areaIdx) => {
       const isLive = liveDraft && areaIdx === completed.length - 1;
+      const isSelected = selected === areaIdx;
+      const isDimmed = hasSelection && !isSelected && !isLive;
+
+      const stroke = isLive
+        ? "#fbbf24"
+        : isSelected
+          ? "#fde047"
+          : isDimmed
+            ? "#a8a29e"
+            : "#f5f0e6";
+      const fill = isLive
+        ? "#f59e0b"
+        : isSelected
+          ? "#f59e0b"
+          : isDimmed
+            ? "#78716c"
+            : "#c4a35a";
+      const fillOpacity = isLive ? 0.38 : isSelected ? 0.55 : isDimmed ? 0.12 : 0.32;
+      const weight = isSelected ? 3.5 : 2.5;
+      const vertexRadius = isSelected ? 7 : isLive ? 6 : 5;
+      const vertexStroke = isSelected ? "#fde047" : isLive ? "#fbbf24" : "#f5f0e6";
+      const vertexFill = isSelected ? "#fde047" : "#1c1917";
+
+      const label = areaDisplayName(
+        boundaryRef.current,
+        areaIdx,
+        t("campBoundaryAreaLabel", { n: areaIdx + 1 })
+      );
+
       const poly = L.polygon(pts, {
-        color: isLive ? "#fbbf24" : "#f5f0e6",
-        weight: 2.5,
-        fillColor: isLive ? "#f59e0b" : "#c4a35a",
-        fillOpacity: 0.32,
+        color: stroke,
+        weight,
+        fillColor: fill,
+        fillOpacity,
         dashArray: isLive ? "4 4" : undefined,
       }).addTo(map);
-      poly.bindTooltip(t("campBoundaryAreaLabel", { n: areaIdx + 1 }), {
-        sticky: true,
-      });
+      poly.bindTooltip(label, { sticky: true });
+      if (!disabledRef.current) {
+        poly.on("click", (e) => {
+          L.DomEvent.stopPropagation(e);
+          setSelectedAreaIndex(areaIdx);
+        });
+      }
       polygonLayersRef.current.push(poly);
 
       pts.forEach((p, i) => {
         const m = L.circleMarker(p, {
-          radius: isLive ? 6 : 5,
-          color: isLive ? "#fbbf24" : "#f5f0e6",
-          fillColor: "#1c1917",
+          radius: vertexRadius,
+          color: vertexStroke,
+          fillColor: vertexFill,
           fillOpacity: 1,
-          weight: 2,
+          weight: isSelected ? 2.5 : 2,
         }).addTo(map);
         m.bindTooltip(`${areaIdx + 1}.${i + 1}`, {
           direction: "top",
           offset: [0, -6],
           className: "camp-map-vertex-tip",
         });
+        if (!disabledRef.current) {
+          m.on("click", (e) => {
+            L.DomEvent.stopPropagation(e);
+            setSelectedAreaIndex(areaIdx);
+          });
+        }
         vertexMarkersRef.current.push(m);
       });
     });
@@ -389,7 +440,7 @@ export function CampMapPanel({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boundary, draftPoints, latitude, longitude, disabled]);
+  }, [boundary, draftPoints, latitude, longitude, disabled, selectedAreaIndex]);
 
   // Fit once when area count changes (not on every vertex while drawing)
   useEffect(() => {
@@ -553,17 +604,31 @@ export function CampMapPanel({
 
   function removeAreaAt(index: number) {
     const rings = boundaryRings(validBoundary);
+    const names = boundaryAreaNames(validBoundary);
     if (index < 0 || index >= rings.length) return;
+    setSelectedAreaIndex((prev) => {
+      if (prev == null) return null;
+      if (prev === index) return null;
+      if (prev > index) return prev - 1;
+      return prev;
+    });
+    const nextRings = rings.filter((_, i) => i !== index);
+    const nextNames = names.filter((_, i) => i !== index);
     if (draftingIntoBoundaryRef.current) {
       if (index === rings.length - 1) {
         freezeDraft();
-        onBoundaryChange(makeBoundaries(rings.slice(0, -1)));
+        onBoundaryChange(makeBoundaries(nextRings, nextNames));
         return;
       }
-      onBoundaryChange(makeBoundaries(rings.filter((_, i) => i !== index)));
+      onBoundaryChange(makeBoundaries(nextRings, nextNames));
       return;
     }
     onBoundaryChange(removeBoundaryArea(validBoundary, index));
+  }
+
+  function renameAreaAt(index: number, name: string) {
+    const next = renameBoundaryArea(validBoundary, index, name);
+    if (next) onBoundaryChange(next);
   }
 
   const statusLine = (() => {
@@ -729,24 +794,34 @@ export function CampMapPanel({
         </div>
       </div>
       {(perArea.length > 0 || totalAcres != null) && (
-        <div className="space-y-2 rounded-lg border bg-muted/30 px-3 py-2.5 text-sm">
+        <div className="space-y-2 text-sm">
           {perArea.map((a) => (
             <div
               key={a.index}
-              className="flex flex-wrap items-center justify-between gap-2"
+              className="flex flex-wrap items-center gap-2 py-1"
+              onClick={() => !disabled && setSelectedAreaIndex(a.index)}
             >
-              <span>
-                {t("campBoundaryAreaAcres", {
+              <Input
+                value={areaNames[a.index] ?? ""}
+                placeholder={t("campBoundaryAreaNamePlaceholder", {
                   n: a.index + 1,
-                  acres: formatAcresEstimate(a.acres),
                 })}
+                disabled={disabled}
+                className="h-8 max-w-[14rem] text-sm"
+                onFocus={() => setSelectedAreaIndex(a.index)}
+                onChange={(e) => renameAreaAt(a.index, e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                aria-label={t("campBoundaryAreaName")}
+              />
+              <span className="text-muted-foreground tabular-nums">
+                ≈ {formatAcresEstimate(a.acres)} {t("acres")}
               </span>
               {!disabled && (
                 <Button
                   type="button"
                   size="sm"
                   variant="ghost"
-                  className="h-7 text-xs text-destructive"
+                  className="h-7 text-xs text-destructive ml-auto"
                   onClick={() => removeAreaAt(a.index)}
                 >
                   {t("campBoundaryRemoveArea")}
@@ -755,7 +830,7 @@ export function CampMapPanel({
             </div>
           ))}
           {totalAcres != null && (
-            <div className="flex flex-wrap items-center gap-2 border-t pt-2">
+            <div className="flex flex-wrap items-center gap-2 border-t pt-2 mt-1">
               <span className="font-medium">
                 {t("campBoundaryTotalAcres", {
                   acres: formatAcresEstimate(totalAcres),

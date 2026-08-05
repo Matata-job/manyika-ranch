@@ -9,11 +9,15 @@ export type LatLng = [number, number];
 export type CampPolygonBoundary = {
   type: "Polygon";
   ring: LatLng[];
+  /** User label for this grazing area (e.g. farm name). */
+  name?: string;
 };
 
 export type CampMultiPolygonBoundary = {
   type: "MultiPolygon";
   rings: LatLng[][];
+  /** Parallel labels for each ring in `rings`. */
+  names?: string[];
 };
 
 /** Stored camp border: one or many closed grazing areas. */
@@ -55,18 +59,43 @@ export function normalizeBoundaryRing(points: LatLng[]): LatLng[] | null {
   return cleaned;
 }
 
+type RingWithName = { ring: LatLng[]; name?: string };
+
+function trimAreaName(name: string | undefined): string | undefined {
+  const trimmed = name?.trim();
+  return trimmed || undefined;
+}
+
 /** Build a stored boundary from one or more rings. */
-export function makeBoundaries(rings: LatLng[][]): CampBoundary | null {
+export function makeBoundaries(
+  rings: LatLng[][],
+  names?: (string | undefined)[]
+): CampBoundary | null {
   const normalized: LatLng[][] = [];
-  for (const ring of rings) {
+  const normalizedNames: (string | undefined)[] = [];
+  rings.forEach((ring, i) => {
     const n = normalizeBoundaryRing(ring);
-    if (n) normalized.push(n);
-  }
+    if (n) {
+      normalized.push(n);
+      normalizedNames.push(trimAreaName(names?.[i]));
+    }
+  });
   if (normalized.length === 0) return null;
   if (normalized.length === 1) {
-    return { type: "Polygon", ring: normalized[0] };
+    return {
+      type: "Polygon",
+      ring: normalized[0],
+      ...(normalizedNames[0] ? { name: normalizedNames[0] } : {}),
+    };
   }
-  return { type: "MultiPolygon", rings: normalized };
+  const hasNames = normalizedNames.some(Boolean);
+  return {
+    type: "MultiPolygon",
+    rings: normalized,
+    ...(hasNames
+      ? { names: normalizedNames.map((n) => n ?? "") }
+      : {}),
+  };
 }
 
 export function makeBoundary(ring: LatLng[]): CampBoundary | null {
@@ -114,11 +143,21 @@ export function parseBoundary(value: unknown): CampBoundary | null {
   const obj = value as Record<string, unknown>;
 
   if (obj.type === "MultiPolygon" && Array.isArray(obj.rings)) {
-    return makeBoundaries(obj.rings as LatLng[][]);
+    const names = Array.isArray(obj.names)
+      ? (obj.names as unknown[]).map((n) =>
+          typeof n === "string" ? n : undefined
+        )
+      : undefined;
+    return makeBoundaries(obj.rings as LatLng[][], names);
   }
 
   if (obj.type === "Polygon" && Array.isArray(obj.ring)) {
-    return makeBoundary(obj.ring as LatLng[]);
+    const name =
+      typeof obj.name === "string" ? trimAreaName(obj.name) : undefined;
+    const ring = makeBoundary(obj.ring as LatLng[]);
+    if (!ring) return null;
+    if (name && ring.type === "Polygon") return { ...ring, name };
+    return ring;
   }
 
   // GeoJSON Polygon: coordinates[0] is outer ring as [lng, lat]
@@ -180,8 +219,8 @@ export function parseBoundaryPaste(text: string): CampBoundary | null {
       const json = JSON.parse(trimmed);
       const direct = parseBoundary(json);
       if (direct) return direct;
-      const rings = collectRingsFromGeoJson(json);
-      if (rings.length) return makeBoundaries(rings);
+      const items = collectRingsFromGeoJson(json);
+      if (items.length) return makeBoundariesFromItems(items);
     } catch {
       /* fall through */
     }
@@ -204,26 +243,47 @@ export function parseBoundaryPaste(text: string): CampBoundary | null {
   return makeBoundary(ring);
 }
 
+function geoJsonFeatureName(props: unknown): string | undefined {
+  if (!props || typeof props !== "object") return undefined;
+  const p = props as Record<string, unknown>;
+  for (const key of ["name", "Name", "areaName", "label", "title"]) {
+    if (typeof p[key] === "string") return trimAreaName(p[key] as string);
+  }
+  return undefined;
+}
+
+function makeBoundariesFromItems(items: RingWithName[]): CampBoundary | null {
+  return makeBoundaries(
+    items.map((i) => i.ring),
+    items.map((i) => i.name)
+  );
+}
+
 /** Collect every outer polygon ring from GeoJSON (FeatureCollection, MultiPolygon, etc.). */
-function collectRingsFromGeoJson(obj: unknown): LatLng[][] {
-  const rings: LatLng[][] = [];
+function collectRingsFromGeoJson(obj: unknown): RingWithName[] {
+  const rings: RingWithName[] = [];
   collectRingsInto(obj, rings);
   return rings;
 }
 
-function collectRingsInto(obj: unknown, rings: LatLng[][]) {
+function collectRingsInto(
+  obj: unknown,
+  rings: RingWithName[],
+  inheritedName?: string
+) {
   if (!obj || typeof obj !== "object") return;
   const o = obj as Record<string, unknown>;
   if (o.type === "Feature" && o.geometry) {
-    collectRingsInto(o.geometry, rings);
+    const name = geoJsonFeatureName(o.properties) ?? inheritedName;
+    collectRingsInto(o.geometry, rings, name);
     return;
   }
   if (o.type === "FeatureCollection" && Array.isArray(o.features)) {
-    for (const f of o.features) collectRingsInto(f, rings);
+    for (const f of o.features) collectRingsInto(f, rings, inheritedName);
     return;
   }
   if (o.type === "GeometryCollection" && Array.isArray(o.geometries)) {
-    for (const g of o.geometries) collectRingsInto(g, rings);
+    for (const g of o.geometries) collectRingsInto(g, rings, inheritedName);
     return;
   }
   if (o.type === "Polygon" && Array.isArray(o.coordinates)) {
@@ -235,7 +295,9 @@ function collectRingsInto(obj: unknown, rings: LatLng[][]) {
           ring.push([Number(p[1]), Number(p[0])]);
         }
       }
-      if (ring.length >= 3) rings.push(ring);
+      if (ring.length >= 3) {
+        rings.push({ ring, name: inheritedName });
+      }
     }
     return;
   }
@@ -248,7 +310,9 @@ function collectRingsInto(obj: unknown, rings: LatLng[][]) {
           ring.push([Number(p[1]), Number(p[0])]);
         }
       }
-      if (ring.length >= 3) rings.push(ring);
+      if (ring.length >= 3) {
+        rings.push({ ring, name: inheritedName });
+      }
     }
     return;
   }
@@ -259,7 +323,7 @@ function collectRingsInto(obj: unknown, rings: LatLng[][]) {
         ring.push([Number(p[1]), Number(p[0])]);
       }
     }
-    if (ring.length >= 3) rings.push(ring);
+    if (ring.length >= 3) rings.push({ ring, name: inheritedName });
   }
 }
 
@@ -303,8 +367,8 @@ export function parseBoundaryFile(
       const json = JSON.parse(text);
       const direct = parseBoundary(json);
       if (direct && boundaryRings(direct).length > 0) return direct;
-      const rings = collectRingsFromGeoJson(json);
-      return makeBoundaries(rings);
+      const items = collectRingsFromGeoJson(json);
+      return makeBoundariesFromItems(items);
     } catch {
       return parseBoundaryPaste(text);
     }
@@ -339,6 +403,43 @@ export function boundaryPointCount(b: CampBoundary | null): number {
 
 export function boundaryAreaCount(b: CampBoundary | null): number {
   return boundaryRings(b).length;
+}
+
+/** User labels for each grazing area (parallel to rings). */
+export function boundaryAreaNames(
+  b: CampBoundary | null | undefined
+): (string | undefined)[] {
+  const parsed = parseBoundary(b);
+  if (!parsed) return [];
+  const count = boundaryRings(parsed).length;
+  if (parsed.type === "Polygon") {
+    return count > 0 ? [trimAreaName(parsed.name)] : [];
+  }
+  const names = parsed.names ?? [];
+  return Array.from({ length: count }, (_, i) => trimAreaName(names[i]));
+}
+
+export function areaDisplayName(
+  b: CampBoundary | null,
+  index: number,
+  fallback: string
+): string {
+  const name = boundaryAreaNames(b)[index];
+  return name || fallback;
+}
+
+export function renameBoundaryArea(
+  b: CampBoundary | null,
+  index: number,
+  name: string
+): CampBoundary | null {
+  const parsed = parseBoundary(b);
+  if (!parsed) return null;
+  const rings = boundaryRings(parsed);
+  if (index < 0 || index >= rings.length) return parsed;
+  const names = boundaryAreaNames(parsed);
+  names[index] = trimAreaName(name);
+  return makeBoundaries(rings, names);
 }
 
 export function boundaryCentroid(
@@ -464,21 +565,24 @@ export function addBoundaryAreas(
   existing: CampBoundary | null,
   incoming: CampBoundary | null
 ): CampBoundary | null {
-  const rings = [
-    ...boundaryRings(parseBoundary(existing)),
-    ...boundaryRings(parseBoundary(incoming)),
-  ];
-  return makeBoundaries(rings);
+  const e = parseBoundary(existing);
+  const i = parseBoundary(incoming);
+  const rings = [...boundaryRings(e), ...boundaryRings(i)];
+  const names = [...boundaryAreaNames(e), ...boundaryAreaNames(i)];
+  return makeBoundaries(rings, names);
 }
 
 export function removeBoundaryArea(
   b: CampBoundary | null,
   index: number
 ): CampBoundary | null {
-  const rings = boundaryRings(parseBoundary(b));
-  if (index < 0 || index >= rings.length) return parseBoundary(b);
+  const parsed = parseBoundary(b);
+  const rings = boundaryRings(parsed);
+  if (index < 0 || index >= rings.length) return parsed;
   rings.splice(index, 1);
-  return makeBoundaries(rings);
+  const names = boundaryAreaNames(parsed);
+  names.splice(index, 1);
+  return makeBoundaries(rings, names);
 }
 
 /** GeoJSON FeatureCollection (lng,lat) for download. */
@@ -496,6 +600,7 @@ export function toGeoJsonFeatureCollection(
   }[];
 } {
   const areas = boundaryAreas(parseBoundary(b));
+  const names = boundaryAreaNames(b);
   const features = areas.map((openRing, i) => {
     const coords = openRing.map(
       ([lat, lng]) => [lng, lat] as [number, number]
@@ -509,6 +614,7 @@ export function toGeoJsonFeatureCollection(
       type: "Feature" as const,
       properties: {
         areaIndex: i + 1,
+        name: names[i] ?? null,
         acres: ringAreaAcres(openRing),
       },
       geometry: {
