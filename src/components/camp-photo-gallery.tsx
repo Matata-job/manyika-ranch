@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { formatDate } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Plus, X, ZoomIn } from "lucide-react";
+import { Plus, X, ZoomIn } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 import { PhotoSourcePicker } from "@/components/photo-source-picker";
 import { useObjectUrls } from "@/hooks/use-object-urls";
 import { uploadPhotoFile } from "@/lib/client/upload-photo";
+import { PhotoLightbox } from "@/components/zoomable-photo-lightbox";
+import { ZoomableCampImage } from "@/components/zoomable-camp-image";
 
 export interface CampPhoto {
   id: string;
@@ -22,6 +24,8 @@ interface CampPhotoGalleryProps {
   campId: string;
   initialPhotos?: CampPhoto[];
   logoUrl?: string | null;
+  /** Used for download filenames (e.g. camp code). */
+  campLabel?: string;
   canEdit?: boolean;
   onPhotosChange?: () => void;
   onLogoChange?: (url: string | null) => void;
@@ -31,6 +35,7 @@ export function CampPhotoGallery({
   campId,
   initialPhotos = [],
   logoUrl,
+  campLabel,
   canEdit = false,
   onPhotosChange,
   onLogoChange,
@@ -118,17 +123,21 @@ export function CampPhotoGallery({
     }
   }
 
+  const downloadStem = (campLabel || campId).replace(/[^\w.-]+/g, "-");
+  const activePhoto =
+    lightboxIndex !== null ? photos[lightboxIndex] : null;
+
   return (
     <div className="space-y-6">
       <div className="space-y-3">
         <Label>{t("campLogo")}</Label>
         <div className="flex items-center gap-4">
           {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <ZoomableCampImage
               src={logoUrl}
               alt={t("campLogo")}
-              className="h-20 w-20 rounded-lg border object-cover bg-muted"
+              downloadName={`${downloadStem}-logo`}
+              className="h-20 w-20 rounded-lg"
             />
           ) : (
             <div className="h-20 w-20 rounded-lg border bg-muted flex items-center justify-center text-xs text-muted-foreground">
@@ -235,48 +244,41 @@ export function CampPhotoGallery({
         )}
       </div>
 
-      {lightboxIndex !== null && (
-        <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
-          onClick={() => setLightboxIndex(null)}
-        >
-          <button
-            type="button"
-            className="absolute top-4 right-4 text-white"
-            onClick={() => setLightboxIndex(null)}
-          >
-            <X className="h-6 w-6" />
-          </button>
-          <button
-            type="button"
-            className="absolute left-4 text-white"
-            onClick={(e) => {
-              e.stopPropagation();
-              setLightboxIndex(
-                (lightboxIndex - 1 + photos.length) % photos.length
-              );
-            }}
-          >
-            <ChevronLeft className="h-8 w-8" />
-          </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={photos[lightboxIndex].url}
-            alt=""
-            className="max-h-[85vh] max-w-[90vw] object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
-          <button
-            type="button"
-            className="absolute right-4 text-white"
-            onClick={(e) => {
-              e.stopPropagation();
-              setLightboxIndex((lightboxIndex + 1) % photos.length);
-            }}
-          >
-            <ChevronRight className="h-8 w-8" />
-          </button>
-        </div>
+      {activePhoto && lightboxIndex !== null && (
+        <PhotoLightbox
+          open
+          onClose={() => setLightboxIndex(null)}
+          src={activePhoto.url}
+          downloadName={`${downloadStem}-photo-${lightboxIndex + 1}`}
+          downloadLabel={t("downloadPhoto")}
+          zoomHint={t("photoZoomHint")}
+          sizeLabel={t("photoActualSize")}
+          showNav={photos.length > 1}
+          onPrev={() =>
+            setLightboxIndex(
+              (lightboxIndex - 1 + photos.length) % photos.length
+            )
+          }
+          onNext={() =>
+            setLightboxIndex((lightboxIndex + 1) % photos.length)
+          }
+          footer={
+            <>
+              <p>{formatDate(activePhoto.takenAt)}</p>
+              {activePhoto.caption && (
+                <p className="text-gray-300">{activePhoto.caption}</p>
+              )}
+              {activePhoto.uploadedBy && (
+                <p className="text-xs text-gray-400">
+                  {activePhoto.uploadedBy.name}
+                </p>
+              )}
+              <p className="mt-1 text-xs text-gray-500">
+                {lightboxIndex + 1} / {photos.length}
+              </p>
+            </>
+          }
+        />
       )}
     </div>
   );

@@ -25,6 +25,7 @@ import { useLocale, useT } from "@/components/providers/locale-provider";
 import { TAG_COLORS, resolveTagColor, tagColorLabel } from "@/lib/tag-color";
 import { EartagBadge, TagColorSwatch } from "@/components/eartag-badge";
 import { OptionalSection } from "@/components/optional-section";
+import { ZoomableCampImage } from "@/components/zoomable-camp-image";
 import {
   CampPhotoGallery,
   type CampPhoto,
@@ -721,11 +722,11 @@ export default function CampDetailPage() {
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex items-start gap-4 min-w-0">
                   {camp.logoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <ZoomableCampImage
                       src={camp.logoUrl}
-                      alt=""
-                      className="h-16 w-16 sm:h-20 sm:w-20 rounded-xl border object-cover shrink-0 shadow-sm"
+                      alt={camp.name}
+                      downloadName={`${(camp.code || camp.name).replace(/[^\w.-]+/g, "-")}-logo`}
+                      className="h-16 w-16 sm:h-20 sm:w-20 rounded-xl shadow-sm"
                     />
                   ) : (
                     <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-xl border bg-muted/80 shrink-0 flex items-center justify-center text-lg font-semibold text-muted-foreground">
@@ -963,6 +964,7 @@ export default function CampDetailPage() {
                 campId={camp.id}
                 initialPhotos={camp.photos || []}
                 logoUrl={camp.logoUrl}
+                campLabel={camp.code || camp.name}
                 canEdit={canManage}
                 onPhotosChange={() => {
                   void load();
