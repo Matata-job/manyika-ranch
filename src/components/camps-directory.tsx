@@ -107,9 +107,9 @@ export function CampsDirectory({ camps, locale }: Props) {
           ))}
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {camps.map((camp) => (
-            <ListCampRow key={camp.id} camp={camp} locale={locale} />
+            <DetailCampCard key={camp.id} camp={camp} locale={locale} />
           ))}
         </div>
       )}
@@ -215,7 +215,7 @@ function PhotoCampCard({
   );
 }
 
-function ListCampRow({
+function DetailCampCard({
   camp,
   locale,
 }: {
@@ -227,54 +227,66 @@ function ListCampRow({
   return (
     <Link
       href={`/camps/${camp.id}`}
-      className={cn(
-        "flex items-center gap-3 rounded-2xl border border-border/70 bg-card p-2.5 pr-4 transition-colors",
-        "hover:border-foreground/20 hover:bg-muted/30",
-        !camp.isActive && "opacity-70"
-      )}
+      className="group block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
     >
-      <Media
-        camp={camp}
-        className="h-14 w-14 shrink-0 rounded-xl text-[10px] leading-tight"
-      />
-
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+      <article
+        className={cn(
+          "flex h-full flex-col rounded-xl border bg-card p-5 shadow-sm transition-shadow",
+          "hover:shadow-md",
+          !camp.isActive && "opacity-75"
+        )}
+      >
+        <div className="mb-3 flex flex-wrap items-baseline gap-2">
+          <h2
+            className={cn(
+              "text-lg font-semibold tracking-tight",
+              !camp.isActive && "text-muted-foreground"
+            )}
+          >
+            {camp.name}
+          </h2>
           {camp.code && (
-            <span className="font-mono text-[11px] font-medium text-muted-foreground">
-              {camp.code}
-            </span>
+            <span className="text-sm text-muted-foreground">{camp.code}</span>
           )}
           {!camp.isActive && (
-            <Badge variant="secondary" className="text-[10px] font-normal">
+            <Badge variant="secondary" className="font-normal">
               {t("campInactive")}
             </Badge>
           )}
         </div>
-        <p className="truncate text-[15px] font-semibold tracking-tight">
-          {camp.name}
-        </p>
-        {camp.supervisors.length > 0 && (
-          <p className="truncate text-xs text-muted-foreground">
-            {camp.supervisors.join(", ")}
+
+        <div className="mt-auto space-y-2">
+          <p className="text-2xl font-bold tabular-nums tracking-tight">
+            {camp.animalCount}{" "}
+            <span className="text-base font-medium text-muted-foreground">
+              {t("animalsTitle").toLowerCase()}
+            </span>
           </p>
-        )}
-      </div>
 
-      {camp.tagColor && (
-        <div className="hidden sm:block">
-          <TagColorSwatch color={camp.tagColor} locale={locale} />
+          {camp.tagColor && (
+            <TagColorSwatch color={camp.tagColor} locale={locale} />
+          )}
+
+          {camp.sizeAcres != null && (
+            <p className="text-sm text-muted-foreground">
+              {camp.sizeAcres} {t("acres")}
+            </p>
+          )}
+
+          {camp.supervisors.length > 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {t("supervisor")}:{" "}
+              <span className="text-foreground/90">
+                {camp.supervisors.join(", ")}
+              </span>
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground/70">
+              {t("noSupervisorAssigned")}
+            </p>
+          )}
         </div>
-      )}
-
-      <p className="shrink-0 text-right text-sm tabular-nums">
-        <span className="block text-base font-semibold leading-none">
-          {camp.animalCount}
-        </span>
-        <span className="mt-0.5 block text-[10px] text-muted-foreground">
-          {t("animalsTitle").toLowerCase()}
-        </span>
-      </p>
+      </article>
     </Link>
   );
 }
