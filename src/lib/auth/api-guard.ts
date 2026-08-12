@@ -67,18 +67,57 @@ export async function resolveAccessibleCampIds(
 }
 
 type CampAccessOk = AuthOk & { campIds: string[] };
+
+export async function userCanAccessCamp(
+  userId: string,
+  role: Role,
+  campId: string
+): Promise<boolean> {
+  if (canAccessAllCamps(role)) return true;
+
+  if (role === Role.EXTERNAL_OWNER) {
+    const owned = await prisma.animal.findFirst({
+      where: { campId, ownerId: userId, deletedAt: null },
+      select: { id: true },
+    });
+    return !!owned;
+  }
+
+  const campIds = await getUserCampIds(userId);
+  return campIds.includes(campId);
+}
+
+/** Active animals shown on camp cards — scoped to owner for external owners. */
+export function buildCampAnimalCountWhere(
+  userId: string,
+  role: Role
+): Prisma.AnimalWhereInput {
+  const base: Prisma.AnimalWhereInput = {
+    status: "ACTIVE",
+    deletedAt: null,
+  };
+  if (role === Role.EXTERNAL_OWNER) {
+    return { ...base, ownerId: userId };
+  }
+  return base;
+}
+
 export async function requireCampAccess(campId: string): Promise<CampAccessOk | AuthFail> {
   const result = await requireAuth();
   if (!result.ok) return result;
 
-  const campIds = await getUserCampIds(result.user.id);
-
-  if (!canAccessCamp(result.user.role, campId, campIds)) {
+  const allowed = await userCanAccessCamp(result.user.id, result.user.role, campId);
+  if (!allowed) {
     return {
       ok: false,
       error: NextResponse.json({ error: "Forbidden: camp access denied" }, { status: 403 }),
     };
   }
+
+  const campIds =
+    result.user.role === Role.EXTERNAL_OWNER
+      ? []
+      : await getUserCampIds(result.user.id);
 
   return { ...result, campIds };
 }

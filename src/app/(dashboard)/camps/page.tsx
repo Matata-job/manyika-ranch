@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { hasPermission } from "@/lib/auth/rbac";
 import { getScopedCampWhere } from "@/lib/auth/scope";
+import { buildCampAnimalCountWhere } from "@/lib/auth/api-guard";
 import type { Role } from "@prisma/client";
 import { serverT } from "@/lib/i18n/server";
 import {
@@ -20,13 +21,14 @@ export default async function CampsPage() {
   const canManage = hasPermission(role, "manageCamps");
 
   const campWhere = await getScopedCampWhere(user.id, role, user.ranchId);
+  const animalCountWhere = buildCampAnimalCountWhere(user.id, role);
 
   const camps = await prisma.camp.findMany({
     where: campWhere,
     include: {
       _count: {
         select: {
-          animals: { where: { status: "ACTIVE", deletedAt: null } },
+          animals: { where: animalCountWhere },
           photos: true,
         },
       },

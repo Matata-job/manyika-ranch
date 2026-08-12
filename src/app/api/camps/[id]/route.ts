@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { requireCampAccess, requirePermission } from "@/lib/auth/api-guard";
+import { requireCampAccess, requirePermission, buildCampAnimalCountWhere } from "@/lib/auth/api-guard";
 import { createAuditLog } from "@/lib/services/animal-service";
 import { parseBoundary } from "@/lib/camp-boundary";
+import type { Role } from "@prisma/client";
 
 function parseOptionalFloat(value: unknown): number | null | undefined {
   if (value === undefined) return undefined;
@@ -30,11 +31,14 @@ export async function GET(
     0
   );
 
-  const animalWhere = { campId: id, status: "ACTIVE" as const, deletedAt: null };
+  const animalWhere = {
+    campId: id,
+    ...buildCampAnimalCountWhere(result.user.id, result.user.role as Role),
+  };
 
   const [camp, animalTotal, sexGroups] = await Promise.all([
     prisma.camp.findFirst({
-      where: { id, deletedAt: null },
+      where: { id, ranchId: result.user.ranchId, deletedAt: null },
       include: {
         animals: {
           where: animalWhere,

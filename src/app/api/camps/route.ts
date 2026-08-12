@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requirePermission, buildCampScope } from "@/lib/auth/api-guard";
+import { requirePermission, buildCampScope, buildCampAnimalCountWhere } from "@/lib/auth/api-guard";
 import { createAuditLog } from "@/lib/services/animal-service";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
@@ -39,12 +39,17 @@ export async function GET(req: NextRequest) {
     result.user.ranchId
   );
 
+  const animalCountWhere = buildCampAnimalCountWhere(
+    result.user.id,
+    result.user.role as Role
+  );
+
   const camps = await prisma.camp.findMany({
     where,
     include: {
       _count: {
         select: {
-          animals: { where: { status: "ACTIVE", deletedAt: null } },
+          animals: { where: animalCountWhere },
         },
       },
       assignments: {

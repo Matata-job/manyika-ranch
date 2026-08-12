@@ -5,6 +5,7 @@ import { Tent, Beef, HeartPulse, Bell } from "lucide-react";
 import Link from "next/link";
 import type { Role } from "@prisma/client";
 import { getScopedCampWhere, getScopedAnimalWhere } from "@/lib/auth/scope";
+import { buildCampAnimalCountWhere } from "@/lib/auth/api-guard";
 import { hasPermission, isCampScopedRole } from "@/lib/auth/rbac";
 import { serverT } from "@/lib/i18n/server";
 import type { TranslationKey } from "@/lib/i18n/translations";
@@ -19,6 +20,7 @@ export default async function DashboardPage() {
 
   const campWhere = await getScopedCampWhere(user.id, role, user.ranchId);
   const animalWhere = await getScopedAnimalWhere(user.id, role);
+  const campAnimalCountWhere = buildCampAnimalCountWhere(user.id, role);
 
   // Keep vaccination/treatment due alerts fresh when staff open the dashboard
   await syncAllRanchAlerts(user.ranchId);
@@ -64,7 +66,7 @@ export default async function DashboardPage() {
       prisma.camp.findMany({
         where: campWhere,
         include: {
-          _count: { select: { animals: { where: { status: "ACTIVE" } } } },
+          _count: { select: { animals: { where: campAnimalCountWhere } } },
         },
         orderBy: { name: "asc" },
         take: 12,
