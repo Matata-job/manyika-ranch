@@ -10,6 +10,76 @@ function toInputJson(
   return JSON.parse(JSON.stringify(metadata)) as Prisma.InputJsonValue;
 }
 
+/**
+ * Date-only form values (`YYYY-MM-DD` → UTC midnight) would otherwise pile every
+ * same-day timeline entry at 00:00 and scramble chronological order vs events
+ * stamped with a real clock time (e.g. sale `new Date()` vs return date input).
+ * Attach the current clock so same-day events flow in recording order.
+ */
+export function resolveOccurredAt(input?: Date | string | null): Date {
+  if (input == null || input === "") return new Date();
+  const d = input instanceof Date ? new Date(input.getTime()) : new Date(input);
+  if (Number.isNaN(d.getTime())) return new Date();
+
+  const isUtcMidnight =
+    d.getUTCHours() === 0 &&
+    d.getUTCMinutes() === 0 &&
+    d.getUTCSeconds() === 0 &&
+    d.getUTCMilliseconds() === 0;
+
+  if (!isUtcMidnight) return d;
+
+  const now = new Date();
+  d.setUTCHours(
+    now.getUTCHours(),
+    now.getUTCMinutes(),
+    now.getUTCSeconds(),
+    now.getUTCMilliseconds()
+  );
+  return d;
+}
+
+/** Re-stamp date-only (UTC midnight) events using createdAt clock time. */
+export async function repairDateOnlyEventTimes(
+  animalId?: string
+): Promise<number> {
+  const candidates = await prisma.animalEvent.findMany({
+    where: {
+      ...(animalId ? { animalId } : {}),
+      occurredAt: { gte: new Date(Date.now() - 400 * 86400000) },
+    },
+    select: { id: true, occurredAt: true, createdAt: true },
+  });
+
+  let updated = 0;
+  for (const ev of candidates) {
+    const d = ev.occurredAt;
+    const isUtcMidnight =
+      d.getUTCHours() === 0 &&
+      d.getUTCMinutes() === 0 &&
+      d.getUTCSeconds() === 0 &&
+      d.getUTCMilliseconds() === 0;
+    if (!isUtcMidnight) continue;
+
+    const stamped = new Date(d.getTime());
+    const c = ev.createdAt;
+    stamped.setUTCHours(
+      c.getUTCHours(),
+      c.getUTCMinutes(),
+      c.getUTCSeconds(),
+      c.getUTCMilliseconds()
+    );
+    if (stamped.getTime() === d.getTime()) continue;
+
+    await prisma.animalEvent.update({
+      where: { id: ev.id },
+      data: { occurredAt: stamped },
+    });
+    updated += 1;
+  }
+  return updated;
+}
+
 export async function logAnimalEvent(params: {
   animalId: string;
   type: AnimalEventType;
@@ -25,7 +95,7 @@ export async function logAnimalEvent(params: {
       type: params.type,
       title: params.title,
       description: params.description || undefined,
-      occurredAt: params.occurredAt || new Date(),
+      occurredAt: resolveOccurredAt(params.occurredAt),
       recordedById: params.recordedById || undefined,
       metadata: toInputJson(params.metadata),
     },
@@ -53,7 +123,7 @@ export async function logAnimalEventsBulk(
     type: e.type,
     title: e.title,
     description: e.description || undefined,
-    occurredAt: e.occurredAt || new Date(),
+    occurredAt: resolveOccurredAt(e.occurredAt),
     recordedById: e.recordedById || undefined,
     metadata: toInputJson(e.metadata),
   }));
@@ -91,6 +161,12 @@ function dayRange(d: Date): { gte: Date; lte: Date } {
 export async function backfillMissingRanchEvents(
   ranchId: string
 ): Promise<{ created: number }> {
+  try {
+    await repairDateOnlyEventTimes();
+  } catch {
+    // ordering repair is best-effort
+  }
+
   const since = new Date();
   since.setDate(since.getDate() - 180);
   let created = 0;

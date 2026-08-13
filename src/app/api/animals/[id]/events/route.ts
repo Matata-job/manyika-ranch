@@ -23,7 +23,7 @@ export async function GET(
       animalId: id,
       ...(type ? { type: type as "NOTE" } : {}),
     },
-    orderBy: { occurredAt: "desc" },
+    orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
     take,
     include: { recordedBy: { select: { id: true, name: true } } },
   });

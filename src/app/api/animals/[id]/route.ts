@@ -7,7 +7,7 @@ import {
 } from "@/lib/auth/api-guard";
 import { createAuditLog, withComputedAge, updateAnimalAgeMonths } from "@/lib/services/animal-service";
 import { computeAgeMonths } from "@/lib/utils";
-import { logAnimalEvent } from "@/lib/services/event-service";
+import { logAnimalEvent, repairDateOnlyEventTimes } from "@/lib/services/event-service";
 import { parseOptionalNonNegative } from "@/lib/money";
 import { healthRecordSummarySelect } from "@/lib/health-record-link";
 
@@ -21,6 +21,12 @@ export async function GET(
 
   const perm = await requirePermission("viewAnimal");
   if (!perm.ok) return perm.error;
+
+  try {
+    await repairDateOnlyEventTimes(id);
+  } catch {
+    // timeline still loads if repair fails
+  }
 
   const animal = await prisma.animal.findUnique({
     where: { id },
@@ -74,7 +80,7 @@ export async function GET(
         orderBy: { saleDate: "desc" },
       },
       events: {
-        orderBy: { occurredAt: "desc" },
+        orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
         take: 50,
         include: { recordedBy: { select: { id: true, name: true } } },
       },

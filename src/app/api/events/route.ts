@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const result = await requirePermission("viewAnimal");
   if (!result.ok) return result.error;
 
-  // Repair timeline gaps from bulk ops that missed event rows
+  // Repair timeline gaps / same-day midnight stamps that scramble order
   try {
     await backfillMissingRanchEvents(result.user.ranchId);
   } catch {
