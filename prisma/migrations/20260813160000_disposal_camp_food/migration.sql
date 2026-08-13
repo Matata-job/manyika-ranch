@@ -1,0 +1,2 @@
+ALTER TYPE "DisposalMethod" ADD VALUE 'CAMP_USE';
+ALTER TYPE "DisposalMethod" ADD VALUE 'USED_FOR_FOOD';

@@ -22,6 +22,8 @@ const DISPOSALS: DisposalMethod[] = [
   "SOLD_CARCASS",
   "REMOVED",
   "HOME_USE",
+  "CAMP_USE",
+  "USED_FOR_FOOD",
   "OTHER",
 ];
 

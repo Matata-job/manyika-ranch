@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,8 +21,14 @@ import { AnimalActivityPicker } from "@/components/animals/animal-activity-picke
 import type { PickerAnimal } from "@/components/animals/animal-activity-picker";
 import { SelectedAnimalsList } from "@/components/animals/selected-animals-list";
 import { DeathCausePicker } from "@/components/animals/death-cause-picker";
-import { ChoicePills } from "@/components/choice-pills";
+import {
+  MortalitySetupPanel,
+  buildMortalityPresetOptions,
+  useMortalityPresets,
+} from "@/components/animals/mortality-setup-panel";
 import { SuccessDialog } from "@/components/success-dialog";
+import { hasPermission } from "@/lib/auth/rbac";
+import type { Role } from "@prisma/client";
 import {
   deathCauseKey,
   DISPOSAL_METHODS,
@@ -29,17 +36,25 @@ import {
   parseDeathCauseFormValue,
 } from "@/lib/death-causes";
 
-type MortalityPreset = "general" | "family_slaughter";
-
 export default function DeadAnimalRecordPage() {
   const t = useT();
+  const { data: session } = useSession();
+  const role = session?.user?.role as Role | undefined;
+  const canManageMortality = role ? hasPermission(role, "manageMortality") : false;
+
+  const { customPresets, reload, applyPresetId } = useMortalityPresets();
+  const presetOptions = buildMortalityPresetOptions(t, customPresets);
+
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [animalById, setAnimalById] = useState<Map<string, PickerAnimal>>(
     new Map()
   );
   const [saving, setSaving] = useState(false);
-  const [preset, setPreset] = useState<MortalityPreset>("general");
-  const [causeValue, setCauseValue] = useState("CULLING");
+  const [presetId, setPresetId] = useState("__none__");
+  const [causeValue, setCauseValue] = useState("UNKNOWN");
+  const [isCulling, setIsCulling] = useState(false);
+  const [showSetup, setShowSetup] = useState(false);
+  const [setupVersion, setSetupVersion] = useState(0);
   const [form, setForm] = useState({
     date: "",
     causeDetail: "",
@@ -47,7 +62,6 @@ export default function DeadAnimalRecordPage() {
     disposalNotes: "",
     location: "",
     notes: "",
-    isCulling: true,
     insuranceClaim: false,
     claimAmountTzs: "",
     claimReference: "",
@@ -66,21 +80,17 @@ export default function DeadAnimalRecordPage() {
     });
   }
 
-  function applyPreset(next: MortalityPreset) {
-    setPreset(next);
-    if (next === "family_slaughter") {
-      setCauseValue("CULLING");
-      setForm((f) => ({
-        ...f,
-        disposalMethod: "HOME_USE",
-        isCulling: true,
-      }));
-      return;
-    }
-    setForm((f) => ({
-      ...f,
-      disposalMethod: f.disposalMethod === "HOME_USE" ? "BURIED" : f.disposalMethod,
-    }));
+  function selectPreset(id: string) {
+    setPresetId(id);
+    applyPresetId(id, {
+      setCauseValue,
+      setDisposalMethod: (v) => setForm((f) => ({ ...f, disposalMethod: v })),
+      setIsCulling,
+    });
+  }
+
+  function clearPreset() {
+    setPresetId("__none__");
   }
 
   async function submit(e: React.FormEvent) {
@@ -105,6 +115,9 @@ export default function DeadAnimalRecordPage() {
       return;
     }
 
+    const submitCulling =
+      isCulling || parsed.isCulling || parsed.cause === "CULLING";
+
     setSaving(true);
     setResult(null);
     const res = await fetch("/api/mortality/bulk", {
@@ -120,8 +133,7 @@ export default function DeadAnimalRecordPage() {
         disposalNotes: form.disposalNotes || null,
         location: form.location || null,
         notes: form.notes || null,
-        isCulling:
-          form.isCulling || parsed.isCulling || parsed.cause === "CULLING",
+        isCulling: submitCulling,
         insuranceClaim: form.insuranceClaim,
         claimAmountTzs: form.claimAmountTzs || null,
         claimReference: form.claimReference || null,
@@ -142,8 +154,9 @@ export default function DeadAnimalRecordPage() {
       isCulling: data.isCulling,
     });
     setSelected(new Set());
-    setCauseValue("CULLING");
-    setPreset("general");
+    setCauseValue("UNKNOWN");
+    setPresetId("__none__");
+    setIsCulling(false);
     setForm({
       date: "",
       causeDetail: "",
@@ -151,7 +164,6 @@ export default function DeadAnimalRecordPage() {
       disposalNotes: "",
       location: "",
       notes: "",
-      isCulling: true,
       insuranceClaim: false,
       claimAmountTzs: "",
       claimReference: "",
@@ -224,174 +236,184 @@ export default function DeadAnimalRecordPage() {
         <CardContent>
           <SelectedAnimalsList selected={selected} animalById={animalById} />
           <form onSubmit={submit} className="space-y-4 max-w-2xl mt-4">
+            <div className="space-y-2">
+              <Label>{t("mortalityQuickPreset")}</Label>
+              <Select value={presetId} onValueChange={selectPreset}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {presetOptions.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {t("mortalityQuickPresetHelp")}
+              </p>
+            </div>
+
+            <DeathCausePicker
+              key={setupVersion}
+              value={causeValue}
+              onChange={(v, meta) => {
+                clearPreset();
+                setCauseValue(v);
+                setIsCulling(meta.isCulling);
+                setForm((f) => ({
+                  ...f,
+                  causeDetail:
+                    meta.cause === "OTHER" && meta.causeDetail
+                      ? meta.causeDetail
+                      : f.causeDetail,
+                }));
+              }}
+            />
+
+            {causeValue === "OTHER" && (
               <div className="space-y-2">
-                <Label>{t("mortalityRecordType")}</Label>
-                <ChoicePills<MortalityPreset>
-                  value={preset}
-                  onChange={applyPreset}
-                  options={[
-                    {
-                      value: "general",
-                      label: t("mortalityPresetGeneral"),
-                    },
-                    {
-                      value: "family_slaughter",
-                      label: t("mortalityPresetFamilySlaughter"),
-                    },
-                  ]}
+                <Label>{t("causeDetail")}</Label>
+                <Input
+                  value={form.causeDetail}
+                  onChange={(e) => {
+                    clearPreset();
+                    setForm({ ...form, causeDetail: e.target.value });
+                  }}
                 />
-                {preset === "family_slaughter" && (
-                  <p className="text-xs text-muted-foreground">
-                    {t("mortalityPresetFamilySlaughterHelp")}
-                  </p>
-                )}
               </div>
-              <DeathCausePicker
-                value={causeValue}
-                onChange={(v, meta) => {
-                  setCauseValue(v);
-                  setForm((f) => ({
-                    ...f,
-                    isCulling: meta.isCulling ? true : f.isCulling,
-                    causeDetail:
-                      meta.cause === "OTHER" && meta.causeDetail
-                        ? meta.causeDetail
-                        : f.causeDetail,
-                  }));
-                }}
+            )}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>{t("disposal")} *</Label>
+                <Select
+                  value={form.disposalMethod}
+                  onValueChange={(v) => {
+                    clearPreset();
+                    setForm({ ...form, disposalMethod: v });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DISPOSAL_METHODS.map((d) => (
+                      <SelectItem key={d} value={d}>
+                        {t(disposalMethodKey(d))}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>{t("date")}</Label>
+                <Input
+                  type="date"
+                  value={form.date}
+                  onChange={(e) =>
+                    setForm({ ...form, date: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>{t("location")}</Label>
+                <Input
+                  value={form.location}
+                  onChange={(e) =>
+                    setForm({ ...form, location: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t("disposalNotes")}</Label>
+              <Input
+                value={form.disposalNotes}
+                onChange={(e) =>
+                  setForm({ ...form, disposalNotes: e.target.value })
+                }
               />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("notes")}</Label>
+              <Textarea
+                value={form.notes}
+                onChange={(e) =>
+                  setForm({ ...form, notes: e.target.value })
+                }
+                rows={2}
+              />
+            </div>
 
-              {causeValue === "OTHER" && (
-                <div className="space-y-2">
-                  <Label>{t("causeDetail")}</Label>
-                  <Input
-                    value={form.causeDetail}
-                    onChange={(e) =>
-                      setForm({ ...form, causeDetail: e.target.value })
-                    }
-                  />
-                </div>
-              )}
-
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.insuranceClaim}
+                onChange={(e) =>
+                  setForm({ ...form, insuranceClaim: e.target.checked })
+                }
+              />
+              {t("insuranceClaim")}
+            </label>
+            {form.insuranceClaim && (
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>{t("disposal")} *</Label>
-                  <Select
-                    value={form.disposalMethod}
-                    onValueChange={(v) =>
-                      setForm({ ...form, disposalMethod: v })
+                  <Label>{t("claimAmount")}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={form.claimAmountTzs}
+                    onChange={(e) =>
+                      setForm({ ...form, claimAmountTzs: e.target.value })
                     }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DISPOSAL_METHODS.map((d) => (
-                        <SelectItem key={d} value={d}>
-                          {t(disposalMethodKey(d))}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label>{t("date")}</Label>
+                  <Label>{t("claimReference")}</Label>
                   <Input
-                    type="date"
-                    value={form.date}
+                    value={form.claimReference}
                     onChange={(e) =>
-                      setForm({ ...form, date: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="space-y-2 sm:col-span-2">
-                  <Label>{t("location")}</Label>
-                  <Input
-                    value={form.location}
-                    onChange={(e) =>
-                      setForm({ ...form, location: e.target.value })
+                      setForm({ ...form, claimReference: e.target.value })
                     }
                   />
                 </div>
               </div>
+            )}
 
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={
-                    form.isCulling ||
-                    parseDeathCauseFormValue(causeValue).isCulling
-                  }
-                  onChange={(e) =>
-                    setForm({ ...form, isCulling: e.target.checked })
-                  }
-                />
-                {t("markAsCulling")}
-              </label>
+            <p className="text-xs text-muted-foreground">
+              {t("bulkMortalityPhotoNote")}
+            </p>
 
-              <div className="space-y-2">
-                <Label>{t("disposalNotes")}</Label>
-                <Input
-                  value={form.disposalNotes}
-                  onChange={(e) =>
-                    setForm({ ...form, disposalNotes: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>{t("notes")}</Label>
-                <Textarea
-                  value={form.notes}
-                  onChange={(e) =>
-                    setForm({ ...form, notes: e.target.value })
-                  }
-                  rows={2}
-                />
-              </div>
+            <Button type="submit" disabled={saving || selected.size === 0}>
+              {saving ? t("saving") : t("recordBulkMortality")}
+            </Button>
+          </form>
 
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={form.insuranceClaim}
-                  onChange={(e) =>
-                    setForm({ ...form, insuranceClaim: e.target.checked })
-                  }
-                />
-                {t("insuranceClaim")}
-              </label>
-              {form.insuranceClaim && (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>{t("claimAmount")}</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={form.claimAmountTzs}
-                      onChange={(e) =>
-                        setForm({ ...form, claimAmountTzs: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{t("claimReference")}</Label>
-                    <Input
-                      value={form.claimReference}
-                      onChange={(e) =>
-                        setForm({ ...form, claimReference: e.target.value })
-                      }
-                    />
-                  </div>
+          {canManageMortality && (
+            <div className="mt-8 max-w-2xl">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowSetup((v) => !v)}
+              >
+                {showSetup ? t("hideMortalitySetup") : t("manageMortalitySetup")}
+              </Button>
+              {showSetup && (
+                <div className="mt-3">
+                  <MortalitySetupPanel
+                    onChanged={() => {
+                      reload();
+                      setSetupVersion((v) => v + 1);
+                    }}
+                  />
                 </div>
               )}
-
-              <p className="text-xs text-muted-foreground">
-                {t("bulkMortalityPhotoNote")}
-              </p>
-
-              <Button type="submit" disabled={saving || selected.size === 0}>
-                {saving ? t("saving") : t("recordBulkMortality")}
-              </Button>
-            </form>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
