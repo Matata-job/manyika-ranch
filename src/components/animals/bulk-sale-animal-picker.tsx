@@ -124,6 +124,7 @@ export function BulkSaleAnimalPicker({
   );
   const [yearColors, setYearColors] = useState<Record<string, string>>({});
   const [defaultTagColor, setDefaultTagColor] = useState<string | null>(null);
+  const [markingSellNext, setMarkingSellNext] = useState(false);
 
   useEffect(() => {
     fetch("/api/breeds")
@@ -358,6 +359,57 @@ export function BulkSaleAnimalPicker({
     }
   }
 
+  const selectedToMarkCount = useMemo(() => {
+    if (selected.size === 0) return 0;
+    return [...selected].filter((id) => {
+      const a = animals.find((row) => row.id === id);
+      return a && a.herdPlan !== "SELL_NEXT_CYCLE";
+    }).length;
+  }, [selected, animals]);
+
+  async function markSelectedSellNextCycle() {
+    if (selected.size === 0) {
+      window.alert(t("selectAtLeastOneAnimal"));
+      return;
+    }
+    if (
+      !window.confirm(
+        t("confirmMarkSellNextCycle", { n: selected.size })
+      )
+    ) {
+      return;
+    }
+    const entered = window.prompt(t("optionalPlanningNote"), "") ?? "";
+    const note = entered.trim() || null;
+
+    setMarkingSellNext(true);
+    try {
+      const res = await fetch("/api/animals/herd-plan/bulk", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          animalIds: [...selected],
+          herdPlan: "SELL_NEXT_CYCLE",
+          herdPlanNote: note,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        window.alert(data.error || t("failedToSave"));
+        return;
+      }
+      window.alert(
+        t("bulkHerdPlanResult", {
+          n: data.updated ?? 0,
+          skipped: data.skipped ?? 0,
+        })
+      );
+      onOnlyMarkedChange(true);
+    } finally {
+      setMarkingSellNext(false);
+    }
+  }
+
   function toggleOne(id: string) {
     const next = new Set(selected);
     if (next.has(id)) next.delete(id);
@@ -385,14 +437,35 @@ export function BulkSaleAnimalPicker({
 
   return (
     <div className="space-y-4">
-      <label className="flex items-center gap-2 text-sm font-medium">
-        <input
-          type="checkbox"
-          checked={onlyMarked}
-          onChange={(e) => onOnlyMarkedChange(e.target.checked)}
-        />
-        {t("onlyMarkedForSale")}
-      </label>
+      <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={onlyMarked}
+            onChange={(e) => onOnlyMarkedChange(e.target.checked)}
+          />
+          {t("onlyMarkedForSale")}
+        </label>
+        <p className="text-xs text-muted-foreground">{t("markSellNextCycleHelp")}</p>
+        {!onlyMarked && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={markingSellNext || selected.size === 0}
+            onClick={markSelectedSellNextCycle}
+          >
+            {markingSellNext
+              ? t("saving")
+              : t("markSelectedSellNextCycle", { n: selected.size })}
+          </Button>
+        )}
+        {!onlyMarked && selected.size > 0 && selectedToMarkCount === 0 && (
+          <p className="text-xs text-muted-foreground">
+            {t("selectedAlreadySellNextCycle")}
+          </p>
+        )}
+      </div>
 
       <div className="space-y-2">
         <Label>

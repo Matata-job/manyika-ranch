@@ -859,6 +859,13 @@ const en = {
   noMarkedForSale: "No animals planned for sell next cycle.",
   bulkSellMarked: "Bulk sell next cycle ({n})",
   onlyMarkedForSale: "Only sell-next-cycle animals",
+  markSellNextCycleHelp:
+    "To plan animals for the next sale: turn this off, choose camps, select animals, then mark them for sell next cycle.",
+  markSelectedSellNextCycle: "Mark selected for sell next cycle ({n})",
+  confirmMarkSellNextCycle:
+    "Mark {n} animals for sell next cycle? They will appear in the sell-next-cycle list.",
+  selectedAlreadySellNextCycle:
+    "Selected animals are already marked sell next cycle.",
 
   // Reports
   reportsTitle: "Reports",
@@ -2122,6 +2129,13 @@ const sw: Dict = {
   noMarkedForSale: "Hakuna wanyama walio na mpango wa kuuza mzunguko ujao.",
   bulkSellMarked: "Uza kwa wingi mzunguko ujao ({n})",
   onlyMarkedForSale: "Wanyama wa kuuza mzunguko ujao tu",
+  markSellNextCycleHelp:
+    "Kupanga wanyama kwa mauzo yajayo: zima chaguo hili, chagua kambi, chagua wanyama, kisha waweke kwa kuuza mzunguko ujao.",
+  markSelectedSellNextCycle: "Weka waliochaguliwa kwa kuuza mzunguko ujao ({n})",
+  confirmMarkSellNextCycle:
+    "Weka wanyama {n} kwa kuuza mzunguko ujao? Wataonekana kwenye orodha ya mzunguko ujao.",
+  selectedAlreadySellNextCycle:
+    "Wanyama waliochaguliwa tayari wamewekwa kwa kuuza mzunguko ujao.",
 
   reportsTitle: "Ripoti",
   reportsSubtitle: "Ripoti za mifugo, afya, mauzo, fedha, na gharama ya uzalishaji",
