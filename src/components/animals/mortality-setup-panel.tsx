@@ -14,20 +14,21 @@ import {
 import { useT } from "@/components/providers/locale-provider";
 import {
   deathCauseKey,
-  DISPOSAL_METHODS,
+  SELECTABLE_DISPOSAL_METHODS,
   disposalMethodKey,
   SYSTEM_DEATH_CAUSES,
 } from "@/lib/death-causes";
 import {
   findPresetById,
-  SYSTEM_MORTALITY_PRESETS,
-  type CustomMortalityPreset,
+  mortalityPresetLabel,
+  type MortalityPreset,
 } from "@/lib/mortality-presets";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { Pencil, Trash2 } from "lucide-react";
 
 type Props = {
   onChanged?: () => void;
+  hideIntro?: boolean;
 };
 
 type PresetDraft = {
@@ -58,11 +59,11 @@ function causeLabel(value: string, t: (key: TranslationKey) => string): string {
   return t(deathCauseKey(value));
 }
 
-export function MortalitySetupPanel({ onChanged }: Props) {
+export function MortalitySetupPanel({ onChanged, hideIntro }: Props) {
   const t = useT();
   const [customCauses, setCustomCauses] = useState<string[]>([]);
   const [customDisposals, setCustomDisposals] = useState<string[]>([]);
-  const [customPresets, setCustomPresets] = useState<CustomMortalityPreset[]>([]);
+  const [customPresets, setCustomPresets] = useState<MortalityPreset[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [newCause, setNewCause] = useState("");
@@ -98,7 +99,7 @@ export function MortalitySetupPanel({ onChanged }: Props) {
       }
       if (presetsRes.ok) {
         const data = await presetsRes.json();
-        setCustomPresets(data.custom || []);
+        setCustomPresets(data.presets || data.custom || []);
       }
     } finally {
       setLoading(false);
@@ -253,7 +254,7 @@ export function MortalitySetupPanel({ onChanged }: Props) {
       return false;
     }
     const data = await res.json();
-    setCustomPresets(data.custom || []);
+    setCustomPresets(data.presets || data.custom || []);
     onChanged?.();
     return true;
   }
@@ -303,7 +304,7 @@ export function MortalitySetupPanel({ onChanged }: Props) {
       return;
     }
     const data = await res.json();
-    setCustomPresets(data.custom || []);
+    setCustomPresets(data.presets || data.custom || []);
     if (editingPresetId === id) setEditingPresetId(null);
     onChanged?.();
   }
@@ -353,7 +354,7 @@ export function MortalitySetupPanel({ onChanged }: Props) {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {DISPOSAL_METHODS.filter((d) => d !== "OTHER").map((d) => (
+          {SELECTABLE_DISPOSAL_METHODS.filter((d) => d !== "OTHER").map((d) => (
             <SelectItem key={d} value={d}>
               {t(disposalMethodKey(d))}
             </SelectItem>
@@ -375,12 +376,14 @@ export function MortalitySetupPanel({ onChanged }: Props) {
 
   return (
     <div className="space-y-6 rounded-md border p-4 bg-muted/20">
+      {!hideIntro && (
       <div>
         <h3 className="font-medium">{t("mortalitySetupTitle")}</h3>
         <p className="text-sm text-muted-foreground mt-1">
           {t("mortalitySetupHelp")}
         </p>
       </div>
+      )}
 
       <section className="space-y-2">
         <Label>{t("cause")} *</Label>
@@ -479,7 +482,7 @@ export function MortalitySetupPanel({ onChanged }: Props) {
 
       <section className="space-y-2">
         <Label>{t("disposal")} *</Label>
-        <p className="text-xs text-muted-foreground">{t("builtInDisposals")}: {DISPOSAL_METHODS.filter((d) => d !== "OTHER").map((d) => t(disposalMethodKey(d))).join(" · ")}</p>
+        <p className="text-xs text-muted-foreground">{t("builtInDisposals")}: {SELECTABLE_DISPOSAL_METHODS.filter((d) => d !== "OTHER").map((d) => t(disposalMethodKey(d))).join(" · ")}</p>
         {customDisposals.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t("noCustomDisposals")}</p>
         ) : (
@@ -577,22 +580,6 @@ export function MortalitySetupPanel({ onChanged }: Props) {
       </section>
 
       <section className="space-y-2">
-        <Label>{t("builtInMortalityPresets")}</Label>
-        <ul className="space-y-1 text-sm text-muted-foreground">
-          {SYSTEM_MORTALITY_PRESETS.map((p) => (
-            <li key={p.id} className="rounded border bg-background px-3 py-2">
-              {t(p.labelKey)}
-              <span className="ml-2">
-                · {p.isCulling ? t("recordKindSlaughter") : t("recordKindDeath")}
-                {p.causeValue ? ` · ${causeLabel(p.causeValue, t)}` : ""}
-                {` · ${disposalLabel(p.disposalMethod, t)}`}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="space-y-2">
         <Label>{t("customMortalityPresets")}</Label>
         {customPresets.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t("noCustomMortalityPresets")}</p>
@@ -661,7 +648,7 @@ export function MortalitySetupPanel({ onChanged }: Props) {
                 ) : (
                   <div className="flex items-center justify-between gap-2">
                     <span>
-                      {p.label}
+                      {mortalityPresetLabel(p, t)}
                       <span className="text-muted-foreground ml-2">
                         · {p.isCulling ? t("recordKindSlaughter") : t("recordKindDeath")}
                         {p.causeValue ? ` · ${causeLabel(p.causeValue, t)}` : ""}
@@ -676,7 +663,7 @@ export function MortalitySetupPanel({ onChanged }: Props) {
                         onClick={() => {
                           setEditingPresetId(p.id);
                           setPresetDraft({
-                            label: p.label,
+                            label: mortalityPresetLabel(p, t),
                             causeValue: p.causeValue || "",
                             disposalMethod: p.disposalMethod,
                             isCulling: p.isCulling,
@@ -748,14 +735,14 @@ export function MortalitySetupPanel({ onChanged }: Props) {
 
 export function useMortalityPresets() {
   const t = useT();
-  const [customPresets, setCustomPresets] = useState<CustomMortalityPreset[]>([]);
+  const [customPresets, setCustomPresets] = useState<MortalityPreset[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   const reload = useCallback(() => {
     return fetch("/api/mortality/presets")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (d?.custom) setCustomPresets(d.custom);
+        setCustomPresets(d?.presets || d?.custom || []);
         setLoaded(true);
       })
       .catch(() => setLoaded(true));
@@ -767,10 +754,8 @@ export function useMortalityPresets() {
 
   function presetLabel(id: string): string {
     if (id === "__none__") return t("mortalityPresetManual");
-    const system = SYSTEM_MORTALITY_PRESETS.find((p) => p.id === id);
-    if (system) return t(system.labelKey);
-    const custom = customPresets.find((p) => p.id === id);
-    return custom?.label ?? id;
+    const preset = customPresets.find((p) => p.id === id);
+    return preset ? mortalityPresetLabel(preset, t) : id;
   }
 
   function applyPresetId(
@@ -800,7 +785,6 @@ export function useMortalityPresets() {
     reload,
     presetLabel,
     applyPresetId,
-    systemPresets: SYSTEM_MORTALITY_PRESETS,
   };
 }
 
@@ -811,14 +795,13 @@ export type MortalityPresetOption = {
 
 export function buildMortalityPresetOptions(
   t: (key: TranslationKey) => string,
-  customPresets: CustomMortalityPreset[]
+  customPresets: MortalityPreset[]
 ): MortalityPresetOption[] {
   return [
     { id: "__none__", label: t("mortalityPresetManual") },
-    ...SYSTEM_MORTALITY_PRESETS.map((p) => ({
+    ...customPresets.map((p) => ({
       id: p.id,
-      label: t(p.labelKey),
+      label: mortalityPresetLabel(p, t),
     })),
-    ...customPresets.map((p) => ({ id: p.id, label: p.label })),
   ];
 }

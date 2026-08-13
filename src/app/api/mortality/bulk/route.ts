@@ -66,7 +66,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid cause" }, { status: 400 });
   }
 
-  const disposalMethod = (body.disposalMethod || "BURIED") as DisposalMethod;
+  const disposalMethod = (
+    body.disposalMethod === "HOME_USE" || body.disposalMethod === "CAMP_USE"
+      ? "USED_FOR_FOOD"
+      : body.disposalMethod || "BURIED"
+  ) as DisposalMethod;
   if (!DISPOSALS.includes(disposalMethod)) {
     return NextResponse.json(
       { error: "Invalid disposal method" },

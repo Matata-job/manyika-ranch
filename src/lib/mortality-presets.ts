@@ -1,53 +1,10 @@
 import type { TranslationKey } from "@/lib/i18n/translations";
 import {
   isKnownDisposalFormValue,
-  type DisposalMethodCode,
+  normalizeDisposalMethod,
 } from "@/lib/death-causes";
 
-export type MortalityPresetConfig = {
-  id: string;
-  labelKey: TranslationKey;
-  /** System enum or `custom:name` — omit to leave cause unchanged when applied */
-  causeValue?: string;
-  disposalMethod: DisposalMethodCode;
-  isCulling: boolean;
-  system: true;
-};
-
-export const SYSTEM_MORTALITY_PRESETS: MortalityPresetConfig[] = [
-  {
-    id: "sys:family_slaughter",
-    labelKey: "mortalityPresetFamilySlaughter",
-    causeValue: "CULLING",
-    disposalMethod: "HOME_USE",
-    isCulling: true,
-    system: true,
-  },
-  {
-    id: "sys:camp_slaughter",
-    labelKey: "mortalityPresetCampSlaughter",
-    causeValue: "CULLING",
-    disposalMethod: "CAMP_USE",
-    isCulling: true,
-    system: true,
-  },
-  {
-    id: "sys:died_used_food",
-    labelKey: "mortalityPresetDiedUsedFood",
-    disposalMethod: "USED_FOR_FOOD",
-    isCulling: false,
-    system: true,
-  },
-  {
-    id: "sys:died_buried",
-    labelKey: "mortalityPresetDiedBuried",
-    disposalMethod: "BURIED",
-    isCulling: false,
-    system: true,
-  },
-];
-
-export type CustomMortalityPreset = {
+export type MortalityPreset = {
   id: string;
   label: string;
   causeValue?: string;
@@ -56,10 +13,58 @@ export type CustomMortalityPreset = {
   isCulling: boolean;
 };
 
-export function getCustomMortalityPresets(settings: unknown): CustomMortalityPreset[] {
+/** @deprecated use MortalityPreset */
+export type CustomMortalityPreset = MortalityPreset;
+
+export const DEFAULT_MORTALITY_PRESETS: MortalityPreset[] = [
+  {
+    id: "sys:slaughter_food",
+    label: "Slaughter — used for food",
+    causeValue: "CULLING",
+    disposalMethod: "USED_FOR_FOOD",
+    isCulling: true,
+  },
+  {
+    id: "sys:died_used_food",
+    label: "Died — used for food",
+    disposalMethod: "USED_FOR_FOOD",
+    isCulling: false,
+  },
+  {
+    id: "sys:died_buried",
+    label: "Died — buried",
+    disposalMethod: "BURIED",
+    isCulling: false,
+  },
+];
+
+const DEFAULT_PRESET_LABEL_KEYS: Record<string, TranslationKey> = {
+  "sys:slaughter_food": "mortalityPresetSlaughterUsedFood",
+  "sys:died_used_food": "mortalityPresetDiedUsedFood",
+  "sys:died_buried": "mortalityPresetDiedBuried",
+};
+
+const DEFAULT_PRESET_LABELS: Record<string, string> = Object.fromEntries(
+  DEFAULT_MORTALITY_PRESETS.map((p) => [p.id, p.label])
+);
+
+export function mortalityPresetLabel(
+  preset: MortalityPreset,
+  t: (key: TranslationKey) => string
+): string {
+  const key = DEFAULT_PRESET_LABEL_KEYS[preset.id];
+  if (key && preset.label === DEFAULT_PRESET_LABELS[preset.id]) {
+    return t(key);
+  }
+  return preset.label;
+}
+
+export function getRanchMortalityPresets(settings: unknown): MortalityPreset[] {
   const raw = (settings as { mortalityPresets?: unknown } | null)?.mortalityPresets;
-  if (!Array.isArray(raw)) return [];
-  const out: CustomMortalityPreset[] = [];
+  if (!Array.isArray(raw)) {
+    return DEFAULT_MORTALITY_PRESETS.map((p) => ({ ...p }));
+  }
+  const out: MortalityPreset[] = [];
   for (const item of raw) {
     if (!item || typeof item !== "object") continue;
     const row = item as Record<string, unknown>;
@@ -75,28 +80,32 @@ export function getCustomMortalityPresets(settings: unknown): CustomMortalityPre
         typeof row.causeValue === "string" && row.causeValue
           ? row.causeValue
           : undefined,
-      disposalMethod,
+      disposalMethod: normalizeDisposalMethod(disposalMethod),
       isCulling: Boolean(row.isCulling),
     });
+  }
+  if (!out.some((p) => p.id.startsWith("sys:"))) {
+    return [...DEFAULT_MORTALITY_PRESETS.map((p) => ({ ...p })), ...out];
   }
   return out;
 }
 
+/** @deprecated use getRanchMortalityPresets */
+export const getCustomMortalityPresets = getRanchMortalityPresets;
+
 export function findPresetById(
   id: string,
-  custom: CustomMortalityPreset[]
-): MortalityPresetConfig | CustomMortalityPreset | null {
-  const system = SYSTEM_MORTALITY_PRESETS.find((p) => p.id === id);
-  if (system) return system;
-  return custom.find((p) => p.id === id) ?? null;
+  presets: MortalityPreset[]
+): MortalityPreset | null {
+  return presets.find((p) => p.id === id) ?? null;
 }
 
 export function remapCustomPresets(
-  presets: CustomMortalityPreset[],
+  presets: MortalityPreset[],
   field: "causeValue" | "disposalMethod",
   oldValue: string,
   newValue: string | null
-): CustomMortalityPreset[] {
+): MortalityPreset[] {
   return presets.map((p) => {
     if (p[field] !== oldValue) return p;
     if (field === "causeValue") {

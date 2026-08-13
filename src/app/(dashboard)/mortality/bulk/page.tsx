@@ -23,7 +23,6 @@ import { SelectedAnimalsList } from "@/components/animals/selected-animals-list"
 import { DeathCausePicker } from "@/components/animals/death-cause-picker";
 import { DisposalMethodPicker } from "@/components/animals/disposal-method-picker";
 import {
-  MortalitySetupPanel,
   buildMortalityPresetOptions,
   useMortalityPresets,
 } from "@/components/animals/mortality-setup-panel";
@@ -42,7 +41,7 @@ export default function DeadAnimalRecordPage() {
   const role = session?.user?.role as Role | undefined;
   const canManageMortality = role ? hasPermission(role, "manageMortality") : false;
 
-  const { customPresets, reload, applyPresetId } = useMortalityPresets();
+  const { customPresets, applyPresetId } = useMortalityPresets();
   const presetOptions = buildMortalityPresetOptions(t, customPresets);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -53,8 +52,6 @@ export default function DeadAnimalRecordPage() {
   const [presetId, setPresetId] = useState("__none__");
   const [causeValue, setCauseValue] = useState("UNKNOWN");
   const [isCulling, setIsCulling] = useState(false);
-  const [showSetup, setShowSetup] = useState(false);
-  const [setupVersion, setSetupVersion] = useState(0);
   const [form, setForm] = useState({
     date: "",
     causeDetail: "",
@@ -180,12 +177,21 @@ export default function DeadAnimalRecordPage() {
         >
           <ArrowLeft className="h-4 w-4 mr-1" /> {t("backToActivities")}
         </Link>
-        <h1 className="text-3xl font-bold tracking-tight text-primary">
-          {t("deadAnimalRecordTitle")}
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          {t("deadAnimalRecordSelectHelp")}
-        </p>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-primary">
+              {t("deadAnimalRecordTitle")}
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              {t("deadAnimalRecordSelectHelp")}
+            </p>
+          </div>
+          {canManageMortality && (
+            <Button asChild variant="outline" size="sm">
+              <Link href="/mortality/setup">{t("manageMortalitySetup")}</Link>
+            </Button>
+          )}
+        </div>
       </div>
 
       {result && (
@@ -257,7 +263,6 @@ export default function DeadAnimalRecordPage() {
             </div>
 
             <DeathCausePicker
-              key={setupVersion}
               value={causeValue}
               onChange={(v, meta) => {
                 clearPreset();
@@ -288,7 +293,6 @@ export default function DeadAnimalRecordPage() {
 
             <div className="grid gap-3 sm:grid-cols-2">
               <DisposalMethodPicker
-                key={`disposal-${setupVersion}`}
                 value={form.disposalMethod}
                 onChange={(v) => {
                   clearPreset();
@@ -379,29 +383,6 @@ export default function DeadAnimalRecordPage() {
               {saving ? t("saving") : t("recordBulkMortality")}
             </Button>
           </form>
-
-          {canManageMortality && (
-            <div className="mt-8 max-w-2xl">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowSetup((v) => !v)}
-              >
-                {showSetup ? t("hideMortalitySetup") : t("manageMortalitySetup")}
-              </Button>
-              {showSetup && (
-                <div className="mt-3">
-                  <MortalitySetupPanel
-                    onChanged={() => {
-                      reload();
-                      setSetupVersion((v) => v + 1);
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>

@@ -27,6 +27,23 @@ export const DISPOSAL_METHODS = [
 
 export type DisposalMethodCode = (typeof DISPOSAL_METHODS)[number];
 
+/** Home/camp use folded into Used for food — kept on the enum for old records. */
+export const RETIRED_DISPOSAL_METHODS: DisposalMethodCode[] = [
+  "HOME_USE",
+  "CAMP_USE",
+];
+
+export const SELECTABLE_DISPOSAL_METHODS = DISPOSAL_METHODS.filter(
+  (d) => d !== "HOME_USE" && d !== "CAMP_USE"
+);
+
+export function normalizeDisposalMethod(method: string): string {
+  if (method === "HOME_USE" || method === "CAMP_USE") return "USED_FOR_FOOD";
+  if (method.startsWith("custom:")) return method;
+  if (DISPOSAL_METHODS.includes(method as DisposalMethodCode)) return method;
+  return "BURIED";
+}
+
 /** Form value: system enum or `custom:<name>` for ranch-added causes. */
 export function deathCauseFormValue(
   cause: string,
@@ -95,9 +112,7 @@ export function disposalMethodKey(method: string): TranslationKey {
     case "REMOVED":
       return "disposalRemoved";
     case "HOME_USE":
-      return "disposalHomeUse";
     case "CAMP_USE":
-      return "disposalCampUse";
     case "USED_FOR_FOOD":
       return "disposalUsedForFood";
     default:
@@ -150,7 +165,7 @@ export function disposalFormValue(
   if (method === "OTHER" && disposalNotes?.trim()) {
     return `custom:${disposalNotes.trim()}`;
   }
-  return method;
+  return normalizeDisposalMethod(method);
 }
 
 export function parseDisposalFormValue(value: string): {
@@ -164,10 +179,11 @@ export function parseDisposalFormValue(value: string): {
       disposalNotes: name || null,
     };
   }
-  const method = (DISPOSAL_METHODS.includes(value as DisposalMethodCode)
-    ? value
-    : "BURIED") as DisposalMethodCode;
-  return { method, disposalNotes: null };
+  const method = normalizeDisposalMethod(value);
+  return {
+    method: method as DisposalMethodCode,
+    disposalNotes: null,
+  };
 }
 
 export function isKnownDisposalFormValue(value: string): boolean {
@@ -192,8 +208,8 @@ const DISPOSAL_EN: Record<string, string> = {
   BURNED: "Burned",
   SOLD_CARCASS: "Sold carcass",
   REMOVED: "Removed",
-  HOME_USE: "Home use (family slaughter)",
-  CAMP_USE: "Camp use (camp slaughter)",
+  HOME_USE: "Used for food",
+  CAMP_USE: "Used for food",
   USED_FOR_FOOD: "Used for food",
   OTHER: "Other",
 };

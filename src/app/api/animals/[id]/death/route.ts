@@ -6,7 +6,10 @@ import {
 } from "@/lib/auth/api-guard";
 import { createAuditLog } from "@/lib/services/animal-service";
 import { logAnimalEvent } from "@/lib/services/event-service";
-import { formatMortalityEventDescription } from "@/lib/death-causes";
+import {
+  formatMortalityEventDescription,
+  normalizeDisposalMethod,
+} from "@/lib/death-causes";
 
 export async function GET(
   _req: NextRequest,
@@ -70,7 +73,9 @@ export async function POST(
         date,
         cause: body.cause || "UNKNOWN",
         causeDetail: body.causeDetail,
-        disposalMethod: body.disposalMethod || "BURIED",
+        disposalMethod: normalizeDisposalMethod(
+          body.disposalMethod || "BURIED"
+        ) as typeof body.disposalMethod,
         disposalNotes: body.disposalNotes,
         location: body.location,
         weightKg: body.weightKg ? parseFloat(body.weightKg) : null,
@@ -168,7 +173,9 @@ export async function PATCH(
   if (body.date !== undefined) data.date = body.date ? new Date(body.date) : existing.date;
   if (body.cause !== undefined) data.cause = body.cause;
   if (body.causeDetail !== undefined) data.causeDetail = body.causeDetail || null;
-  if (body.disposalMethod !== undefined) data.disposalMethod = body.disposalMethod;
+  if (body.disposalMethod !== undefined) {
+    data.disposalMethod = normalizeDisposalMethod(String(body.disposalMethod));
+  }
   if (body.disposalNotes !== undefined) data.disposalNotes = body.disposalNotes || null;
   if (body.location !== undefined) data.location = body.location || null;
   if (body.weightKg !== undefined) {

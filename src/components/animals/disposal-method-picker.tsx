@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { useT } from "@/components/providers/locale-provider";
 import {
-  DISPOSAL_METHODS,
+  SELECTABLE_DISPOSAL_METHODS,
   disposalMethodKey,
   parseDisposalFormValue,
 } from "@/lib/death-causes";
@@ -85,7 +85,7 @@ export function DisposalMethodPicker({ value, onChange, disabled, id }: Props) {
           <SelectValue placeholder={t("disposal")} />
         </SelectTrigger>
         <SelectContent>
-          {DISPOSAL_METHODS.filter((d) => d !== "OTHER").map((d) => (
+          {SELECTABLE_DISPOSAL_METHODS.filter((d) => d !== "OTHER").map((d) => (
             <SelectItem key={d} value={d}>
               {t(disposalMethodKey(d))}
             </SelectItem>

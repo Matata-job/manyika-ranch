@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/api-guard";
 import {
-  DISPOSAL_METHODS,
+  SELECTABLE_DISPOSAL_METHODS,
   getCustomDisposalMethods,
   normalizeCustomDisposalName,
 } from "@/lib/death-causes";
@@ -26,7 +26,7 @@ export async function GET() {
   });
 
   return NextResponse.json({
-    system: [...DISPOSAL_METHODS],
+    system: [...SELECTABLE_DISPOSAL_METHODS],
     custom: getCustomDisposalMethods(ranch?.settings),
   });
 }
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({
-    system: [...DISPOSAL_METHODS],
+    system: [...SELECTABLE_DISPOSAL_METHODS],
     custom: nextList,
     added: name,
   });
