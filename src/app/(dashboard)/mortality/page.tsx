@@ -14,8 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import { Download, Plus, Settings2 } from "lucide-react";
+import { formatCurrency, formatDate, cn } from "@/lib/utils";
+import { Download, Plus, Search, Settings2 } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 import {
   deathCauseKey,
@@ -30,7 +30,38 @@ import {
   rangeForMonthPreset,
   type MonthPreset,
 } from "@/lib/reports/date-range";
-import { cn } from "@/lib/utils";
+
+const PERIOD_PRESETS: MonthPreset[] = [
+  "all_time",
+  "this_month",
+  "last_month",
+  "last_3_months",
+  "this_year",
+  "last_year",
+  "custom",
+];
+
+function periodLabel(
+  preset: MonthPreset,
+  t: (key: TranslationKey) => string
+): string {
+  switch (preset) {
+    case "all_time":
+      return t("allTime");
+    case "this_month":
+      return t("thisMonth");
+    case "last_month":
+      return t("lastMonth");
+    case "last_3_months":
+      return t("last3Months");
+    case "this_year":
+      return t("thisYear");
+    case "last_year":
+      return t("lastYear");
+    case "custom":
+      return t("customRange");
+  }
+}
 
 interface MortalityReport {
   total: number;
@@ -108,8 +139,8 @@ export default function MortalityPage() {
     ? hasPermission(role, "manageMortality")
     : false;
 
-  const initialRange = rangeForMonthPreset("this_month");
-  const [monthPreset, setMonthPreset] = useState<MonthPreset>("this_month");
+  const initialRange = rangeForMonthPreset("all_time");
+  const [monthPreset, setMonthPreset] = useState<MonthPreset>("all_time");
   const [from, setFrom] = useState(initialRange.from);
   const [to, setTo] = useState(initialRange.to);
   const [camp, setCamp] = useState("all");
@@ -191,13 +222,21 @@ export default function MortalityPage() {
 
   function applyMonthPreset(preset: MonthPreset) {
     setMonthPreset(preset);
+    if (preset === "custom") {
+      if (!from && !to) {
+        const seed = rangeForMonthPreset("this_year");
+        setFrom(seed.from);
+        setTo(seed.to);
+      }
+      return;
+    }
     const range = rangeForMonthPreset(preset);
     setFrom(range.from);
     setTo(range.to);
   }
 
   function clearFilters() {
-    applyMonthPreset("this_month");
+    applyMonthPreset("all_time");
     setCamp("all");
     setBreed("all");
     setSex("all");
@@ -296,182 +335,192 @@ export default function MortalityPage() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader className="pb-2">
+      <Card className="overflow-hidden border-border/70 shadow-sm">
+        <CardHeader className="border-b border-border/60 bg-muted/20 pb-4">
           <CardTitle className="text-base">{t("filters")}</CardTitle>
           <p className="text-sm text-muted-foreground">
             {t("mortalityFiltersHelp")}
           </p>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">
-                {t("monthPreset")}
-              </label>
-              <Select
-                value={monthPreset}
-                onValueChange={(v) => applyMonthPreset(v as MonthPreset)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
+        <CardContent className="space-y-5 pt-5">
+          <div className="space-y-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t("monthPreset")}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {PERIOD_PRESETS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => applyMonthPreset(preset)}
+                  className={cn(
+                    "category-pill",
+                    monthPreset === preset
+                      ? "category-pill-active"
+                      : "bg-background text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {periodLabel(preset, t)}
+                </button>
+              ))}
+            </div>
+            {monthPreset === "custom" && (
+              <div className="grid gap-3 sm:grid-cols-2 max-w-xl animate-in fade-in-0 slide-in-from-top-1 duration-200">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">
+                    {t("dateFrom")}
+                  </label>
+                  <Input
+                    type="date"
+                    className="h-11 rounded-xl border-border/80 bg-card"
+                    value={from}
+                    onChange={(e) => setFrom(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">
+                    {t("dateTo")}
+                  </label>
+                  <Input
+                    type="date"
+                    className="h-11 rounded-xl border-border/80 bg-card"
+                    value={to}
+                    onChange={(e) => setTo(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="relative max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="h-11 rounded-xl border-border/80 bg-card pl-9 shadow-sm"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={t("searchEartag")}
+            />
+          </div>
+
+          <div className="space-y-3 border-t border-border/50 pt-5">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t("mortalityKind")} · {t("cause")} · {t("disposal")}
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Select value={kind} onValueChange={setKind}>
+                <SelectTrigger className="h-11 rounded-xl border-border/80 bg-card shadow-sm">
+                  <SelectValue placeholder={t("mortalityKind")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="this_month">{t("thisMonth")}</SelectItem>
-                  <SelectItem value="last_month">{t("lastMonth")}</SelectItem>
-                  <SelectItem value="last_3_months">{t("last3Months")}</SelectItem>
-                  <SelectItem value="this_year">{t("thisYear")}</SelectItem>
-                  <SelectItem value="all_time">{t("allTime")}</SelectItem>
-                  <SelectItem value="custom">{t("customRange")}</SelectItem>
+                  <SelectItem value="all">{t("allKinds")}</SelectItem>
+                  <SelectItem value="death">{t("recordKindDeath")}</SelectItem>
+                  <SelectItem value="slaughter">
+                    {t("recordKindSlaughter")}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={cause} onValueChange={setCause}>
+                <SelectTrigger className="h-11 rounded-xl border-border/80 bg-card shadow-sm">
+                  <SelectValue placeholder={t("cause")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("allCauses")}</SelectItem>
+                  {SYSTEM_DEATH_CAUSES.filter((c) => c !== "OTHER").map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {t(deathCauseKey(c))}
+                    </SelectItem>
+                  ))}
+                  {customCauses.map((c) => (
+                    <SelectItem key={`custom:${c}`} value={`custom:${c}`}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={disposal} onValueChange={setDisposal}>
+                <SelectTrigger className="h-11 rounded-xl border-border/80 bg-card shadow-sm">
+                  <SelectValue placeholder={t("disposal")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("allDisposals")}</SelectItem>
+                  {SELECTABLE_DISPOSAL_METHODS.filter((d) => d !== "OTHER").map(
+                    (d) => (
+                      <SelectItem key={d} value={d}>
+                        {t(disposalMethodKey(d))}
+                      </SelectItem>
+                    )
+                  )}
+                  {customDisposals.map((d) => (
+                    <SelectItem key={`custom:${d}`} value={`custom:${d}`}>
+                      {d}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={insurance} onValueChange={setInsurance}>
+                <SelectTrigger className="h-11 rounded-xl border-border/80 bg-card shadow-sm">
+                  <SelectValue placeholder={t("insuranceFilter")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("insuranceAll")}</SelectItem>
+                  <SelectItem value="yes">{t("insuranceYes")}</SelectItem>
+                  <SelectItem value="no">{t("insuranceNo")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">
-                {t("dateFrom")}
-              </label>
-              <Input
-                type="date"
-                value={from}
-                onChange={(e) => {
-                  setMonthPreset("custom");
-                  setFrom(e.target.value);
-                }}
-              />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">
-                {t("dateTo")}
-              </label>
-              <Input
-                type="date"
-                value={to}
-                onChange={(e) => {
-                  setMonthPreset("custom");
-                  setTo(e.target.value);
-                }}
-              />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">
-                {t("searchEartag")}
-              </label>
-              <Input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder={t("searchEartag")}
-              />
-            </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Select value={camp} onValueChange={setCamp}>
-              <SelectTrigger>
-                <SelectValue placeholder={t("camp")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("allCamps")}</SelectItem>
-                {camps.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={breed} onValueChange={setBreed}>
-              <SelectTrigger>
-                <SelectValue placeholder={t("breed")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("allBreeds")}</SelectItem>
-                {breedOptions.map((b) => (
-                  <SelectItem key={b} value={b}>
-                    {b}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={sex} onValueChange={setSex}>
-              <SelectTrigger>
-                <SelectValue placeholder={t("sex")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("allSexes")}</SelectItem>
-                <SelectItem value="FEMALE">{t("female")}</SelectItem>
-                <SelectItem value="MALE">{t("male")}</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={kind} onValueChange={setKind}>
-              <SelectTrigger>
-                <SelectValue placeholder={t("mortalityKind")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("allKinds")}</SelectItem>
-                <SelectItem value="death">{t("recordKindDeath")}</SelectItem>
-                <SelectItem value="slaughter">
-                  {t("recordKindSlaughter")}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Select value={cause} onValueChange={setCause}>
-              <SelectTrigger>
-                <SelectValue placeholder={t("cause")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("allCauses")}</SelectItem>
-                {SYSTEM_DEATH_CAUSES.filter((c) => c !== "OTHER").map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {t(deathCauseKey(c))}
-                  </SelectItem>
-                ))}
-                {customCauses.map((c) => (
-                  <SelectItem key={`custom:${c}`} value={`custom:${c}`}>
-                    {c}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={disposal} onValueChange={setDisposal}>
-              <SelectTrigger>
-                <SelectValue placeholder={t("disposal")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("allDisposals")}</SelectItem>
-                {SELECTABLE_DISPOSAL_METHODS.filter((d) => d !== "OTHER").map(
-                  (d) => (
-                    <SelectItem key={d} value={d}>
-                      {t(disposalMethodKey(d))}
+          <div className="space-y-3 border-t border-border/50 pt-5">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t("camp")} · {t("breed")} · {t("sex")}
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <Select value={camp} onValueChange={setCamp}>
+                <SelectTrigger className="h-11 rounded-xl border-border/80 bg-card shadow-sm">
+                  <SelectValue placeholder={t("camp")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("allCamps")}</SelectItem>
+                  {camps.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
                     </SelectItem>
-                  )
-                )}
-                {customDisposals.map((d) => (
-                  <SelectItem key={`custom:${d}`} value={`custom:${d}`}>
-                    {d}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={insurance} onValueChange={setInsurance}>
-              <SelectTrigger>
-                <SelectValue placeholder={t("insuranceFilter")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("insuranceAll")}</SelectItem>
-                <SelectItem value="yes">{t("insuranceYes")}</SelectItem>
-                <SelectItem value="no">{t("insuranceNo")}</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="flex flex-wrap gap-2 items-end">
-              <Button onClick={load} disabled={loading}>
-                {loading ? t("loading") : t("applyFilters")}
-              </Button>
-              <Button type="button" variant="ghost" onClick={clearFilters}>
-                {t("clearFilters")}
-              </Button>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={breed} onValueChange={setBreed}>
+                <SelectTrigger className="h-11 rounded-xl border-border/80 bg-card shadow-sm">
+                  <SelectValue placeholder={t("breed")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("allBreeds")}</SelectItem>
+                  {breedOptions.map((b) => (
+                    <SelectItem key={b} value={b}>
+                      {b}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={sex} onValueChange={setSex}>
+                <SelectTrigger className="h-11 rounded-xl border-border/80 bg-card shadow-sm">
+                  <SelectValue placeholder={t("sex")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("allSexes")}</SelectItem>
+                  <SelectItem value="FEMALE">{t("female")}</SelectItem>
+                  <SelectItem value="MALE">{t("male")}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border/50 pt-4">
+            <Button type="button" variant="ghost" onClick={clearFilters}>
+              {t("clearFilters")}
+            </Button>
+            <Button onClick={load} disabled={loading} className="min-w-[7rem]">
+              {loading ? t("loading") : t("applyFilters")}
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -684,88 +733,128 @@ export default function MortalityPage() {
         </div>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            {t("mortalityRecords")}
+      <div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
+        <div className="flex items-center justify-between gap-3 border-b border-border/60 bg-muted/20 px-4 py-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <h2 className="font-semibold truncate">{t("mortalityRecords")}</h2>
             {data ? (
-              <Badge variant="secondary" className="ml-2">
+              <Badge variant="secondary" className="shrink-0">
                 {data.total}
               </Badge>
             ) : null}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!data?.records?.length ? (
-            <p className="text-sm text-muted-foreground">{t("noMortality")}</p>
-          ) : (
-            <div className="rounded-lg border overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="p-3 text-left">{t("date")}</th>
-                    <th className="p-3 text-left">{t("animal")}</th>
-                    <th className="p-3 text-left">{t("camp")}</th>
-                    <th className="p-3 text-left">{t("mortalityKind")}</th>
-                    <th className="p-3 text-left">{t("cause")}</th>
-                    <th className="p-3 text-left">{t("disposal")}</th>
-                    <th className="p-3 text-left">{t("insuranceClaim")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.records.map((r) => (
-                    <tr key={r.id} className="border-b">
-                      <td className="p-3">{formatDate(r.date)}</td>
-                      <td className="p-3">
+          </div>
+        </div>
+
+        {!data?.records?.length ? (
+          <p className="px-4 py-12 text-center text-sm text-muted-foreground">
+            {t("noMortality")}
+          </p>
+        ) : (
+          <>
+            <div className="hidden lg:grid grid-cols-[7rem_minmax(0,1.2fr)_minmax(0,1fr)_6.5rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)] gap-3 px-4 py-2.5 text-[11px] uppercase tracking-wide text-muted-foreground border-b border-border/60 bg-muted/30">
+              <span>{t("date")}</span>
+              <span>{t("animal")}</span>
+              <span>{t("camp")}</span>
+              <span>{t("mortalityKind")}</span>
+              <span>{t("cause")}</span>
+              <span>{t("disposal")}</span>
+              <span>{t("insuranceClaim")}</span>
+            </div>
+            <ul className="divide-y divide-border/50">
+              {data.records.map((r) => {
+                const causeName = causeGroupLabel(
+                  r.cause === "OTHER" && r.causeDetail
+                    ? r.causeDetail
+                    : r.cause,
+                  t
+                );
+                const disposalName = disposalLabel(
+                  r.disposalMethod,
+                  r.disposalNotes,
+                  t
+                );
+                return (
+                  <li key={r.id}>
+                    <div className="grid gap-3 px-4 py-3.5 transition-colors hover:bg-muted/35 lg:grid-cols-[7rem_minmax(0,1.2fr)_minmax(0,1fr)_6.5rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)] lg:items-center">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium tabular-nums">
+                          {formatDate(r.date)}
+                        </p>
+                        {r.recordedBy?.name ? (
+                          <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                            {r.recordedBy.name}
+                          </p>
+                        ) : null}
+                      </div>
+
+                      <div className="min-w-0">
                         <Link
                           href={`/animals/${r.animal.id}`}
-                          className="text-primary hover:underline font-medium"
+                          className="font-semibold text-primary hover:underline"
                         >
                           {r.animal.eartag}
                         </Link>
-                        <p className="text-xs text-muted-foreground">
-                          {r.animal.breed} · {r.animal.sex}
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">
+                          {r.animal.breed} ·{" "}
+                          {r.animal.sex === "FEMALE"
+                            ? t("female")
+                            : t("male")}
                         </p>
-                      </td>
-                      <td className="p-3">{r.animal.camp.name}</td>
-                      <td className="p-3">
-                        <Badge variant={r.isCulling ? "warning" : "secondary"}>
+                      </div>
+
+                      <div className="min-w-0">
+                        <p className="text-sm truncate">{r.animal.camp.name}</p>
+                      </div>
+
+                      <div>
+                        <Badge
+                          variant={r.isCulling ? "warning" : "secondary"}
+                          className="font-medium"
+                        >
                           {r.isCulling
                             ? t("recordKindSlaughter")
                             : t("recordKindDeath")}
                         </Badge>
-                      </td>
-                      <td className="p-3">
-                        {causeGroupLabel(
-                          r.cause === "OTHER" && r.causeDetail
-                            ? r.causeDetail
-                            : r.cause,
-                          t
-                        )}
-                      </td>
-                      <td className="p-3">
-                        {disposalLabel(r.disposalMethod, r.disposalNotes, t)}
-                      </td>
-                      <td className="p-3 space-x-1">
-                        {r.insuranceClaim && (
-                          <>
-                            <Badge variant="outline">{t("insuranceClaim")}</Badge>
+                      </div>
+
+                      <div className="min-w-0">
+                        <p className="text-sm truncate">{causeName}</p>
+                        <p className="lg:hidden text-xs text-muted-foreground mt-1 truncate">
+                          {disposalName}
+                          {r.insuranceClaim
+                            ? ` · ${t("insuranceClaim")}`
+                            : ""}
+                        </p>
+                      </div>
+
+                      <div className="hidden lg:block min-w-0">
+                        <p className="text-sm truncate">{disposalName}</p>
+                      </div>
+
+                      <div className="hidden lg:block min-w-0">
+                        {r.insuranceClaim ? (
+                          <div className="space-y-0.5">
+                            <Badge variant="outline">
+                              {t("insuranceClaim")}
+                            </Badge>
                             {r.claimAmountTzs != null && (
-                              <span className="text-xs text-muted-foreground">
+                              <p className="text-xs text-muted-foreground">
                                 {formatCurrency(r.claimAmountTzs)}
-                              </span>
+                              </p>
                             )}
-                          </>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
                         )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
+      </div>
     </div>
   );
 }

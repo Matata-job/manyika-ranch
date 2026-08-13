@@ -726,6 +726,7 @@ export default function ReportsPage() {
                   <SelectItem value="last_month">{t("lastMonth")}</SelectItem>
                   <SelectItem value="last_3_months">{t("last3Months")}</SelectItem>
                   <SelectItem value="this_year">{t("thisYear")}</SelectItem>
+                  <SelectItem value="last_year">{t("lastYear")}</SelectItem>
                   <SelectItem value="custom">{t("customRange")}</SelectItem>
                 </SelectContent>
               </Select>
