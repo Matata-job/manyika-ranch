@@ -678,6 +678,8 @@ const en = {
   insuranceNo: "No claim",
   mortalityFiltersHelp:
     "Filter by period, camp, type, cause, and more. Summaries update to match.",
+  mortalityFilterDrawerHelp:
+    "Period, type, cause, and herd filters. Apply when ready.",
   mortalityRecords: "Records",
   mortalityTotal: "Total",
   clickSummaryToFilter: "Click a summary to filter",
@@ -1991,6 +1993,8 @@ const sw: Dict = {
   insuranceNo: "Bila dai",
   mortalityFiltersHelp:
     "Chuja kwa kipindi, kambi, aina, sababu, na zaidi. Muhtasari unafuata vichujio.",
+  mortalityFilterDrawerHelp:
+    "Kipindi, aina, sababu, na vichujio vya mifugo. Tumia ukiwa tayari.",
   mortalityRecords: "Rekodi",
   mortalityTotal: "Jumla",
   clickSummaryToFilter: "Bofya muhtasari kuchuja",

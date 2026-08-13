@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
-import { Download, Plus, Search, Settings2 } from "lucide-react";
+import { Download, Plus, Search, Settings2, SlidersHorizontal, X } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 import {
   deathCauseKey,
@@ -30,6 +30,7 @@ import {
   rangeForMonthPreset,
   type MonthPreset,
 } from "@/lib/reports/date-range";
+import { Label } from "@/components/ui/label";
 
 const PERIOD_PRESETS: MonthPreset[] = [
   "all_time",
@@ -151,6 +152,7 @@ export default function MortalityPage() {
   const [disposal, setDisposal] = useState("all");
   const [insurance, setInsurance] = useState("all");
   const [q, setQ] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [camps, setCamps] = useState<{ id: string; name: string }[]>([]);
   const [breedOptions, setBreedOptions] = useState<string[]>([]);
@@ -219,6 +221,20 @@ export default function MortalityPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!filtersOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setFiltersOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [filtersOpen]);
 
   function applyMonthPreset(preset: MonthPreset) {
     setMonthPreset(preset);
@@ -300,6 +316,19 @@ export default function MortalityPage() {
       count,
     }));
 
+  const advancedCount = [
+    monthPreset !== "all_time",
+    kind !== "all",
+    cause !== "all",
+    disposal !== "all",
+    insurance !== "all",
+    camp !== "all",
+    breed !== "all",
+    sex !== "all",
+  ].filter(Boolean).length;
+
+  const hasActiveFilters = advancedCount > 0 || Boolean(q.trim());
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -335,65 +364,10 @@ export default function MortalityPage() {
         </div>
       </div>
 
-      <Card className="overflow-hidden border-border/70 shadow-sm">
-        <CardHeader className="border-b border-border/60 bg-muted/20 pb-4">
-          <CardTitle className="text-base">{t("filters")}</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {t("mortalityFiltersHelp")}
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-5 pt-5">
-          <div className="space-y-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {t("monthPreset")}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {PERIOD_PRESETS.map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => applyMonthPreset(preset)}
-                  className={cn(
-                    "category-pill",
-                    monthPreset === preset
-                      ? "category-pill-active"
-                      : "bg-background text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {periodLabel(preset, t)}
-                </button>
-              ))}
-            </div>
-            {monthPreset === "custom" && (
-              <div className="grid gap-3 sm:grid-cols-2 max-w-xl animate-in fade-in-0 slide-in-from-top-1 duration-200">
-                <div className="space-y-1.5">
-                  <label className="text-xs text-muted-foreground">
-                    {t("dateFrom")}
-                  </label>
-                  <Input
-                    type="date"
-                    className="h-11 rounded-xl border-border/80 bg-card"
-                    value={from}
-                    onChange={(e) => setFrom(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs text-muted-foreground">
-                    {t("dateTo")}
-                  </label>
-                  <Input
-                    type="date"
-                    className="h-11 rounded-xl border-border/80 bg-card"
-                    value={to}
-                    onChange={(e) => setTo(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="relative max-w-md">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <div className="space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/70" />
             <Input
               className="h-11 rounded-xl border-border/80 bg-card pl-9 shadow-sm"
               value={q}
@@ -401,15 +375,146 @@ export default function MortalityPage() {
               placeholder={t("searchEartag")}
             />
           </div>
+          <div className="flex gap-2 shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              className={cn(
+                "h-11 px-4 rounded-xl border-border/80 bg-card shadow-sm relative",
+                advancedCount > 0 && "border-primary/40 text-foreground"
+              )}
+              onClick={() => setFiltersOpen(true)}
+            >
+              <SlidersHorizontal className="h-4 w-4 mr-1.5" />
+              {t("advancedFilters")}
+              {advancedCount > 0 && (
+                <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-foreground px-1.5 text-[10px] font-semibold text-background">
+                  {advancedCount}
+                </span>
+              )}
+            </Button>
+            {hasActiveFilters && (
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-11 rounded-xl"
+                onClick={clearFilters}
+              >
+                <X className="h-4 w-4 mr-1" />
+                {t("clearFilters")}
+              </Button>
+            )}
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {t("clickSummaryToFilter")}
+        </p>
+      </div>
 
-          <div className="space-y-3 border-t border-border/50 pt-5">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {t("mortalityKind")} · {t("cause")} · {t("disposal")}
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Right filter drawer */}
+      <div
+        className={cn(
+          "fixed inset-0 z-50 transition-opacity duration-200",
+          filtersOpen
+            ? "pointer-events-auto opacity-100"
+            : "pointer-events-none opacity-0"
+        )}
+        aria-hidden={!filtersOpen}
+      >
+        <button
+          type="button"
+          className="absolute inset-0 bg-black/40 backdrop-blur-[1px]"
+          aria-label={t("cancel")}
+          onClick={() => setFiltersOpen(false)}
+        />
+        <aside
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="mortality-filter-title"
+          className={cn(
+            "absolute inset-y-0 right-0 flex w-full max-w-md flex-col bg-background shadow-2xl border-l transition-transform duration-300 ease-out",
+            filtersOpen ? "translate-x-0" : "translate-x-full"
+          )}
+        >
+          <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
+            <div>
+              <h2
+                id="mortality-filter-title"
+                className="text-lg font-semibold tracking-tight"
+              >
+                {t("advancedFilters")}
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {t("mortalityFilterDrawerHelp")}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFiltersOpen(false)}
+              className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label={t("cancel")}
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
+            <section className="space-y-2.5">
+              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t("monthPreset")}
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {PERIOD_PRESETS.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => applyMonthPreset(preset)}
+                    className={cn(
+                      "category-pill",
+                      monthPreset === preset
+                        ? "category-pill-active"
+                        : "bg-background text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {periodLabel(preset, t)}
+                  </button>
+                ))}
+              </div>
+              {monthPreset === "custom" && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">
+                      {t("dateFrom")}
+                    </Label>
+                    <Input
+                      type="date"
+                      className="h-11 rounded-xl"
+                      value={from}
+                      onChange={(e) => setFrom(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">
+                      {t("dateTo")}
+                    </Label>
+                    <Input
+                      type="date"
+                      className="h-11 rounded-xl"
+                      value={to}
+                      onChange={(e) => setTo(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <section className="space-y-2.5">
+              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t("mortalityKind")}
+              </Label>
               <Select value={kind} onValueChange={setKind}>
-                <SelectTrigger className="h-11 rounded-xl border-border/80 bg-card shadow-sm">
-                  <SelectValue placeholder={t("mortalityKind")} />
+                <SelectTrigger className="h-11 rounded-xl">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t("allKinds")}</SelectItem>
@@ -419,9 +524,15 @@ export default function MortalityPage() {
                   </SelectItem>
                 </SelectContent>
               </Select>
+            </section>
+
+            <section className="space-y-2.5">
+              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t("cause")}
+              </Label>
               <Select value={cause} onValueChange={setCause}>
-                <SelectTrigger className="h-11 rounded-xl border-border/80 bg-card shadow-sm">
-                  <SelectValue placeholder={t("cause")} />
+                <SelectTrigger className="h-11 rounded-xl">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t("allCauses")}</SelectItem>
@@ -437,9 +548,15 @@ export default function MortalityPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </section>
+
+            <section className="space-y-2.5">
+              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t("disposal")}
+              </Label>
               <Select value={disposal} onValueChange={setDisposal}>
-                <SelectTrigger className="h-11 rounded-xl border-border/80 bg-card shadow-sm">
-                  <SelectValue placeholder={t("disposal")} />
+                <SelectTrigger className="h-11 rounded-xl">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t("allDisposals")}</SelectItem>
@@ -457,9 +574,15 @@ export default function MortalityPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </section>
+
+            <section className="space-y-2.5">
+              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t("insuranceFilter")}
+              </Label>
               <Select value={insurance} onValueChange={setInsurance}>
-                <SelectTrigger className="h-11 rounded-xl border-border/80 bg-card shadow-sm">
-                  <SelectValue placeholder={t("insuranceFilter")} />
+                <SelectTrigger className="h-11 rounded-xl">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t("insuranceAll")}</SelectItem>
@@ -467,17 +590,15 @@ export default function MortalityPage() {
                   <SelectItem value="no">{t("insuranceNo")}</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-          </div>
+            </section>
 
-          <div className="space-y-3 border-t border-border/50 pt-5">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {t("camp")} · {t("breed")} · {t("sex")}
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <section className="space-y-2.5">
+              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t("camp")}
+              </Label>
               <Select value={camp} onValueChange={setCamp}>
-                <SelectTrigger className="h-11 rounded-xl border-border/80 bg-card shadow-sm">
-                  <SelectValue placeholder={t("camp")} />
+                <SelectTrigger className="h-11 rounded-xl">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t("allCamps")}</SelectItem>
@@ -488,9 +609,15 @@ export default function MortalityPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </section>
+
+            <section className="space-y-2.5">
+              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t("breed")}
+              </Label>
               <Select value={breed} onValueChange={setBreed}>
-                <SelectTrigger className="h-11 rounded-xl border-border/80 bg-card shadow-sm">
-                  <SelectValue placeholder={t("breed")} />
+                <SelectTrigger className="h-11 rounded-xl">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t("allBreeds")}</SelectItem>
@@ -501,9 +628,15 @@ export default function MortalityPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </section>
+
+            <section className="space-y-2.5">
+              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t("sex")}
+              </Label>
               <Select value={sex} onValueChange={setSex}>
-                <SelectTrigger className="h-11 rounded-xl border-border/80 bg-card shadow-sm">
-                  <SelectValue placeholder={t("sex")} />
+                <SelectTrigger className="h-11 rounded-xl">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t("allSexes")}</SelectItem>
@@ -511,23 +644,34 @@ export default function MortalityPage() {
                   <SelectItem value="MALE">{t("male")}</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </section>
           </div>
 
-          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border/50 pt-4">
-            <Button type="button" variant="ghost" onClick={clearFilters}>
+          <div className="border-t px-5 py-4 flex gap-2 justify-end bg-background">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                clearFilters();
+                setFiltersOpen(true);
+              }}
+            >
               {t("clearFilters")}
             </Button>
-            <Button onClick={load} disabled={loading} className="min-w-[7rem]">
-              {loading ? t("loading") : t("applyFilters")}
+            <Button
+              type="button"
+              className="min-w-[7rem]"
+              onClick={() => {
+                load();
+                setFiltersOpen(false);
+              }}
+              disabled={loading}
+            >
+              {loading ? t("loading") : t("apply")}
             </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      <p className="text-xs text-muted-foreground -mt-2">
-        {t("clickSummaryToFilter")}
-      </p>
+        </aside>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <button
           type="button"
