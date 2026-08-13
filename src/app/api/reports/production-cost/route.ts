@@ -111,7 +111,12 @@ export async function GET(req: NextRequest) {
           orderBy: { date: "asc" },
         },
         sales: {
-          select: { saleDate: true, priceTzs: true, weightAtSale: true },
+          select: {
+            saleDate: true,
+            priceTzs: true,
+            weightAtSale: true,
+            returnedAt: true,
+          },
         },
         deathRecord: { select: { date: true } },
       },

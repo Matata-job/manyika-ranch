@@ -46,14 +46,18 @@ export async function GET(req: NextRequest) {
         },
       },
       buyerContact: { select: { id: true, name: true } },
+      returnedToCamp: { select: { id: true, name: true } },
     },
     orderBy: { saleDate: "desc" },
   });
 
-  const totalRevenue = sales.reduce((sum, s) => sum + s.priceTzs, 0);
-  const totalWeight = sales.reduce((sum, s) => sum + (s.weightAtSale || 0), 0);
-  const withWeight = sales.filter((s) => s.weightAtSale && s.weightAtSale > 0);
-  const avgPrice = sales.length ? totalRevenue / sales.length : 0;
+  const activeSales = sales.filter((s) => !s.returnedAt);
+  const returnedCount = sales.length - activeSales.length;
+
+  const totalRevenue = activeSales.reduce((sum, s) => sum + s.priceTzs, 0);
+  const totalWeight = activeSales.reduce((sum, s) => sum + (s.weightAtSale || 0), 0);
+  const withWeight = activeSales.filter((s) => s.weightAtSale && s.weightAtSale > 0);
+  const avgPrice = activeSales.length ? totalRevenue / activeSales.length : 0;
   const avgPricePerKg =
     withWeight.length > 0
       ? withWeight.reduce((sum, s) => sum + s.priceTzs / (s.weightAtSale as number), 0) /
@@ -65,7 +69,7 @@ export async function GET(req: NextRequest) {
   const bySex: Record<string, { count: number; revenue: number }> = {};
   const byBuyer: Record<string, { count: number; revenue: number; buyerId: string | null }> = {};
 
-  for (const s of sales) {
+  for (const s of activeSales) {
     const breedKey = s.animal.breed || "Unknown";
     byBreed[breedKey] = byBreed[breedKey] || { count: 0, revenue: 0 };
     byBreed[breedKey].count += 1;
@@ -95,7 +99,8 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     summary: {
-      count: sales.length,
+      count: activeSales.length,
+      returnedCount,
       totalRevenue,
       totalWeight,
       avgPrice,

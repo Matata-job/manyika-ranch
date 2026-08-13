@@ -13,10 +13,12 @@ import { Download } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
+import { ReturnSaleForm } from "@/components/sales/return-sale-form";
 
 interface SalesReport {
   summary: {
     count: number;
+    returnedCount?: number;
     totalRevenue: number;
     totalWeight: number;
     avgPrice: number;
@@ -35,6 +37,9 @@ interface SalesReport {
     saleDate: string;
     transport: string | null;
     notes: string | null;
+    returnedAt?: string | null;
+    returnedReason?: string | null;
+    refundedTzs?: number | null;
     animal: {
       id: string;
       eartag: string;
@@ -70,6 +75,7 @@ export default function SalesPage() {
   const [camp, setCamp] = useState("all");
   const [breed, setBreed] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [returningSaleId, setReturningSaleId] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -135,6 +141,9 @@ export default function SalesPage() {
       "pricePerKg",
       "transport",
       "notes",
+      "returnedAt",
+      "returnedReason",
+      "refundedTzs",
     ];
     const rows = data.sales.map((s) => {
       const ppk =
@@ -153,6 +162,11 @@ export default function SalesPage() {
         ppk,
         s.transport ? `"${s.transport.replace(/"/g, '""')}"` : "",
         s.notes ? `"${s.notes.replace(/"/g, '""')}"` : "",
+        s.returnedAt ? s.returnedAt.slice(0, 10) : "",
+        s.returnedReason
+          ? `"${s.returnedReason.replace(/"/g, '""')}"`
+          : "",
+        s.refundedTzs ?? "",
       ].join(",");
     });
     const csv = [headers.join(","), ...rows].join("\n");
@@ -272,7 +286,7 @@ export default function SalesPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Animals sold</CardTitle>
+            <CardTitle className="text-sm">{t("animalsSoldActive")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{data?.summary.count ?? "—"}</p>
@@ -280,7 +294,7 @@ export default function SalesPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Total revenue</CardTitle>
+            <CardTitle className="text-sm">{t("totalRevenue")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
@@ -395,7 +409,12 @@ export default function SalesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Sale records</CardTitle>
+          <CardTitle>{t("saleRecords")}</CardTitle>
+          {data?.summary.returnedCount ? (
+            <p className="text-sm text-muted-foreground">
+              {t("returnedSalesCount", { n: data.summary.returnedCount })}
+            </p>
+          ) : null}
         </CardHeader>
         <CardContent>
           {!data?.sales?.length ? (
@@ -403,55 +422,115 @@ export default function SalesPage() {
               {t("noSales")}
             </p>
           ) : (
-            <div className="rounded-lg border overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="p-3 text-left">{t("saleDate")}</th>
-                    <th className="p-3 text-left">Animal</th>
-                    <th className="p-3 text-left">{t("camp")}</th>
-                    <th className="p-3 text-left">{t("buyer")}</th>
-                    <th className="p-3 text-right">{t("price")}</th>
-                    <th className="p-3 text-right">{t("weight")}</th>
-                    <th className="p-3 text-right">TZS/kg</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.sales.map((s) => {
-                    const ppk =
-                      s.weightAtSale && s.weightAtSale > 0
-                        ? Math.round(s.priceTzs / s.weightAtSale)
-                        : null;
-                    return (
-                      <tr key={s.id} className="border-b">
-                        <td className="p-3">{formatDate(s.saleDate)}</td>
-                        <td className="p-3">
-                          <Link
-                            href={`/animals/${s.animal.id}`}
-                            className="text-primary hover:underline font-medium"
-                          >
-                            {s.animal.eartag}
-                          </Link>
-                          <p className="text-xs text-muted-foreground">
-                            {s.animal.breed} · {s.animal.sex}
-                          </p>
-                        </td>
-                        <td className="p-3">{s.animal.camp.name}</td>
-                        <td className="p-3">{s.buyer}</td>
-                        <td className="p-3 text-right font-medium">
-                          {formatCurrency(s.priceTzs)}
-                        </td>
-                        <td className="p-3 text-right">
-                          {s.weightAtSale != null ? `${s.weightAtSale} kg` : "—"}
-                        </td>
-                        <td className="p-3 text-right">
-                          {ppk != null ? formatCurrency(ppk) : "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="space-y-4">
+              {returningSaleId &&
+                (() => {
+                  const s = data.sales.find((row) => row.id === returningSaleId);
+                  if (!s) return null;
+                  return (
+                    <ReturnSaleForm
+                      saleId={s.id}
+                      eartag={s.animal.eartag}
+                      buyer={s.buyer}
+                      priceTzs={s.priceTzs}
+                      defaultCampId={s.animal.camp.id}
+                      camps={camps}
+                      onCancel={() => setReturningSaleId(null)}
+                      onDone={() => {
+                        setReturningSaleId(null);
+                        load();
+                      }}
+                    />
+                  );
+                })()}
+              <div className="rounded-lg border overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="p-3 text-left">{t("saleDate")}</th>
+                      <th className="p-3 text-left">{t("animal")}</th>
+                      <th className="p-3 text-left">{t("camp")}</th>
+                      <th className="p-3 text-left">{t("buyer")}</th>
+                      <th className="p-3 text-right">{t("price")}</th>
+                      <th className="p-3 text-right">{t("weight")}</th>
+                      <th className="p-3 text-right">TZS/kg</th>
+                      {canManageSales && <th className="p-3 text-right" />}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.sales.map((s) => {
+                      const ppk =
+                        s.weightAtSale && s.weightAtSale > 0
+                          ? Math.round(s.priceTzs / s.weightAtSale)
+                          : null;
+                      const isReturned = Boolean(s.returnedAt);
+                      return (
+                        <tr
+                          key={s.id}
+                          className={`border-b ${isReturned ? "bg-muted/30 text-muted-foreground" : ""}`}
+                        >
+                          <td className="p-3">
+                            <div>{formatDate(s.saleDate)}</div>
+                            {isReturned && (
+                              <Badge variant="outline" className="mt-1">
+                                {t("saleReturned")}
+                              </Badge>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            <Link
+                              href={`/animals/${s.animal.id}`}
+                              className="text-primary hover:underline font-medium"
+                            >
+                              {s.animal.eartag}
+                            </Link>
+                            <p className="text-xs text-muted-foreground">
+                              {s.animal.breed} · {s.animal.sex}
+                            </p>
+                          </td>
+                          <td className="p-3">{s.animal.camp.name}</td>
+                          <td className="p-3">
+                            {s.buyer}
+                            {isReturned && s.returnedReason && (
+                              <p className="text-xs mt-1">{s.returnedReason}</p>
+                            )}
+                          </td>
+                          <td className="p-3 text-right font-medium">
+                            {formatCurrency(s.priceTzs)}
+                            {isReturned && s.refundedTzs != null && (
+                              <p className="text-xs font-normal">
+                                {t("saleRefunded", {
+                                  amount: formatCurrency(s.refundedTzs),
+                                })}
+                              </p>
+                            )}
+                          </td>
+                          <td className="p-3 text-right">
+                            {s.weightAtSale != null ? `${s.weightAtSale} kg` : "—"}
+                          </td>
+                          <td className="p-3 text-right">
+                            {ppk != null ? formatCurrency(ppk) : "—"}
+                          </td>
+                          {canManageSales && (
+                            <td className="p-3 text-right">
+                              {!isReturned && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setReturningSaleId(s.id)}
+                                >
+                                  {t("returnSale")}
+                                </Button>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </CardContent>

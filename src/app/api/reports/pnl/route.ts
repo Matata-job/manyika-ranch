@@ -56,6 +56,7 @@ export async function GET(req: NextRequest) {
   const [sales, expenses, incomes] = await Promise.all([
     prisma.sale.findMany({
       where: {
+        returnedAt: null,
         ...(dateFilter ? { saleDate: dateFilter } : {}),
         animal: animalScope,
       },

@@ -42,6 +42,7 @@ import { uploadPhotoFile } from "@/lib/client/upload-photo";
 import { DeathCausePicker } from "@/components/animals/death-cause-picker";
 import { DisposalMethodPicker } from "@/components/animals/disposal-method-picker";
 import { ChoicePills } from "@/components/choice-pills";
+import { ReturnSaleForm } from "@/components/sales/return-sale-form";
 import {
   animalEventTypeLabelKey,
   deathCauseFormValue,
@@ -87,6 +88,9 @@ interface SaleRecord {
   saleDate: string;
   transport: string | null;
   notes: string | null;
+  returnedAt?: string | null;
+  returnedReason?: string | null;
+  refundedTzs?: number | null;
 }
 
 interface LinkedHealthRecord {
@@ -319,6 +323,7 @@ export default function AnimalDetailPage() {
   const [editingDeath, setEditingDeath] = useState(false);
   const [savingDeath, setSavingDeath] = useState(false);
   const [savingSale, setSavingSale] = useState(false);
+  const [returningSale, setReturningSale] = useState(false);
   const [showSaleExtras, setShowSaleExtras] = useState(false);
   const [saleForm, setSaleForm] = useState({
     buyerId: "",
@@ -935,9 +940,10 @@ export default function AnimalDetailPage() {
   }
 
   const isDeceased = animal.status === "DECEASED" || !!animal.deathRecord;
-  const isSold = animal.status === "SOLD" || (animal.sales?.length ?? 0) > 0;
+  const isSold = animal.status === "SOLD";
   const isClosed = isDeceased || isSold;
   const latestSale = animal.sales?.[0] ?? null;
+  const latestSaleActive = latestSale && !latestSale.returnedAt ? latestSale : null;
   const weightChart = [...animal.weightLogs].reverse().map((w) => ({
     date: formatDate(w.date),
     weight: w.weightKg,
@@ -2081,7 +2087,13 @@ export default function AnimalDetailPage() {
         <TabsContent value="sales">
           <Card>
             <CardHeader>
-              <CardTitle>{latestSale ? t("saleRecord") : t("recordSale")}</CardTitle>
+              <CardTitle>
+                {latestSaleActive
+                  ? t("saleRecord")
+                  : latestSale
+                    ? t("saleReturned")
+                    : t("recordSale")}
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {latestSale ? (
@@ -2121,22 +2133,81 @@ export default function AnimalDetailPage() {
                   {latestSale.notes && (
                     <p className="sm:col-span-2 text-muted-foreground">{latestSale.notes}</p>
                   )}
+                  {latestSale.returnedAt && (
+                    <div className="sm:col-span-2 space-y-1 rounded-md border p-3 bg-muted/30">
+                      <Badge variant="outline">{t("saleReturned")}</Badge>
+                      <p className="font-medium">
+                        {t("saleReturnedOn", {
+                          date: formatDate(latestSale.returnedAt),
+                        })}
+                      </p>
+                      {latestSale.refundedTzs != null && (
+                        <p>
+                          {t("saleRefunded", {
+                            amount: formatCurrency(latestSale.refundedTzs),
+                          })}
+                        </p>
+                      )}
+                      {latestSale.returnedReason && (
+                        <p className="text-muted-foreground">
+                          {latestSale.returnedReason}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {canSell && latestSaleActive && isSold && !returningSale && (
+                    <div className="sm:col-span-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setReturningSale(true)}
+                      >
+                        {t("returnSale")}
+                      </Button>
+                    </div>
+                  )}
+                  {returningSale && latestSaleActive && (
+                    <div className="sm:col-span-2">
+                      <ReturnSaleForm
+                        saleId={latestSaleActive.id}
+                        eartag={animal.eartag}
+                        buyer={latestSaleActive.buyer}
+                        priceTzs={latestSaleActive.priceTzs}
+                        defaultCampId={animal.camp?.id}
+                        onCancel={() => setReturningSale(false)}
+                        onDone={() => {
+                          setReturningSale(false);
+                          loadAnimal();
+                        }}
+                      />
+                    </div>
+                  )}
                   {(animal.sales?.length ?? 0) > 1 && (
                     <div className="sm:col-span-2 space-y-2 pt-2 border-t">
                       <p className="text-muted-foreground text-xs uppercase tracking-wide">{t("earlierSales")}</p>
                       {animal.sales.slice(1).map((s) => (
                         <div key={s.id} className="flex justify-between gap-2">
-                          <span>{formatDate(s.saleDate)} · {s.buyer}</span>
+                          <span>
+                            {formatDate(s.saleDate)} · {s.buyer}
+                            {s.returnedAt ? ` · ${t("saleReturned")}` : ""}
+                          </span>
                           <span className="font-medium">{formatCurrency(s.priceTzs)}</span>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
-              ) : isDeceased ? (
+              ) : null}
+              {!latestSaleActive &&
+                (isDeceased ? (
                 <p className="text-sm text-muted-foreground">{t("cannotSellDeceased")}</p>
               ) : canSell ? (
                 <div className="grid gap-3 sm:grid-cols-2 max-w-2xl">
+                  {latestSale?.returnedAt && (
+                    <p className="sm:col-span-2 text-sm text-muted-foreground">
+                      {t("recordNewSaleAfterReturn")}
+                    </p>
+                  )}
                   <div className="sm:col-span-2 space-y-2">
                     <Label>{t("buyerContact")}</Label>
                     <Input
@@ -2246,7 +2317,7 @@ export default function AnimalDetailPage() {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">{t("noSalePermission")}</p>
-              )}
+              ))}
             </CardContent>
           </Card>
         </TabsContent>

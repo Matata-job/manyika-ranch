@@ -119,7 +119,12 @@ export type ProductionCostAnimalInput = {
   treatments: { date: Date; costTzs: number | null }[];
   vaccinations: { date: Date; costTzs: number | null }[];
   weights: { date: Date; weightKg: number }[];
-  sales: { saleDate: Date; priceTzs: number; weightAtSale: number | null }[];
+  sales: {
+    saleDate: Date;
+    priceTzs: number;
+    weightAtSale: number | null;
+    returnedAt?: Date | null;
+  }[];
   deathDate: Date | null;
 };
 
@@ -176,7 +181,8 @@ function animalLife(animal: ProductionCostAnimalInput, now: Date): {
   const start =
     animal.acquisitionDate || animal.dob || animal.createdAt;
   const saleEnd = animal.sales.reduce<Date | null>((latest, s) => {
-    if (!latest || s.saleDate.getTime() < latest.getTime()) return s.saleDate;
+    if ("returnedAt" in s && s.returnedAt) return latest;
+    if (!latest || s.saleDate.getTime() > latest.getTime()) return s.saleDate;
     return latest;
   }, null);
   const endCandidates = [now];
@@ -337,7 +343,7 @@ export function computeProductionCosts(input: {
         : null;
 
     const saleInPeriod = [...animal.sales]
-      .filter((s) => inRange(s.saleDate, from, to))
+      .filter((s) => !s.returnedAt && inRange(s.saleDate, from, to))
       .sort((a, b) => b.saleDate.getTime() - a.saleDate.getTime())[0];
 
     const animalDays = animalDaysInRange({

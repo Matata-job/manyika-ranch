@@ -229,6 +229,7 @@ model User {
   campNotes     CampNote[]
   expenses      Expense[]
   otherIncomes  OtherIncome[]
+  returnedSales Sale[]
   ownerInvoices OwnerInvoice[]
   ownerPayments OwnerPayment[]       @relation("OwnerPaymentRecorder")
 }
@@ -279,6 +280,7 @@ model Camp {
   rainfallLogs RainfallLog[]
   expenses     Expense[]
   otherIncomes OtherIncome[]
+  returnedSales Sale[]
   photos       CampPhoto[]
   journalNotes CampNote[]
 
@@ -603,10 +605,19 @@ model Sale {
   saleDate     DateTime @default(now())
   transport    String?
   notes        String?
+  /** When set, sale was returned and refunded — excluded from revenue. */
+  returnedAt   DateTime?
+  returnedReason String?
+  refundedTzs  Float?
+  returnedToCampId String?
+  returnedToCamp   Camp?  @relation(fields: [returnedToCampId], references: [id], onDelete: SetNull)
+  returnedById String?
+  returnedBy   User?    @relation(fields: [returnedById], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())
 
   @@index([buyerId])
   @@index([saleDate])
+  @@index([returnedAt])
 }
 
 model Buyer {
