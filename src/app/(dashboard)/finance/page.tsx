@@ -8,6 +8,7 @@ import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 import {
   ArrowRight,
+  Calculator,
   CircleDollarSign,
   Contact,
   HandCoins,
@@ -22,6 +23,8 @@ interface PnLSummary {
   salesRevenue: number;
   otherIncome: number;
   totalExpenses: number;
+  operatingExpenses?: number;
+  projectExpenses?: number;
   net: number;
 }
 
@@ -87,6 +90,13 @@ export default function FinanceHubPage() {
       icon: TrendingUp,
       show: true,
     },
+    {
+      href: "/finance/production-cost",
+      title: t("productionCostTitle"),
+      help: t("financeProductionHelp"),
+      icon: Calculator,
+      show: true,
+    },
   ].filter((l) => l.show);
 
   return (
@@ -121,10 +131,19 @@ export default function FinanceHubPage() {
           </p>
         </div>
         <div className="activity-card">
-          <p className="text-sm text-muted-foreground">{t("expenses")}</p>
+          <p className="text-sm text-muted-foreground">{t("operatingExpenses")}</p>
           <p className="text-2xl font-bold mt-1">
-            {summary ? formatCurrency(summary.totalExpenses) : "—"}
+            {summary
+              ? formatCurrency(
+                  summary.operatingExpenses ?? summary.totalExpenses
+                )
+              : "—"}
           </p>
+          {summary && (summary.projectExpenses ?? 0) > 0 && (
+            <p className="text-xs text-muted-foreground mt-1">
+              {t("projectExpenses")}: {formatCurrency(summary.projectExpenses || 0)}
+            </p>
+          )}
         </div>
         <div className="activity-card">
           <p className="text-sm text-muted-foreground">{t("net")}</p>

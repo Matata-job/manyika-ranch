@@ -70,6 +70,7 @@ export default function BulkTreatmentPage() {
     withdrawalPeriod: "",
     date: "",
     notes: "",
+    totalCostTzs: "",
   });
   const [schedules, setSchedules] = useState<
     {
@@ -181,6 +182,7 @@ export default function BulkTreatmentPage() {
         withdrawalPeriod: form.withdrawalPeriod || null,
         date: form.date || undefined,
         notes: form.notes || null,
+        totalCostTzs: form.totalCostTzs || null,
       }),
     });
     setSaving(false);
@@ -201,6 +203,7 @@ export default function BulkTreatmentPage() {
       withdrawalPeriod: "",
       date: "",
       notes: "",
+      totalCostTzs: "",
     });
     setSelected(new Set());
     if (campId) loadAnimals(campId, sex, false);
@@ -443,6 +446,21 @@ export default function BulkTreatmentPage() {
                 value={form.date}
                 onChange={(e) => setForm({ ...form, date: e.target.value })}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("bulkTreatmentTotalCost")}</Label>
+              <Input
+                type="number"
+                min={0}
+                value={form.totalCostTzs}
+                onChange={(e) =>
+                  setForm({ ...form, totalCostTzs: e.target.value })
+                }
+                placeholder="0"
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("bulkTreatmentTotalCostHelp")}
+              </p>
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label>{t("notes")}</Label>

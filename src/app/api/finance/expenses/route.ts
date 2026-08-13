@@ -10,7 +10,9 @@ import {
   getCustomExpenseCategories,
   getCustomExpenseUnits,
   isSystemExpenseCategory,
+  parseExpenseAllocGroup,
   parseExpenseCategorySelection,
+  parseExpenseFundingSource,
 } from "@/lib/expense-categories";
 
 async function financeCampFilter(
@@ -42,6 +44,7 @@ export async function GET(req: NextRequest) {
   const to = searchParams.get("to");
   const campId = searchParams.get("camp");
   const category = searchParams.get("category");
+  const funding = searchParams.get("funding");
 
   const campFilter = await financeCampFilter(
     result.user.id,
@@ -68,6 +71,9 @@ export async function GET(req: NextRequest) {
       ranchId: result.user.ranchId,
       ...campFilter,
       ...categoryWhere,
+      ...(funding === "OPERATING" || funding === "PROJECT"
+        ? { fundingSource: funding }
+        : {}),
       ...(from || to
         ? {
             date: {
@@ -139,6 +145,13 @@ export async function POST(req: NextRequest) {
   const unit =
     typeof body.unit === "string" && body.unit.trim() ? body.unit.trim() : null;
 
+  const fundingSource = parseExpenseFundingSource(body.fundingSource);
+  const allocGroup = parseExpenseAllocGroup(
+    body.allocGroup,
+    category,
+    fundingSource
+  );
+
   if (body.campId) {
     const camp = await prisma.camp.findFirst({
       where: { id: body.campId, ranchId: result.user.ranchId },
@@ -197,6 +210,8 @@ export async function POST(req: NextRequest) {
       date: body.date ? new Date(body.date) : new Date(),
       description: body.description?.trim() || null,
       campId: body.campId || null,
+      fundingSource,
+      allocGroup,
       recordedById: result.user.id,
       notes: body.notes?.trim() || null,
     },
@@ -212,6 +227,8 @@ export async function POST(req: NextRequest) {
     amountTzs: expense.amountTzs,
     quantity: expense.quantity,
     unit: expense.unit,
+    fundingSource: expense.fundingSource,
+    allocGroup: expense.allocGroup,
   });
 
   return NextResponse.json(expense, { status: 201 });

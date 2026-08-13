@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +40,7 @@ import { PhotoSourcePicker } from "@/components/photo-source-picker";
 import { useObjectUrls } from "@/hooks/use-object-urls";
 import { uploadPhotoFile } from "@/lib/client/upload-photo";
 import { DeathCausePicker } from "@/components/animals/death-cause-picker";
+import { ChoicePills } from "@/components/choice-pills";
 import {
   deathCauseFormValue,
   deathCauseKey,
@@ -85,6 +86,13 @@ interface SaleRecord {
   notes: string | null;
 }
 
+interface LinkedHealthRecord {
+  id: string;
+  date: string;
+  type: string;
+  diagnosis: string | null;
+}
+
 interface AnimalDetail {
   id: string;
   eartag: string;
@@ -105,13 +113,22 @@ interface AnimalDetail {
   notes: string | null;
   acquisitionType?: string | null;
   acquisitionDate?: string | null;
+  purchasePriceTzs?: number | null;
   camp: { id: string; name: string; tagColor?: string | null; code?: string | null };
   owner: { id: string; name: string };
   sire: { id: string; eartag: string } | null;
   dam: { id: string; eartag: string } | null;
   weightLogs: { id: string; date: string; weightKg: number; recordedBy: { name: string } }[];
   healthRecords: { id: string; date: string; type: string; diagnosis: string | null; treatment: string | null }[];
-  vaccinations: { id: string; date: string; vaccineName: string; nextDue: string | null; batchNo: string | null }[];
+  vaccinations: {
+    id: string;
+    date: string;
+    vaccineName: string;
+    nextDue: string | null;
+    batchNo: string | null;
+    costTzs?: number | null;
+    healthRecord?: LinkedHealthRecord | null;
+  }[];
   treatments: {
     id: string;
     date: string;
@@ -120,6 +137,8 @@ interface AnimalDetail {
     dose: string | null;
     nextDue?: string | null;
     withdrawalPeriod?: number | null;
+    costTzs?: number | null;
+    healthRecord?: LinkedHealthRecord | null;
   }[];
   movements: { id: string; date: string; fromCamp: { name: string }; toCamp: { name: string }; authorizedBy: { name: string } }[];
   events: AnimalEvent[];
@@ -156,9 +175,20 @@ function healthTypeKey(type: string): TranslationKey {
   }
 }
 
+type HealthSection = "notes" | "treatments" | "vaccinations";
+
+function formatLinkedNote(
+  hr: LinkedHealthRecord,
+  t: (key: TranslationKey) => string
+): string {
+  const diag = hr.diagnosis ? `: ${hr.diagnosis}` : "";
+  return `${formatDate(hr.date)} · ${t(healthTypeKey(hr.type))}${diag}`;
+}
+
 export default function AnimalDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const t = useT();
   const { locale } = useLocale();
   const { data: session } = useSession();
@@ -174,6 +204,7 @@ export default function AnimalDetailPage() {
   const canManageHealth = role ? hasPermission(role, "manageHealth") : false;
   const canManageEvents = role ? hasPermission(role, "manageEvents") : false;
   const canSell = role ? hasPermission(role, "manageSales") : false;
+  const canViewFinance = role ? hasPermission(role, "viewFinance") : false;
   const [animal, setAnimal] = useState<AnimalDetail | null>(null);
   const [ageMode, setAgeMode] = useState<AgeDisplayMode>("AUTO");
   const [yearColors, setYearColors] = useState<Record<string, string>>({});
@@ -225,6 +256,7 @@ export default function AnimalDetailPage() {
     status: "ACTIVE",
     acquisitionType: "BORN_ON_FARM",
     acquisitionDate: "",
+    purchasePriceTzs: "",
     colorMarkings: "",
     tagColor: "",
     notes: "",
@@ -234,11 +266,15 @@ export default function AnimalDetailPage() {
   const [weightKg, setWeightKg] = useState("");
   const [moveCampId, setMoveCampId] = useState("");
   const [healthForm, setHealthForm] = useState({ type: "CHECKUP", diagnosis: "", treatment: "" });
+  const [mainTab, setMainTab] = useState("events");
+  const [healthSection, setHealthSection] = useState<HealthSection>("notes");
+  const [linkHealthRecordId, setLinkHealthRecordId] = useState<string | null>(null);
   const [vaccForm, setVaccForm] = useState({
     vaccineCatalogId: "",
     vaccineName: "",
     batchNo: "",
     nextDue: "",
+    costTzs: "",
   });
   const [vaccineOptions, setVaccineOptions] = useState<
     { id: string; name: string; intervalDays: number | null }[]
@@ -250,6 +286,7 @@ export default function AnimalDetailPage() {
     dose: "",
     withdrawalPeriod: "",
     nextDue: "",
+    costTzs: "",
   });
   const [treatmentOptions, setTreatmentOptions] = useState<
     {
@@ -297,10 +334,40 @@ export default function AnimalDetailPage() {
   >([]);
   const [buyerSearch, setBuyerSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [prodCost, setProdCost] = useState<{
+    periodCostTzs: number;
+    feedShareTzs: number;
+    treatmentTzs: number;
+    purchasePriceTzs: number;
+    costPerKgTzs: number | null;
+    weightGainKg: number | null;
+  } | null>(null);
 
   async function loadAnimal() {
     const res = await fetch(`/api/animals/${id}`);
     if (res.ok) setAnimal(await res.json());
+    if (canViewFinance) {
+      const costRes = await fetch(
+        `/api/reports/production-cost?animalId=${encodeURIComponent(id)}`
+      );
+      if (costRes.ok) {
+        const data = await costRes.json();
+        const row = Array.isArray(data.rows) ? data.rows[0] : null;
+        setProdCost(row || null);
+      } else {
+        setProdCost(null);
+      }
+    }
+  }
+
+  const linkedHealthRecord = linkHealthRecordId
+    ? animal?.healthRecords.find((r) => r.id === linkHealthRecordId) ?? null
+    : null;
+
+  function startDoseForCase(recordId: string, section: "treatments" | "vaccinations") {
+    setLinkHealthRecordId(recordId);
+    setHealthSection(section);
+    setMainTab("health");
   }
 
   useEffect(() => {
@@ -309,6 +376,18 @@ export default function AnimalDetailPage() {
       animal.status === "QUARANTINE" || animal.status === "MISSING"
     );
   }, [id, animal?.status]);
+
+  useEffect(() => {
+    const healthParam = searchParams.get("health");
+    if (
+      healthParam === "notes" ||
+      healthParam === "treatments" ||
+      healthParam === "vaccinations"
+    ) {
+      setMainTab("health");
+      setHealthSection(healthParam);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     loadAnimal();
@@ -358,6 +437,16 @@ export default function AnimalDetailPage() {
       });
   }, [id]);
 
+  useEffect(() => {
+    if (!id || !canViewFinance) return;
+    fetch(`/api/reports/production-cost?animalId=${encodeURIComponent(id)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const row = data && Array.isArray(data.rows) ? data.rows[0] : null;
+        setProdCost(row || null);
+      });
+  }, [id, canViewFinance]);
+
   async function searchBuyers(q: string) {
     setBuyerSearch(q);
     const params = new URLSearchParams();
@@ -385,6 +474,8 @@ export default function AnimalDetailPage() {
       status: a.status,
       acquisitionType: a.acquisitionType || "BORN_ON_FARM",
       acquisitionDate: a.acquisitionDate ? a.acquisitionDate.slice(0, 10) : "",
+      purchasePriceTzs:
+        a.purchasePriceTzs != null ? String(a.purchasePriceTzs) : "",
       colorMarkings: a.colorMarkings || "",
       tagColor: a.tagColor || "",
       notes: a.notes || "",
@@ -418,6 +509,10 @@ export default function AnimalDetailPage() {
       damId: editForm.damId || null,
       acquisitionType: editForm.acquisitionType,
       acquisitionDate: editForm.acquisitionDate || null,
+      purchasePriceTzs:
+        editForm.acquisitionType === "PURCHASED" && editForm.purchasePriceTzs
+          ? Number(editForm.purchasePriceTzs)
+          : null,
     };
     if (editForm.dob) {
       payload.dob = editForm.dob;
@@ -527,9 +622,18 @@ export default function AnimalDetailPage() {
         vaccineName: vaccForm.vaccineName,
         batchNo: vaccForm.batchNo || null,
         nextDue: vaccForm.nextDue || null,
+        costTzs: vaccForm.costTzs || null,
+        healthRecordId: linkHealthRecordId,
       }),
     });
-    setVaccForm({ vaccineCatalogId: "", vaccineName: "", batchNo: "", nextDue: "" });
+    setVaccForm({
+      vaccineCatalogId: "",
+      vaccineName: "",
+      batchNo: "",
+      nextDue: "",
+      costTzs: "",
+    });
+    setLinkHealthRecordId(null);
     loadAnimal();
   }
 
@@ -562,6 +666,8 @@ export default function AnimalDetailPage() {
         dose: treatForm.dose || null,
         withdrawalPeriod: treatForm.withdrawalPeriod || null,
         nextDue: treatForm.nextDue || null,
+        costTzs: treatForm.costTzs || null,
+        healthRecordId: linkHealthRecordId,
       }),
     });
     setTreatForm({
@@ -571,7 +677,9 @@ export default function AnimalDetailPage() {
       dose: "",
       withdrawalPeriod: "",
       nextDue: "",
+      costTzs: "",
     });
+    setLinkHealthRecordId(null);
     loadAnimal();
   }
 
@@ -1175,6 +1283,25 @@ export default function AnimalDetailPage() {
                   />
                 </div>
               )}
+              {editForm.acquisitionType === "PURCHASED" && (
+                <div className="space-y-2">
+                  <Label>{t("purchasePrice")}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={editForm.purchasePriceTzs}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        purchasePriceTzs: e.target.value,
+                      })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {t("purchasePriceHelp")}
+                  </p>
+                </div>
+              )}
               <div className="space-y-2 sm:col-span-2">
                 <Label>{t("colorMarkings")}</Label>
                 <Input
@@ -1316,7 +1443,39 @@ export default function AnimalDetailPage() {
                         {t("dob")}: {formatDate(animal.dob)}
                       </>
                     )}
+                    {animal.acquisitionType === "PURCHASED" &&
+                      animal.purchasePriceTzs != null &&
+                      animal.purchasePriceTzs > 0 && (
+                        <>
+                          {" · "}
+                          {t("purchasePrice")}:{" "}
+                          {formatCurrency(animal.purchasePriceTzs)}
+                        </>
+                      )}
                   </p>
+                  {canViewFinance && prodCost && (
+                    <p className="text-sm text-muted-foreground">
+                      {t("periodCost")}: {formatCurrency(prodCost.periodCostTzs)}
+                      {" · "}
+                      {t("allocatedFeed")}:{" "}
+                      {formatCurrency(prodCost.feedShareTzs)}
+                      {" · "}
+                      {t("treatmentsAndVaccines")}: {formatCurrency(prodCost.treatmentTzs)}
+                      {prodCost.costPerKgTzs != null && (
+                        <>
+                          {" · "}
+                          {t("costPerKg")}:{" "}
+                          {formatCurrency(prodCost.costPerKgTzs)}
+                        </>
+                      )}{" "}
+                      <Link
+                        href="/finance/production-cost"
+                        className="text-primary hover:underline"
+                      >
+                        {t("productionCostTitle")}
+                      </Link>
+                    </p>
+                  )}
                 </div>
                 {canEdit && (
                   <Button
@@ -1334,13 +1493,11 @@ export default function AnimalDetailPage() {
         </div>
       </section>
 
-      <Tabs defaultValue="events">
+      <Tabs value={mainTab} onValueChange={setMainTab}>
         <TabsList className="flex flex-wrap h-auto gap-1">
           <TabsTrigger value="events">{t("tabEvents")}</TabsTrigger>
           <TabsTrigger value="weights">{t("tabWeights")}</TabsTrigger>
           <TabsTrigger value="health">{t("tabHealth")}</TabsTrigger>
-          <TabsTrigger value="vaccinations">{t("tabVaccinations")}</TabsTrigger>
-          <TabsTrigger value="treatments">{t("tabTreatments")}</TabsTrigger>
           <TabsTrigger value="movements">{t("tabMovements")}</TabsTrigger>
           <TabsTrigger value="sales">{t("tabSales")}</TabsTrigger>
           <TabsTrigger value="death">{t("tabDeath")}</TabsTrigger>
@@ -1461,173 +1618,63 @@ export default function AnimalDetailPage() {
         </TabsContent>
 
         <TabsContent value="health" className="space-y-4">
-          <Card>
-            <CardHeader><CardTitle>{t("healthRecords")}</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              {animal.healthRecords.map((r) => (
-                <div key={r.id} className="border-b pb-2">
-                  <div className="flex justify-between items-start gap-2">
-                    <div className="flex-1">
-                      <div className="flex justify-between">
-                        <Badge variant="outline">{t(healthTypeKey(r.type))}</Badge>
-                        <span className="text-sm text-muted-foreground">{formatDate(r.date)}</span>
-                      </div>
-                      {r.diagnosis && <p className="text-sm mt-1">{r.diagnosis}</p>}
-                      {r.treatment && <p className="text-sm text-muted-foreground">{r.treatment}</p>}
-                    </div>
-                    {canManageHealth && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={deletingId === r.id}
-                        onClick={() => deleteSubRecord("health", r.id)}
-                        aria-label={t("delete")}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {!isClosed && canManageHealth && (
-                <div className="grid gap-2 pt-4 border-t">
-                  <Select value={healthForm.type} onValueChange={(v) => setHealthForm({ ...healthForm, type: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="CHECKUP">{t("checkup")}</SelectItem>
-                      <SelectItem value="ILLNESS">{t("illness")}</SelectItem>
-                      <SelectItem value="INJURY">{t("injury")}</SelectItem>
-                      <SelectItem value="OTHER">{t("other")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input placeholder={t("diagnosis")} value={healthForm.diagnosis} onChange={(e) => setHealthForm({ ...healthForm, diagnosis: e.target.value })} />
-                  <Input placeholder={t("treatment")} value={healthForm.treatment} onChange={(e) => setHealthForm({ ...healthForm, treatment: e.target.value })} />
-                  <Button onClick={addHealth}>{t("addHealthRecord")}</Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+          <ChoicePills<HealthSection>
+            value={healthSection}
+            onChange={setHealthSection}
+            options={[
+              { value: "notes", label: t("healthPillNotes") },
+              { value: "treatments", label: t("healthPillTreatments") },
+              { value: "vaccinations", label: t("healthPillVaccinations") },
+            ]}
+          />
 
-        <TabsContent value="vaccinations">
-          <Card>
-            <CardHeader><CardTitle>{t("tabVaccinations")}</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              {animal.vaccinations.map((v) => (
-                <div key={v.id} className="border-b pb-2">
-                  <div className="flex justify-between items-start gap-2">
-                    <div className="flex-1">
-                      <div className="flex justify-between">
-                        <span className="font-medium">{v.vaccineName}</span>
-                        <span className="text-sm text-muted-foreground">{formatDate(v.date)}</span>
-                      </div>
-                      {v.nextDue && <p className="text-sm text-muted-foreground">{t("nextDue")}: {formatDate(v.nextDue)}</p>}
-                    </div>
-                    {canManageHealth && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={deletingId === v.id}
-                        onClick={() => deleteSubRecord("vaccinations", v.id)}
-                        aria-label={t("delete")}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {!isClosed && canManageHealth && (
-                <div className="grid gap-2 pt-4 border-t">
-                  {vaccineOptions.length > 0 && (
-                    <Select
-                      value={vaccForm.vaccineCatalogId || "__custom__"}
-                      onValueChange={onVaccineCatalogChange}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("optionalSchedule")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__custom__">{t("customOneOff")}</SelectItem>
-                        {vaccineOptions.map((v) => (
-                          <SelectItem key={v.id} value={v.id}>
-                            {v.name}
-                            {v.intervalDays ? ` (${t("everyNDays", { n: v.intervalDays })})` : ""}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  <Input
-                    placeholder={t("vaccineName")}
-                    value={vaccForm.vaccineName}
-                    onChange={(e) =>
-                      setVaccForm({
-                        ...vaccForm,
-                        vaccineName: e.target.value,
-                        vaccineCatalogId: "",
-                      })
-                    }
-                  />
-                  <Input
-                    placeholder={t("batchNo")}
-                    value={vaccForm.batchNo}
-                    onChange={(e) => setVaccForm({ ...vaccForm, batchNo: e.target.value })}
-                  />
-                  <div>
-                    <Label className="text-xs text-muted-foreground">
-                      {t("nextDueOptional")}
-                    </Label>
-                    <Input
-                      type="date"
-                      value={vaccForm.nextDue}
-                      onChange={(e) => setVaccForm({ ...vaccForm, nextDue: e.target.value })}
-                    />
-                  </div>
-                  <Button onClick={addVaccination}>{t("recordVaccination")}</Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="treatments">
-          <Card>
-            <CardHeader><CardTitle>{t("tabTreatments")}</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              {animal.treatments.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("noTreatments")}</p>
-              ) : (
-                animal.treatments.map((tr) => (
-                  <div key={tr.id} className="border-b pb-2">
+          {healthSection === "notes" && (
+            <Card>
+              <CardHeader><CardTitle>{t("healthRecords")}</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                {animal.healthRecords.map((r) => (
+                  <div key={r.id} className="border-b pb-2">
                     <div className="flex justify-between items-start gap-2">
                       <div className="flex-1">
-                        <div className="flex justify-between gap-2">
-                          <span className="font-medium">
-                            {tr.product}{" "}
-                            <Badge variant="outline" className="ml-1">
-                              {t(treatmentTypeKey(tr.type))}
-                            </Badge>
-                          </span>
-                          <span className="text-sm text-muted-foreground shrink-0">
-                            {formatDate(tr.date)}
-                          </span>
+                        <div className="flex justify-between">
+                          <Badge variant="outline">{t(healthTypeKey(r.type))}</Badge>
+                          <span className="text-sm text-muted-foreground">{formatDate(r.date)}</span>
                         </div>
-                        {tr.dose && (
-                          <p className="text-sm text-muted-foreground">{t("dose")}: {tr.dose}</p>
-                        )}
-                        {tr.nextDue && (
+                        {r.diagnosis && <p className="text-sm mt-1">{r.diagnosis}</p>}
+                        {r.treatment && (
                           <p className="text-sm text-muted-foreground">
-                            {t("nextDue")}: {formatDate(tr.nextDue)}
+                            {t("actionNote")}: {r.treatment}
                           </p>
                         )}
+                        {!isClosed &&
+                          canManageHealth &&
+                          (r.type === "ILLNESS" || r.type === "INJURY") && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => startDoseForCase(r.id, "treatments")}
+                              >
+                                {t("recordTreatmentForCase")}
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => startDoseForCase(r.id, "vaccinations")}
+                              >
+                                {t("recordVaccineForCase")}
+                              </Button>
+                            </div>
+                          )}
                       </div>
                       {canManageHealth && (
                         <Button
                           size="sm"
                           variant="ghost"
-                          disabled={deletingId === tr.id}
-                          onClick={() => deleteSubRecord("treatments", tr.id)}
+                          disabled={deletingId === r.id}
+                          onClick={() => deleteSubRecord("health", r.id)}
                           aria-label={t("delete")}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -1635,87 +1682,356 @@ export default function AnimalDetailPage() {
                       )}
                     </div>
                   </div>
-                ))
-              )}
-              {!isClosed && canManageHealth && (
-                <div className="grid gap-2 pt-4 border-t">
-                  {treatmentOptions.length > 0 && (
-                    <Select
-                      value={treatForm.treatmentCatalogId || "__custom__"}
-                      onValueChange={onTreatmentCatalogChange}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("optionalSchedule")} />
-                      </SelectTrigger>
+                ))}
+                {!isClosed && canManageHealth && (
+                  <div className="grid gap-2 pt-4 border-t">
+                    <Select value={healthForm.type} onValueChange={(v) => setHealthForm({ ...healthForm, type: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__custom__">{t("customOneOff")}</SelectItem>
-                        {treatmentOptions.map((to) => (
-                          <SelectItem key={to.id} value={to.id}>
-                            {to.name}
-                            {to.intervalDays ? ` (${t("everyNDays", { n: to.intervalDays })})` : ""}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  {!treatForm.treatmentCatalogId && (
-                    <Select
-                      value={treatForm.type}
-                      onValueChange={(v) => setTreatForm({ ...treatForm, type: v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="DEWORMING">{t("deworming")}</SelectItem>
-                        <SelectItem value="DIPPING">{t("dipping")}</SelectItem>
-                        <SelectItem value="ANTIBIOTIC">{t("antibiotic")}</SelectItem>
+                        <SelectItem value="CHECKUP">{t("checkup")}</SelectItem>
+                        <SelectItem value="ILLNESS">{t("illness")}</SelectItem>
+                        <SelectItem value="INJURY">{t("injury")}</SelectItem>
                         <SelectItem value="OTHER">{t("other")}</SelectItem>
                       </SelectContent>
                     </Select>
-                  )}
-                  <Input
-                    placeholder={t("product")}
-                    value={treatForm.product}
-                    onChange={(e) =>
-                      setTreatForm({
-                        ...treatForm,
-                        product: e.target.value,
-                        treatmentCatalogId: "",
-                      })
-                    }
-                  />
-                  <Input
-                    placeholder={t("dose")}
-                    value={treatForm.dose}
-                    onChange={(e) => setTreatForm({ ...treatForm, dose: e.target.value })}
-                  />
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder={t("withdrawalDays")}
-                    value={treatForm.withdrawalPeriod}
-                    onChange={(e) =>
-                      setTreatForm({ ...treatForm, withdrawalPeriod: e.target.value })
-                    }
-                  />
-                  <div>
-                    <Label className="text-xs text-muted-foreground">
-                      {t("nextDueOptional")}
-                    </Label>
+                    <Input placeholder={t("diagnosis")} value={healthForm.diagnosis} onChange={(e) => setHealthForm({ ...healthForm, diagnosis: e.target.value })} />
+                    <Input placeholder={t("actionNotePlaceholder")} value={healthForm.treatment} onChange={(e) => setHealthForm({ ...healthForm, treatment: e.target.value })} />
+                    <Button onClick={addHealth}>{t("addHealthRecord")}</Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {healthSection === "vaccinations" && (
+            <Card>
+              <CardHeader><CardTitle>{t("healthPillVaccinations")}</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                {animal.vaccinations.map((v) => (
+                  <div key={v.id} className="border-b pb-2">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex-1">
+                        <div className="flex justify-between">
+                          <span className="font-medium">{v.vaccineName}</span>
+                          <span className="text-sm text-muted-foreground">{formatDate(v.date)}</span>
+                        </div>
+                        {v.nextDue && <p className="text-sm text-muted-foreground">{t("nextDue")}: {formatDate(v.nextDue)}</p>}
+                        {v.costTzs != null && v.costTzs > 0 && (
+                          <p className="text-sm text-muted-foreground">
+                            {t("vaccinationCost")}: {formatCurrency(v.costTzs)}
+                          </p>
+                        )}
+                        {v.healthRecord && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {t("linkedToNote")}: {formatLinkedNote(v.healthRecord, t)}
+                          </p>
+                        )}
+                      </div>
+                      {canManageHealth && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={deletingId === v.id}
+                          onClick={() => deleteSubRecord("vaccinations", v.id)}
+                          aria-label={t("delete")}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {!isClosed && canManageHealth && (
+                  <div className="grid gap-2 pt-4 border-t">
+                    {linkedHealthRecord && (
+                      <div className="rounded-md border bg-muted/50 p-2 flex justify-between items-center gap-2">
+                        <span className="text-sm">
+                          {t("linkedToNote")}: {formatLinkedNote(linkedHealthRecord, t)}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setLinkHealthRecordId(null)}
+                        >
+                          {t("clearNoteLink")}
+                        </Button>
+                      </div>
+                    )}
+                    {!linkHealthRecordId && animal.healthRecords.length > 0 && (
+                      <Select
+                        value="__none__"
+                        onValueChange={(v) =>
+                          setLinkHealthRecordId(v === "__none__" ? null : v)
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={t("linkToClinicalNote")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">{t("linkToClinicalNote")}</SelectItem>
+                          {animal.healthRecords.map((r) => (
+                            <SelectItem key={r.id} value={r.id}>
+                              {formatLinkedNote(r, t)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {vaccineOptions.length > 0 && (
+                      <Select
+                        value={vaccForm.vaccineCatalogId || "__custom__"}
+                        onValueChange={onVaccineCatalogChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={t("optionalSchedule")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__custom__">{t("customOneOff")}</SelectItem>
+                          {vaccineOptions.map((v) => (
+                            <SelectItem key={v.id} value={v.id}>
+                              {v.name}
+                              {v.intervalDays ? ` (${t("everyNDays", { n: v.intervalDays })})` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                     <Input
-                      type="date"
-                      value={treatForm.nextDue}
+                      placeholder={t("vaccineName")}
+                      value={vaccForm.vaccineName}
                       onChange={(e) =>
-                        setTreatForm({ ...treatForm, nextDue: e.target.value })
+                        setVaccForm({
+                          ...vaccForm,
+                          vaccineName: e.target.value,
+                          vaccineCatalogId: "",
+                        })
                       }
                     />
+                    <Input
+                      placeholder={t("batchNo")}
+                      value={vaccForm.batchNo}
+                      onChange={(e) => setVaccForm({ ...vaccForm, batchNo: e.target.value })}
+                    />
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        {t("nextDueOptional")}
+                      </Label>
+                      <Input
+                        type="date"
+                        value={vaccForm.nextDue}
+                        onChange={(e) => setVaccForm({ ...vaccForm, nextDue: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        {t("vaccinationCost")}
+                      </Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        value={vaccForm.costTzs}
+                        onChange={(e) =>
+                          setVaccForm({ ...vaccForm, costTzs: e.target.value })
+                        }
+                      />
+                    </div>
+                    <Button onClick={addVaccination}>{t("recordVaccination")}</Button>
                   </div>
-                  <Button onClick={addTreatment}>{t("recordTreatment")}</Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {healthSection === "treatments" && (
+            <Card>
+              <CardHeader><CardTitle>{t("healthPillTreatments")}</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                {animal.treatments.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">{t("noTreatments")}</p>
+                ) : (
+                  animal.treatments.map((tr) => (
+                    <div key={tr.id} className="border-b pb-2">
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex-1">
+                          <div className="flex justify-between gap-2">
+                            <span className="font-medium">
+                              {tr.product}{" "}
+                              <Badge variant="outline" className="ml-1">
+                                {t(treatmentTypeKey(tr.type))}
+                              </Badge>
+                            </span>
+                            <span className="text-sm text-muted-foreground shrink-0">
+                              {formatDate(tr.date)}
+                            </span>
+                          </div>
+                          {tr.dose && (
+                            <p className="text-sm text-muted-foreground">{t("dose")}: {tr.dose}</p>
+                          )}
+                          {tr.nextDue && (
+                            <p className="text-sm text-muted-foreground">
+                              {t("nextDue")}: {formatDate(tr.nextDue)}
+                            </p>
+                          )}
+                          {tr.costTzs != null && tr.costTzs > 0 && (
+                            <p className="text-sm text-muted-foreground">
+                              {t("treatmentCost")}: {formatCurrency(tr.costTzs)}
+                            </p>
+                          )}
+                          {tr.healthRecord && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {t("linkedToNote")}: {formatLinkedNote(tr.healthRecord, t)}
+                            </p>
+                          )}
+                        </div>
+                        {canManageHealth && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={deletingId === tr.id}
+                            onClick={() => deleteSubRecord("treatments", tr.id)}
+                            aria-label={t("delete")}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+                {!isClosed && canManageHealth && (
+                  <div className="grid gap-2 pt-4 border-t">
+                    {linkedHealthRecord && (
+                      <div className="rounded-md border bg-muted/50 p-2 flex justify-between items-center gap-2">
+                        <span className="text-sm">
+                          {t("linkedToNote")}: {formatLinkedNote(linkedHealthRecord, t)}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setLinkHealthRecordId(null)}
+                        >
+                          {t("clearNoteLink")}
+                        </Button>
+                      </div>
+                    )}
+                    {!linkHealthRecordId && animal.healthRecords.length > 0 && (
+                      <Select
+                        value="__none__"
+                        onValueChange={(v) =>
+                          setLinkHealthRecordId(v === "__none__" ? null : v)
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={t("linkToClinicalNote")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">{t("linkToClinicalNote")}</SelectItem>
+                          {animal.healthRecords.map((r) => (
+                            <SelectItem key={r.id} value={r.id}>
+                              {formatLinkedNote(r, t)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {treatmentOptions.length > 0 && (
+                      <Select
+                        value={treatForm.treatmentCatalogId || "__custom__"}
+                        onValueChange={onTreatmentCatalogChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={t("optionalSchedule")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__custom__">{t("customOneOff")}</SelectItem>
+                          {treatmentOptions.map((to) => (
+                            <SelectItem key={to.id} value={to.id}>
+                              {to.name}
+                              {to.intervalDays ? ` (${t("everyNDays", { n: to.intervalDays })})` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {!treatForm.treatmentCatalogId && (
+                      <Select
+                        value={treatForm.type}
+                        onValueChange={(v) => setTreatForm({ ...treatForm, type: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="DEWORMING">{t("deworming")}</SelectItem>
+                          <SelectItem value="DIPPING">{t("dipping")}</SelectItem>
+                          <SelectItem value="ANTIBIOTIC">{t("antibiotic")}</SelectItem>
+                          <SelectItem value="OTHER">{t("other")}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                    <Input
+                      placeholder={t("product")}
+                      value={treatForm.product}
+                      onChange={(e) =>
+                        setTreatForm({
+                          ...treatForm,
+                          product: e.target.value,
+                          treatmentCatalogId: "",
+                        })
+                      }
+                    />
+                    <Input
+                      placeholder={t("dose")}
+                      value={treatForm.dose}
+                      onChange={(e) => setTreatForm({ ...treatForm, dose: e.target.value })}
+                    />
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder={t("withdrawalDays")}
+                      value={treatForm.withdrawalPeriod}
+                      onChange={(e) =>
+                        setTreatForm({ ...treatForm, withdrawalPeriod: e.target.value })
+                      }
+                    />
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        {t("nextDueOptional")}
+                      </Label>
+                      <Input
+                        type="date"
+                        value={treatForm.nextDue}
+                        onChange={(e) =>
+                          setTreatForm({ ...treatForm, nextDue: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        {t("treatmentCost")}
+                      </Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        value={treatForm.costTzs}
+                        onChange={(e) =>
+                          setTreatForm({ ...treatForm, costTzs: e.target.value })
+                        }
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {t("treatmentCostHelp")}
+                      </p>
+                    </div>
+                    <Button onClick={addTreatment}>{t("recordTreatment")}</Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="movements">

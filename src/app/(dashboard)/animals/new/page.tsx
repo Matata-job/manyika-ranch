@@ -138,6 +138,7 @@ function NewAnimalPageContent() {
     notes: "",
     acquisitionType: "",
     acquisitionDate: "",
+    purchasePriceTzs: "",
   });
 
   const isBornOnFarm = form.acquisitionType === "BORN_ON_FARM";
@@ -388,6 +389,7 @@ function NewAnimalPageContent() {
       notes: "",
       acquisitionType: "",
       acquisitionDate: "",
+      purchasePriceTzs: "",
     });
     // Re-apply ranch owner default if available
     const ranchOwner = owners.find((u) => u.role === "OWNER");
@@ -448,6 +450,10 @@ function NewAnimalPageContent() {
       dob: useDob ? form.dob || null : null,
       acquisitionType: form.acquisitionType,
       acquisitionDate: isExternal ? form.acquisitionDate || null : null,
+      purchasePriceTzs:
+        form.acquisitionType === "PURCHASED" && form.purchasePriceTzs
+          ? Number(form.purchasePriceTzs)
+          : null,
       isCastrated: form.sex === "MALE" ? form.isCastrated : false,
       isPregnant: form.sex === "FEMALE" ? form.isPregnant : false,
       ageYears: useDob
@@ -830,6 +836,8 @@ function NewAnimalPageContent() {
                     acquisitionType: v,
                     acquisitionDate:
                       v === "BORN_ON_FARM" ? "" : form.acquisitionDate,
+                    purchasePriceTzs:
+                      v === "PURCHASED" ? form.purchasePriceTzs : "",
                     sireId: v === "BORN_ON_FARM" ? form.sireId : "",
                     damId: v === "BORN_ON_FARM" ? form.damId : "",
                     dob: "",
@@ -964,6 +972,27 @@ function NewAnimalPageContent() {
                     }
                   />
                 </Field>
+
+                {form.acquisitionType === "PURCHASED" && (
+                  <Field
+                    label={t("purchasePrice")}
+                    hint={t("purchasePriceHelp")}
+                    className="sm:col-span-2"
+                  >
+                    <Input
+                      type="number"
+                      min={0}
+                      step="1"
+                      value={form.purchasePriceTzs}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          purchasePriceTzs: e.target.value,
+                        })
+                      }
+                    />
+                  </Field>
+                )}
 
                 <Field
                   label={t("age")}

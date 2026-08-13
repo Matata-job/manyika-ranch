@@ -22,9 +22,15 @@ import { useT } from "@/components/providers/locale-provider";
 import {
   DEFAULT_EXPENSE_UNITS,
   SYSTEM_EXPENSE_CATEGORIES,
+  defaultAllocGroup,
+  expenseAllocLabelKey,
   expenseCategoryDisplayName,
   expenseCategoryLabelKey,
+  expenseFundingLabelKey,
+  type ExpenseAllocGroupCode,
+  type ExpenseFundingSourceCode,
 } from "@/lib/expense-categories";
+import { ChoicePills } from "@/components/choice-pills";
 
 interface ExpenseRow {
   id: string;
@@ -36,6 +42,8 @@ interface ExpenseRow {
   date: string;
   description: string | null;
   camp: { id: string; name: string } | null;
+  fundingSource?: string;
+  allocGroup?: string;
   recordedBy: { name: string };
 }
 
@@ -56,6 +64,7 @@ export default function ExpensesPage() {
   const [to, setTo] = useState("");
   const [camp, setCamp] = useState("all");
   const [category, setCategory] = useState("all");
+  const [fundingFilter, setFundingFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     category: "FEED",
@@ -66,6 +75,8 @@ export default function ExpensesPage() {
     description: "",
     campId: "",
     notes: "",
+    fundingSource: "OPERATING" as ExpenseFundingSourceCode,
+    allocGroup: "ALL_ACTIVE" as ExpenseAllocGroupCode,
   });
   const [saving, setSaving] = useState(false);
 
@@ -86,6 +97,7 @@ export default function ExpensesPage() {
     if (to) params.set("to", to);
     if (camp !== "all") params.set("camp", camp);
     if (category !== "all") params.set("category", category);
+    if (fundingFilter !== "all") params.set("funding", fundingFilter);
     const res = await fetch(`/api/finance/expenses?${params}`);
     if (res.ok) {
       const data = await res.json();
@@ -140,10 +152,19 @@ export default function ExpensesPage() {
       const name = window.prompt(t("expenseAddCategoryPrompt"))?.trim();
       if (!name) return;
       void persistCustomCategory(name);
-      setForm((prev) => ({ ...prev, category: `custom:${name}` }));
+      setForm((prev) => ({
+        ...prev,
+        category: `custom:${name}`,
+        allocGroup: defaultAllocGroup("OTHER", prev.fundingSource),
+      }));
       return;
     }
-    setForm((prev) => ({ ...prev, category: value }));
+    const systemOrCustom = value.startsWith("custom:") ? "OTHER" : value;
+    setForm((prev) => ({
+      ...prev,
+      category: value,
+      allocGroup: defaultAllocGroup(systemOrCustom, prev.fundingSource),
+    }));
   }
 
   function onUnitChange(value: string) {
@@ -172,6 +193,8 @@ export default function ExpensesPage() {
         description: form.description,
         campId: form.campId || null,
         notes: form.notes,
+        fundingSource: form.fundingSource,
+        allocGroup: form.allocGroup,
       }),
     });
     setSaving(false);
@@ -190,6 +213,8 @@ export default function ExpensesPage() {
       description: "",
       campId: "",
       notes: "",
+      fundingSource: "OPERATING",
+      allocGroup: "ALL_ACTIVE",
     });
     load();
   }
@@ -335,6 +360,63 @@ export default function ExpensesPage() {
                 </Select>
               </div>
               <div className="space-y-2 sm:col-span-2">
+                <Label>{t("fundingSource")}</Label>
+                <ChoicePills
+                  value={form.fundingSource}
+                  onChange={(v) => {
+                    const funding = v as ExpenseFundingSourceCode;
+                    const cat = form.category.startsWith("custom:")
+                      ? "OTHER"
+                      : form.category;
+                    setForm({
+                      ...form,
+                      fundingSource: funding,
+                      allocGroup: defaultAllocGroup(cat, funding),
+                    });
+                  }}
+                  options={[
+                    {
+                      value: "OPERATING",
+                      label: t("fundingOperating"),
+                    },
+                    { value: "PROJECT", label: t("fundingProject") },
+                  ]}
+                />
+                <p className="text-xs text-muted-foreground">{t("fundingHelp")}</p>
+              </div>
+              {form.fundingSource === "OPERATING" && (
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>{t("allocGroup")}</Label>
+                  <Select
+                    value={form.allocGroup}
+                    onValueChange={(v) =>
+                      setForm({
+                        ...form,
+                        allocGroup: v as ExpenseAllocGroupCode,
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NONE">{t("allocNone")}</SelectItem>
+                      <SelectItem value="ALL_ACTIVE">
+                        {t("allocAllActive")}
+                      </SelectItem>
+                      <SelectItem value="SELL_NEXT_CYCLE">
+                        {t("allocSellNextCycle")}
+                      </SelectItem>
+                      <SelectItem value="KEEP_BREEDING">
+                        {t("allocKeepBreeding")}
+                      </SelectItem>
+                      <SelectItem value="KULIMA">{t("allocKulima")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">{t("allocHelp")}</p>
+                </div>
+              )}
+              <div className="space-y-2 sm:col-span-2">
                 <Label>{t("description")}</Label>
                 <Input
                   value={form.description}
@@ -353,7 +435,7 @@ export default function ExpensesPage() {
 
       <Card>
         <CardContent className="pt-6">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 mb-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6 mb-4">
             <Input
               type="date"
               value={from}
@@ -398,6 +480,16 @@ export default function ExpensesPage() {
                 <SelectItem value="OTHER">{t("other")}</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={fundingFilter} onValueChange={setFundingFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder={t("fundingSource")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("all")}</SelectItem>
+                <SelectItem value="OPERATING">{t("fundingOperating")}</SelectItem>
+                <SelectItem value="PROJECT">{t("fundingProject")}</SelectItem>
+              </SelectContent>
+            </Select>
             <Button onClick={load}>{t("apply")}</Button>
           </div>
 
@@ -415,6 +507,8 @@ export default function ExpensesPage() {
                     <th className="p-3 text-left">{t("expenseQtyUnit")}</th>
                     <th className="p-3 text-left">{t("description")}</th>
                     <th className="p-3 text-left">{t("camp")}</th>
+                    <th className="p-3 text-left">{t("fundingSource")}</th>
+                    <th className="p-3 text-left">{t("allocGroup")}</th>
                     <th className="p-3 text-right">{t("amount")}</th>
                     {canManage && <th className="p-3" />}
                   </tr>
@@ -437,6 +531,14 @@ export default function ExpensesPage() {
                       </td>
                       <td className="p-3">{e.description || "—"}</td>
                       <td className="p-3">{e.camp?.name || "—"}</td>
+                      <td className="p-3">
+                        {t(
+                          expenseFundingLabelKey(e.fundingSource || "OPERATING")
+                        )}
+                      </td>
+                      <td className="p-3">
+                        {t(expenseAllocLabelKey(e.allocGroup || "NONE"))}
+                      </td>
                       <td className="p-3 text-right font-medium">
                         {formatCurrency(e.amountTzs)}
                       </td>

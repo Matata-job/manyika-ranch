@@ -89,10 +89,15 @@ export async function GET(req: NextRequest) {
   const salesRevenue = sales.reduce((s, x) => s + x.priceTzs, 0);
   const otherIncome = incomes.reduce((s, x) => s + x.amountTzs, 0);
   const totalExpenses = expenses.reduce((s, x) => s + x.amountTzs, 0);
-  const net = salesRevenue + otherIncome - totalExpenses;
+  const operatingExpenses = expenses
+    .filter((e) => e.fundingSource !== "PROJECT")
+    .reduce((s, x) => s + x.amountTzs, 0);
+  const projectExpenses = totalExpenses - operatingExpenses;
+  const net = salesRevenue + otherIncome - operatingExpenses;
 
   const expensesByCategory: Record<string, number> = {};
   for (const e of expenses) {
+    if (e.fundingSource === "PROJECT") continue;
     const key =
       e.category === "OTHER" && e.categoryDetail?.trim()
         ? e.categoryDetail.trim()
@@ -121,6 +126,7 @@ export async function GET(req: NextRequest) {
     monthly[k].otherIncome += i.amountTzs;
   }
   for (const e of expenses) {
+    if (e.fundingSource === "PROJECT") continue;
     const k = monthKey(e.date);
     monthly[k] = monthly[k] || { sales: 0, otherIncome: 0, expenses: 0, net: 0 };
     monthly[k].expenses += e.amountTzs;
@@ -146,6 +152,7 @@ export async function GET(req: NextRequest) {
     byCamp[name].otherIncome += i.amountTzs;
   }
   for (const e of expenses) {
+    if (e.fundingSource === "PROJECT") continue;
     const name = e.camp?.name || "Unassigned";
     byCamp[name] = byCamp[name] || { sales: 0, otherIncome: 0, expenses: 0, net: 0 };
     byCamp[name].expenses += e.amountTzs;
@@ -159,7 +166,9 @@ export async function GET(req: NextRequest) {
       salesRevenue,
       otherIncome,
       totalIncome: salesRevenue + otherIncome,
-      totalExpenses,
+      totalExpenses: operatingExpenses,
+      operatingExpenses,
+      projectExpenses,
       net,
       saleCount: sales.length,
       expenseCount: expenses.length,

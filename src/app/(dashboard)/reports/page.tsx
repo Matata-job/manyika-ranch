@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDate, formatCurrency } from "@/lib/utils";
-import { Download, Upload, Beef, HeartPulse, CircleDollarSign, Wallet } from "lucide-react";
+import { Download, Upload, Beef, HeartPulse, CircleDollarSign, Wallet, Calculator } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
@@ -31,8 +31,13 @@ import {
   DEFAULT_PAGE_SIZE,
   ListPagination,
 } from "@/components/list-pagination";
+import {
+  ProductionCostPanel,
+  type ProductionCostRow,
+  type ProductionCostSummary,
+} from "@/components/finance/production-cost-panel";
 
-type ReportTab = "herd" | "health" | "sales" | "finance";
+type ReportTab = "herd" | "health" | "sales" | "finance" | "production";
 
 interface CampOption {
   id: string;
@@ -217,6 +222,10 @@ export default function ReportsPage() {
   const [health, setHealth] = useState<HealthReport | null>(null);
   const [sales, setSales] = useState<SalesReport | null>(null);
   const [finance, setFinance] = useState<FinanceReport | null>(null);
+  const [production, setProduction] = useState<{
+    summary: ProductionCostSummary;
+    rows: ProductionCostRow[];
+  } | null>(null);
   const [tableOffset, setTableOffset] = useState(0);
 
   const [importResults, setImportResults] = useState<
@@ -272,6 +281,14 @@ export default function ReportsPage() {
         const res = await fetch(`/api/reports/pnl?${p}`);
         if (res.ok) setFinance(await res.json());
         else setFinance(null);
+      } else if (tab === "production" && canViewFinance) {
+        const p = new URLSearchParams();
+        if (camp !== "all") p.set("camp", camp);
+        if (from) p.set("from", from);
+        if (to) p.set("to", to);
+        const res = await fetch(`/api/reports/production-cost?${p}`);
+        if (res.ok) setProduction(await res.json());
+        else setProduction(null);
       }
     } finally {
       setLoading(false);
@@ -434,6 +451,36 @@ export default function ReportsPage() {
         `finance-report-${stamp}.csv`,
         rowsToCsv(["section", "name", "amount"], rows)
       );
+      return;
+    }
+    if (tab === "production" && production?.rows.length) {
+      downloadCsv(
+        `production-cost-${stamp}.csv`,
+        rowsToCsv(
+          [
+            "eartag",
+            "camp",
+            "animalDays",
+            "purchasePriceTzs",
+            "feedShareTzs",
+            "treatmentTzs",
+            "periodCostTzs",
+            "weightGainKg",
+            "costPerKgTzs",
+          ],
+          production.rows.map((r) => [
+            r.eartag,
+            r.campName,
+            r.animalDays,
+            r.purchasePriceTzs,
+            r.feedShareTzs,
+            r.treatmentTzs,
+            r.periodCostTzs,
+            r.weightGainKg,
+            r.costPerKgTzs,
+          ])
+        )
+      );
     }
   }
 
@@ -480,7 +527,8 @@ export default function ReportsPage() {
         health.treatments.length > 0 ||
         health.healthRecords.length > 0)) ||
     (tab === "sales" && !!sales?.sales.length) ||
-    (tab === "finance" && !!finance);
+    (tab === "finance" && !!finance) ||
+    (tab === "production" && !!production?.rows.length);
 
   return (
     <div className="space-y-6">
@@ -504,7 +552,7 @@ export default function ReportsPage() {
         </Button>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {(
           [
             {
@@ -533,6 +581,13 @@ export default function ReportsPage() {
               titleKey: "reportFinance" as const,
               helpKey: "reportFinanceHelp" as const,
               icon: Wallet,
+              show: canViewFinance,
+            },
+            {
+              id: "production" as const,
+              titleKey: "reportProduction" as const,
+              helpKey: "reportProductionHelp" as const,
+              icon: Calculator,
               show: canViewFinance,
             },
           ] as const
@@ -588,9 +643,14 @@ export default function ReportsPage() {
           </Link>
         )}
         {canViewFinance && (
-          <Link href="/finance/pnl" className="text-primary hover:underline">
-            {t("pnl")}
-          </Link>
+          <>
+            <Link href="/finance/pnl" className="text-primary hover:underline">
+              {t("pnl")}
+            </Link>
+            <Link href="/finance/production-cost" className="text-primary hover:underline">
+              {t("productionCostTitle")}
+            </Link>
+          </>
         )}
       </p>
 
@@ -614,7 +674,7 @@ export default function ReportsPage() {
               </Select>
             </div>
 
-            {tab !== "finance" && (
+            {tab !== "finance" && tab !== "production" && (
               <div className="space-y-1.5">
                 <Label>{t("ageGroup")}</Label>
                 <Select value={ageGroup} onValueChange={setAgeGroup}>
@@ -700,7 +760,9 @@ export default function ReportsPage() {
               ? t("herdDateHint")
               : tab === "finance"
                 ? t("financeDateHint")
-                : t("activityDateHint")}
+                : tab === "production"
+                  ? t("productionDateHint")
+                  : t("activityDateHint")}
           </p>
           <Button onClick={load} disabled={loading} size="sm">
             {loading ? t("loading") : t("applyFilters")}
@@ -723,7 +785,10 @@ export default function ReportsPage() {
             <TabsTrigger value="sales">{t("reportSales")}</TabsTrigger>
           )}
           {canViewFinance && (
-            <TabsTrigger value="finance">{t("reportFinance")}</TabsTrigger>
+            <>
+              <TabsTrigger value="finance">{t("reportFinance")}</TabsTrigger>
+              <TabsTrigger value="production">{t("reportProduction")}</TabsTrigger>
+            </>
           )}
         </TabsList>
 
@@ -1142,6 +1207,17 @@ export default function ReportsPage() {
                 </CardContent>
               </Card>
             </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="production" className="space-y-4">
+          {production && (
+            <ProductionCostPanel
+              summary={production.summary}
+              rows={production.rows}
+              offset={tableOffset}
+              onOffset={setTableOffset}
+            />
           )}
         </TabsContent>
       </Tabs>

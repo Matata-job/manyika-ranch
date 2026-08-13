@@ -142,3 +142,77 @@ export function expenseCategoryGroupKey(
   }
   return category;
 }
+
+export const EXPENSE_FUNDING_SOURCES = ["OPERATING", "PROJECT"] as const;
+export type ExpenseFundingSourceCode = (typeof EXPENSE_FUNDING_SOURCES)[number];
+
+export const EXPENSE_ALLOC_GROUPS = [
+  "NONE",
+  "ALL_ACTIVE",
+  "SELL_NEXT_CYCLE",
+  "KEEP_BREEDING",
+  "KULIMA",
+] as const;
+export type ExpenseAllocGroupCode = (typeof EXPENSE_ALLOC_GROUPS)[number];
+
+export function isExpenseFundingSource(
+  value: string
+): value is ExpenseFundingSourceCode {
+  return (EXPENSE_FUNDING_SOURCES as readonly string[]).includes(value);
+}
+
+export function isExpenseAllocGroup(
+  value: string
+): value is ExpenseAllocGroupCode {
+  return (EXPENSE_ALLOC_GROUPS as readonly string[]).includes(value);
+}
+
+export function parseExpenseFundingSource(
+  value: unknown
+): ExpenseFundingSourceCode {
+  const v = typeof value === "string" ? value.trim().toUpperCase() : "";
+  return isExpenseFundingSource(v) ? v : "OPERATING";
+}
+
+export function defaultAllocGroup(
+  category: string,
+  funding: ExpenseFundingSourceCode
+): ExpenseAllocGroupCode {
+  if (funding === "PROJECT") return "NONE";
+  if (category === "FEED") return "ALL_ACTIVE";
+  return "NONE";
+}
+
+export function parseExpenseAllocGroup(
+  value: unknown,
+  category: string,
+  funding: ExpenseFundingSourceCode
+): ExpenseAllocGroupCode {
+  if (funding === "PROJECT") return "NONE";
+  if (typeof value === "string" && isExpenseAllocGroup(value.trim().toUpperCase())) {
+    const g = value.trim().toUpperCase() as ExpenseAllocGroupCode;
+    return g;
+  }
+  return defaultAllocGroup(category, funding);
+}
+
+export function expenseFundingLabelKey(
+  source: string
+): TranslationKey {
+  return source === "PROJECT" ? "fundingProject" : "fundingOperating";
+}
+
+export function expenseAllocLabelKey(group: string): TranslationKey {
+  switch (group) {
+    case "ALL_ACTIVE":
+      return "allocAllActive";
+    case "SELL_NEXT_CYCLE":
+      return "allocSellNextCycle";
+    case "KEEP_BREEDING":
+      return "allocKeepBreeding";
+    case "KULIMA":
+      return "allocKulima";
+    default:
+      return "allocNone";
+  }
+}

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePermission, requireAnimalAccess } from "@/lib/auth/api-guard";
+import { parseOptionalNonNegative } from "@/lib/money";
+import {
+  healthRecordSummarySelect,
+  resolveHealthRecordId,
+} from "@/lib/health-record-link";
 import type { TreatmentType } from "@prisma/client";
 
 const TYPES: TreatmentType[] = ["DEWORMING", "DIPPING", "ANTIBIOTIC", "OTHER"];
@@ -22,6 +27,7 @@ export async function GET(
     include: {
       administeredBy: { select: { name: true } },
       treatmentCatalog: true,
+      healthRecord: { select: healthRecordSummarySelect },
     },
   });
 
@@ -81,10 +87,21 @@ export async function POST(
     );
   }
 
+  const costParsed = parseOptionalNonNegative(body.costTzs);
+  if (!costParsed.ok) {
+    return NextResponse.json({ error: costParsed.error }, { status: 400 });
+  }
+
+  const healthLink = await resolveHealthRecordId(id, body.healthRecordId);
+  if (!healthLink.ok) {
+    return NextResponse.json({ error: healthLink.error }, { status: 400 });
+  }
+
   const treatment = await prisma.treatment.create({
     data: {
       animalId: id,
       treatmentCatalogId,
+      healthRecordId: healthLink.value,
       type,
       product,
       dose: body.dose?.trim() || null,
@@ -96,6 +113,7 @@ export async function POST(
       date,
       administeredById: result.user.id,
       notes: body.notes?.trim() || null,
+      costTzs: costParsed.value,
     },
   });
 
@@ -130,6 +148,8 @@ export async function POST(
       product: treatment.product,
       withdrawalPeriod: treatment.withdrawalPeriod,
       nextDue: treatment.nextDue,
+      costTzs: treatment.costTzs,
+      healthRecordId: treatment.healthRecordId,
     },
   });
 

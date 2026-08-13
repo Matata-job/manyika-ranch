@@ -8,6 +8,7 @@ import {
 import { computeAgeMonths } from "@/lib/utils";
 import { createAuditLog } from "@/lib/services/animal-service";
 import { logAnimalEvent } from "@/lib/services/event-service";
+import { parseOptionalNonNegative } from "@/lib/money";
 
 function resolveAgeMonths(payload: Record<string, unknown>): number | null {
   const dob = payload.dob ? new Date(payload.dob as string) : null;
@@ -130,6 +131,13 @@ export async function POST(req: NextRequest) {
             acquisitionDate: payload.acquisitionDate
               ? new Date(payload.acquisitionDate as string)
               : null,
+            purchasePriceTzs: (() => {
+              if ((payload.acquisitionType as string) !== "PURCHASED") {
+                return null;
+              }
+              const parsed = parseOptionalNonNegative(payload.purchasePriceTzs);
+              return parsed.ok ? parsed.value : null;
+            })(),
             colorMarkings: (payload.colorMarkings as string) || null,
             notes: (payload.notes as string) || null,
           },

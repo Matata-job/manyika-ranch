@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/api-guard";
 import { createAuditLog } from "@/lib/services/animal-service";
-import { parseExpenseCategorySelection } from "@/lib/expense-categories";
+import {
+  parseExpenseAllocGroup,
+  parseExpenseCategorySelection,
+  parseExpenseFundingSource,
+} from "@/lib/expense-categories";
 
 export async function PATCH(
   req: NextRequest,
@@ -65,6 +69,22 @@ export async function PATCH(
   if (body.description !== undefined) data.description = body.description?.trim() || null;
   if (body.notes !== undefined) data.notes = body.notes?.trim() || null;
   if (body.campId !== undefined) data.campId = body.campId || null;
+
+  const nextCategory =
+    (data.category as string | undefined) ?? existing.category;
+  if (body.fundingSource !== undefined || body.allocGroup !== undefined) {
+    const fundingSource = parseExpenseFundingSource(
+      body.fundingSource !== undefined
+        ? body.fundingSource
+        : existing.fundingSource
+    );
+    data.fundingSource = fundingSource;
+    data.allocGroup = parseExpenseAllocGroup(
+      body.allocGroup !== undefined ? body.allocGroup : existing.allocGroup,
+      nextCategory,
+      fundingSource
+    );
+  }
 
   const expense = await prisma.expense.update({
     where: { id },

@@ -17,6 +17,8 @@ interface PnLData {
     otherIncome: number;
     totalIncome: number;
     totalExpenses: number;
+    operatingExpenses?: number;
+    projectExpenses?: number;
     net: number;
     saleCount: number;
     expenseCount: number;
@@ -166,7 +168,7 @@ export default function PnLPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">{t("salesRevenue")}</CardTitle>
@@ -194,11 +196,30 @@ export default function PnLPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">{t("expenses")}</CardTitle>
+            <CardTitle className="text-sm">{t("operatingExpenses")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
-              {data ? formatCurrency(data.summary.totalExpenses) : "—"}
+              {data
+                ? formatCurrency(
+                    data.summary.operatingExpenses ?? data.summary.totalExpenses
+                  )
+                : "—"}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">{t("projectExpenses")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">
+              {data
+                ? formatCurrency(data.summary.projectExpenses ?? 0)
+                : "—"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {t("projectSpendHint")}
             </p>
           </CardContent>
         </Card>

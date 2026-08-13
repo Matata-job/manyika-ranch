@@ -8,6 +8,7 @@ import {
 import { createAuditLog, withComputedAge } from "@/lib/services/animal-service";
 import { computeAgeMonths } from "@/lib/utils";
 import { logAnimalEvent } from "@/lib/services/event-service";
+import { parseOptionalNonNegative } from "@/lib/money";
 import type { Role, Sex, AnimalStatus, Prisma } from "@prisma/client";
 import { ageGroupWhere, ageMonthsRangeWhere, dobRangeWhere } from "@/lib/reports/age-filter";
 import { normalizeTagColor } from "@/lib/tag-color";
@@ -285,6 +286,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid animal owner" }, { status: 400 });
   }
 
+  const acquisitionType = body.acquisitionType || "BORN_ON_FARM";
+  const purchaseParsed = parseOptionalNonNegative(body.purchasePriceTzs);
+  if (!purchaseParsed.ok) {
+    return NextResponse.json({ error: purchaseParsed.error }, { status: 400 });
+  }
+  const purchasePriceTzs =
+    acquisitionType === "PURCHASED" ? purchaseParsed.value : null;
+
   const sireId = body.sireId || null;
   const damId = body.damId || null;
   if (sireId) {
@@ -338,10 +347,11 @@ export async function POST(req: NextRequest) {
       damId,
       campId: body.campId,
       status: body.status || "ACTIVE",
-      acquisitionType: body.acquisitionType || "BORN_ON_FARM",
+      acquisitionType,
       acquisitionDate: body.acquisitionDate
         ? new Date(body.acquisitionDate)
         : null,
+      purchasePriceTzs,
       colorMarkings: body.colorMarkings,
       tagColor: body.tagColor?.trim()
         ? String(body.tagColor).trim().toUpperCase()

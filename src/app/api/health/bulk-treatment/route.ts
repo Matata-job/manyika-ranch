@@ -5,6 +5,7 @@ import {
   buildAnimalScope,
 } from "@/lib/auth/api-guard";
 import { createAuditLog } from "@/lib/services/animal-service";
+import { parseOptionalNonNegative, roundTzs } from "@/lib/money";
 import type { Role, TreatmentType } from "@prisma/client";
 
 const TREATMENT_TYPES: TreatmentType[] = [
@@ -111,6 +112,21 @@ export async function POST(req: NextRequest) {
       ? withdrawalPeriod
       : null;
 
+  let costEach: number | null = null;
+  const totalCost = parseOptionalNonNegative(body.totalCostTzs);
+  if (!totalCost.ok) {
+    return NextResponse.json({ error: totalCost.error }, { status: 400 });
+  }
+  const perCost = parseOptionalNonNegative(body.costTzs);
+  if (!perCost.ok) {
+    return NextResponse.json({ error: perCost.error }, { status: 400 });
+  }
+  if (totalCost.value != null && animals.length > 0) {
+    costEach = roundTzs(totalCost.value / animals.length);
+  } else if (perCost.value != null) {
+    costEach = perCost.value;
+  }
+
   const {
     clearPriorTreatmentNextDue,
     resolveHealthAlertsForDose,
@@ -135,6 +151,7 @@ export async function POST(req: NextRequest) {
         date,
         administeredById: result.user.id,
         notes,
+        costTzs: costEach,
       })),
     });
   });
@@ -164,6 +181,7 @@ export async function POST(req: NextRequest) {
         withdrawalPeriod: withdrawal,
         nextDue: nextDue ? nextDue.toISOString() : null,
         treatmentCatalogId,
+        costTzs: costEach,
       },
     }))
   );

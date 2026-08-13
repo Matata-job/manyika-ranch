@@ -8,6 +8,8 @@ import {
 import { createAuditLog, withComputedAge, updateAnimalAgeMonths } from "@/lib/services/animal-service";
 import { computeAgeMonths } from "@/lib/utils";
 import { logAnimalEvent } from "@/lib/services/event-service";
+import { parseOptionalNonNegative } from "@/lib/money";
+import { healthRecordSummarySelect } from "@/lib/health-record-link";
 
 export async function GET(
   _req: NextRequest,
@@ -33,8 +35,20 @@ export async function GET(
         include: { recordedBy: { select: { name: true } } },
       },
       healthRecords: { orderBy: { date: "desc" }, take: 20 },
-      vaccinations: { orderBy: { date: "desc" }, take: 20 },
-      treatments: { orderBy: { date: "desc" }, take: 20 },
+      vaccinations: {
+        orderBy: { date: "desc" },
+        take: 20,
+        include: {
+          healthRecord: { select: healthRecordSummarySelect },
+        },
+      },
+      treatments: {
+        orderBy: { date: "desc" },
+        take: 20,
+        include: {
+          healthRecord: { select: healthRecordSummarySelect },
+        },
+      },
       movements: {
         orderBy: { date: "desc" },
         take: 10,
@@ -266,6 +280,19 @@ export async function PATCH(
     }
   }
 
+  let nextPurchasePrice: number | null | undefined = undefined;
+  const nextAcquisition =
+    typeof body.acquisitionType === "string" ? body.acquisitionType : null;
+  if (nextAcquisition && nextAcquisition !== "PURCHASED") {
+    nextPurchasePrice = null;
+  } else if (body.purchasePriceTzs !== undefined) {
+    const parsed = parseOptionalNonNegative(body.purchasePriceTzs);
+    if (!parsed.ok) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+    nextPurchasePrice = parsed.value;
+  }
+
   const animal = await prisma.animal.update({
     where: { id },
     data: {
@@ -316,6 +343,7 @@ export async function PATCH(
           : body.acquisitionDate
             ? new Date(body.acquisitionDate)
             : undefined,
+      purchasePriceTzs: nextPurchasePrice,
       colorMarkings: body.colorMarkings,
       tagColor:
         body.tagColor !== undefined

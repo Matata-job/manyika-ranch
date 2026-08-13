@@ -72,7 +72,7 @@ function DueList({
         >
           <div className="min-w-0">
             <Link
-              href={`/animals/${item.animal.id}`}
+              href={`/animals/${item.animal.id}?health=${item.kind === "vaccination" ? "vaccinations" : "treatments"}`}
               className="font-medium text-primary hover:underline"
             >
               {item.animal.eartag}

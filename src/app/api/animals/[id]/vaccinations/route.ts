@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePermission, requireAnimalAccess } from "@/lib/auth/api-guard";
+import { parseOptionalNonNegative } from "@/lib/money";
+import {
+  healthRecordSummarySelect,
+  resolveHealthRecordId,
+} from "@/lib/health-record-link";
 
 export async function GET(
   _req: NextRequest,
@@ -19,6 +24,7 @@ export async function GET(
     include: {
       administeredBy: { select: { name: true } },
       vaccineCatalog: true,
+      healthRecord: { select: healthRecordSummarySelect },
     },
   });
 
@@ -59,16 +65,28 @@ export async function POST(
     return NextResponse.json({ error: "Vaccine name is required" }, { status: 400 });
   }
 
+  const costParsed = parseOptionalNonNegative(body.costTzs);
+  if (!costParsed.ok) {
+    return NextResponse.json({ error: costParsed.error }, { status: 400 });
+  }
+
+  const healthLink = await resolveHealthRecordId(id, body.healthRecordId);
+  if (!healthLink.ok) {
+    return NextResponse.json({ error: healthLink.error }, { status: 400 });
+  }
+
   const vaccination = await prisma.vaccination.create({
     data: {
       animalId: id,
       vaccineCatalogId,
+      healthRecordId: healthLink.value,
       vaccineName,
       batchNo: body.batchNo,
       date: body.date ? new Date(body.date) : new Date(),
       nextDue,
       administeredById: result.user.id,
       notes: body.notes,
+      costTzs: costParsed.value,
     },
   });
 
@@ -91,7 +109,12 @@ export async function POST(
       : undefined,
     occurredAt: vaccination.date,
     recordedById: result.user.id,
-    metadata: { vaccineName: vaccination.vaccineName, nextDue: vaccination.nextDue },
+    metadata: {
+      vaccineName: vaccination.vaccineName,
+      nextDue: vaccination.nextDue,
+      costTzs: vaccination.costTzs,
+      healthRecordId: vaccination.healthRecordId,
+    },
   });
 
   return NextResponse.json(vaccination, { status: 201 });

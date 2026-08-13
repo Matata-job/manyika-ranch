@@ -139,6 +139,21 @@ enum ExpenseCategory {
   OTHER
 }
 
+/** Operating cash vs project/donor capital. Project never hits animal unit cost. */
+enum ExpenseFundingSource {
+  OPERATING
+  PROJECT
+}
+
+/** Who shares an operating expense. NONE = do not allocate to animals. */
+enum ExpenseAllocGroup {
+  NONE
+  ALL_ACTIVE
+  SELL_NEXT_CYCLE
+  KEEP_BREEDING
+  KULIMA
+}
+
 enum OtherIncomeCategory {
   GRAZING_FEES
   MANURE
@@ -338,6 +353,8 @@ model Animal {
   status           AnimalStatus    @default(ACTIVE)
   acquisitionType  AcquisitionType @default(BORN_ON_FARM)
   acquisitionDate  DateTime?
+  /** Cash paid for a purchased animal (TZS). Not used for farm-born. */
+  purchasePriceTzs Float?
   colorMarkings    String?
   /** Plastic eartag colour override; else year / camp colour */
   tagColor         String?
@@ -419,12 +436,15 @@ model HealthRecord {
   date        DateTime   @default(now())
   type        HealthType
   diagnosis   String?
+  /** Short action note on the case — not a structured Treatment dose */
   treatment   String?
   outcome     String?
   vetId       String?
   vet         User?      @relation(fields: [vetId], references: [id])
   notes       String?
   createdAt   DateTime   @default(now())
+  linkedTreatments Treatment[]
+  linkedVaccinations Vaccination[]
 
   @@index([animalId, date])
 }
@@ -446,6 +466,9 @@ model Vaccination {
   animal          Animal          @relation(fields: [animalId], references: [id], onDelete: Cascade)
   vaccineCatalogId String?
   vaccineCatalog  VaccineCatalog? @relation(fields: [vaccineCatalogId], references: [id])
+  /** Optional link to a clinical note (illness/injury case) */
+  healthRecordId  String?
+  healthRecord    HealthRecord?   @relation(fields: [healthRecordId], references: [id], onDelete: SetNull)
   vaccineName     String
   batchNo         String?
   date            DateTime        @default(now())
@@ -453,10 +476,13 @@ model Vaccination {
   administeredById String
   administeredBy  User            @relation(fields: [administeredById], references: [id])
   notes           String?
+  /** Cash cost of this dose (TZS) */
+  costTzs         Float?
   createdAt       DateTime        @default(now())
 
   @@index([animalId, date])
   @@index([nextDue])
+  @@index([healthRecordId])
 }
 
 model TreatmentCatalog {
@@ -477,6 +503,9 @@ model Treatment {
   animal             Animal            @relation(fields: [animalId], references: [id], onDelete: Cascade)
   treatmentCatalogId String?
   treatmentCatalog   TreatmentCatalog? @relation(fields: [treatmentCatalogId], references: [id])
+  /** Optional link to a clinical note (illness/injury case) */
+  healthRecordId     String?
+  healthRecord       HealthRecord?     @relation(fields: [healthRecordId], references: [id], onDelete: SetNull)
   date               DateTime          @default(now())
   type               TreatmentType
   product            String
@@ -486,10 +515,13 @@ model Treatment {
   administeredById   String
   administeredBy     User              @relation(fields: [administeredById], references: [id])
   notes              String?
+  /** Cash cost of this dose (TZS). Bulk records split a total across animals. */
+  costTzs            Float?
   createdAt          DateTime          @default(now())
 
   @@index([animalId, date])
   @@index([nextDue])
+  @@index([healthRecordId])
 }
 
 model BreedingEvent {
@@ -607,6 +639,9 @@ model Expense {
   description  String?
   campId       String?
   camp         Camp?           @relation(fields: [campId], references: [id], onDelete: SetNull)
+  fundingSource ExpenseFundingSource @default(OPERATING)
+  /** Animals that share this cost. PROJECT is always NONE. FEED defaults to ALL_ACTIVE. */
+  allocGroup    ExpenseAllocGroup    @default(NONE)
   recordedById String
   recordedBy   User            @relation(fields: [recordedById], references: [id])
   notes        String?
@@ -616,6 +651,7 @@ model Expense {
   @@index([ranchId, date])
   @@index([category])
   @@index([campId])
+  @@index([fundingSource])
 }
 
 model OtherIncome {
