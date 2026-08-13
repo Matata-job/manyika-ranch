@@ -908,6 +908,7 @@ const en = {
   saleCyclePriority: "Sell next cycle",
   saleCyclePriorityHelp:
     "Animals with herd plan “Sell next cycle” — sell these first.",
+  saleCyclePriorityCollapsedHelp: "Tap to show the list",
   noMarkedForSale: "No animals planned for sell next cycle.",
   bulkSellMarked: "Bulk sell next cycle ({n})",
   onlyMarkedForSale: "Only sell-next-cycle animals",
@@ -2231,6 +2232,7 @@ const sw: Dict = {
   saleCyclePriority: "Uza mzunguko ujao",
   saleCyclePriorityHelp:
     "Wanyama wenye mpango “Uza mzunguko ujao” — wauze hawa kwanza.",
+  saleCyclePriorityCollapsedHelp: "Gusa kuona orodha",
   noMarkedForSale: "Hakuna wanyama walio na mpango wa kuuza mzunguko ujao.",
   bulkSellMarked: "Uza kwa wingi mzunguko ujao ({n})",
   onlyMarkedForSale: "Wanyama wa kuuza mzunguko ujao tu",

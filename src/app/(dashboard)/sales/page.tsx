@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { formatDate, formatCurrency, cn } from "@/lib/utils";
 import {
+  ChevronDown,
   Columns3,
   Download,
   Plus,
@@ -135,6 +136,7 @@ export default function SalesPage() {
 
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [columnsOpen, setColumnsOpen] = useState(false);
+  const [priorityOpen, setPriorityOpen] = useState(false);
   const [visibleCols, setVisibleCols] = useState<SalesColumnId[]>(
     DEFAULT_VISIBLE_SAFE
   );
@@ -400,96 +402,66 @@ export default function SalesPage() {
         </div>
       </div>
 
-      <Card className="border-border/70 shadow-sm overflow-hidden">
-        <CardHeader className="border-b border-border/60 bg-muted/20 pb-3">
-          <CardTitle className="text-base">{t("saleCyclePriority")}</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {t("saleCyclePriorityHelp")}
-          </p>
-        </CardHeader>
-        <CardContent className="pt-4">
-          {prioritySale.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("noMarkedForSale")}</p>
-          ) : (
-            <ul className="divide-y divide-border/50 rounded-xl border border-border/60 overflow-hidden">
-              {prioritySale.map((a) => (
-                <li
-                  key={a.id}
-                  className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/30 transition-colors"
-                >
-                  <div className="min-w-0">
-                    <Link
-                      href={`/animals/${a.id}`}
-                      className="font-semibold text-primary hover:underline"
-                    >
-                      {a.eartag}
-                    </Link>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {a.breed} ·{" "}
-                      {a.sex === "FEMALE" ? t("female") : t("male")} ·{" "}
-                      {a.camp?.name}
-                      {a.herdPlanNote ? ` · ${a.herdPlanNote}` : ""}
-                    </p>
-                  </div>
-                  <Badge variant="warning">{t("herdPlanSellNextCycle")}</Badge>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="space-y-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/70" />
-            <Input
-              className="h-11 rounded-xl border-border/80 bg-card pl-9 shadow-sm"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder={t("searchEartag")}
-            />
-          </div>
-          <div className="flex gap-2 shrink-0">
-            <Button
-              type="button"
-              variant="outline"
-              className={cn(
-                "h-11 px-4 rounded-xl border-border/80 bg-card shadow-sm relative",
-                advancedCount > 0 && "border-primary/40 text-foreground"
-              )}
-              onClick={() => setFiltersOpen(true)}
-            >
-              <SlidersHorizontal className="h-4 w-4 mr-1.5" />
-              {t("advancedFilters")}
-              {advancedCount > 0 && (
-                <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-foreground px-1.5 text-[10px] font-semibold text-background">
-                  {advancedCount}
-                </span>
-              )}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 px-4 rounded-xl border-border/80 bg-card shadow-sm"
-              onClick={() => setColumnsOpen(true)}
-            >
-              <Columns3 className="h-4 w-4 mr-1.5" />
-              {t("customizeColumns")}
-            </Button>
-            {hasActiveFilters && (
-              <Button
-                type="button"
-                variant="ghost"
-                className="h-11 rounded-xl"
-                onClick={clearFilters}
-              >
-                <X className="h-4 w-4 mr-1" />
-                {t("clearFilters")}
-              </Button>
+      <div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
+        <button
+          type="button"
+          onClick={() => setPriorityOpen((o) => !o)}
+          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
+          aria-expanded={priorityOpen}
+        >
+          <div className="min-w-0 flex items-center gap-2 flex-wrap">
+            <span className="font-semibold">{t("saleCyclePriority")}</span>
+            <Badge variant="secondary">{prioritySale.length}</Badge>
+            {!priorityOpen && prioritySale.length > 0 && (
+              <span className="text-xs text-muted-foreground truncate">
+                {t("saleCyclePriorityCollapsedHelp")}
+              </span>
             )}
           </div>
-        </div>
+          <ChevronDown
+            className={cn(
+              "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
+              priorityOpen && "rotate-180"
+            )}
+          />
+        </button>
+        {priorityOpen && (
+          <div className="border-t border-border/60 px-4 py-3 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {t("saleCyclePriorityHelp")}
+            </p>
+            {prioritySale.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {t("noMarkedForSale")}
+              </p>
+            ) : (
+              <ul className="divide-y divide-border/50 rounded-xl border border-border/60 overflow-hidden">
+                {prioritySale.map((a) => (
+                  <li
+                    key={a.id}
+                    className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/30 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <Link
+                        href={`/animals/${a.id}`}
+                        className="font-semibold text-primary hover:underline"
+                      >
+                        {a.eartag}
+                      </Link>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {a.breed} ·{" "}
+                        {a.sex === "FEMALE" ? t("female") : t("male")} ·{" "}
+                        {a.camp?.name}
+                        {a.herdPlanNote ? ` · ${a.herdPlanNote}` : ""}
+                      </p>
+                    </div>
+                    <Badge variant="warning">{t("herdPlanSellNextCycle")}</Badge>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Filter drawer */}
@@ -946,7 +918,59 @@ export default function SalesPage() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
+      <div className="space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/70" />
+            <Input
+              className="h-11 rounded-xl border-border/80 bg-card pl-9 shadow-sm"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={t("searchEartag")}
+            />
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              className={cn(
+                "h-11 px-4 rounded-xl border-border/80 bg-card shadow-sm relative",
+                advancedCount > 0 && "border-primary/40 text-foreground"
+              )}
+              onClick={() => setFiltersOpen(true)}
+            >
+              <SlidersHorizontal className="h-4 w-4 mr-1.5" />
+              {t("advancedFilters")}
+              {advancedCount > 0 && (
+                <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-foreground px-1.5 text-[10px] font-semibold text-background">
+                  {advancedCount}
+                </span>
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 px-4 rounded-xl border-border/80 bg-card shadow-sm"
+              onClick={() => setColumnsOpen(true)}
+            >
+              <Columns3 className="h-4 w-4 mr-1.5" />
+              {t("customizeColumns")}
+            </Button>
+            {hasActiveFilters && (
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-11 rounded-xl"
+                onClick={clearFilters}
+              >
+                <X className="h-4 w-4 mr-1" />
+                {t("clearFilters")}
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 bg-muted/20 px-4 py-3">
           <div className="flex items-center gap-2 min-w-0 flex-wrap">
             <h2 className="font-semibold">{t("saleRecords")}</h2>
@@ -1250,6 +1274,7 @@ export default function SalesPage() {
             </ul>
           </>
         )}
+      </div>
       </div>
     </div>
   );
