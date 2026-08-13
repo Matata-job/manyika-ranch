@@ -3,8 +3,7 @@ import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/api-guard";
 import {
-  DISPOSAL_METHODS,
-  type DisposalMethodCode,
+  isKnownDisposalFormValue,
 } from "@/lib/death-causes";
 import {
   getCustomMortalityPresets,
@@ -19,8 +18,8 @@ function normalizeLabel(label: string): string | null {
   return trimmed;
 }
 
-function isValidDisposal(value: string): value is DisposalMethodCode {
-  return DISPOSAL_METHODS.includes(value as DisposalMethodCode);
+function isValidDisposal(value: string): boolean {
+  return isKnownDisposalFormValue(value);
 }
 
 async function readCustomPresets(ranchId: string): Promise<CustomMortalityPreset[]> {

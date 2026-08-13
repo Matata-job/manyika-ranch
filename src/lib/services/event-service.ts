@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import type { AnimalEventType, Prisma } from "@prisma/client";
+import { formatMortalityEventDescription } from "@/lib/death-causes";
 
 function toInputJson(
   metadata?: Record<string, unknown> | null
@@ -177,16 +178,16 @@ export async function backfillMissingRanchEvents(
       animalId: death.animalId,
       type,
       title: death.isCulling
-        ? `Culled: ${death.animal.eartag}`
+        ? `Slaughtered: ${death.animal.eartag}`
         : `Death recorded: ${death.animal.eartag}`,
-      description: [
-        `Cause: ${death.cause}`,
-        death.causeDetail,
-        `Disposal: ${death.disposalMethod}`,
-        "backfilled",
-      ]
-        .filter(Boolean)
-        .join(" · "),
+      description: formatMortalityEventDescription({
+        cause: death.cause,
+        causeDetail: death.causeDetail,
+        disposalMethod: death.disposalMethod,
+        disposalNotes: death.disposalNotes,
+        isCulling: death.isCulling,
+        extra: ["backfilled"],
+      }),
       occurredAt: death.date,
       recordedById: death.recordedById,
       metadata: {

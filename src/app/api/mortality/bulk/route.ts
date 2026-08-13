@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePermission, buildAnimalScope } from "@/lib/auth/api-guard";
 import { createAuditLog } from "@/lib/services/animal-service";
+import { formatMortalityEventDescription } from "@/lib/death-causes";
 import type { DeathCause, DisposalMethod, Role } from "@prisma/client";
 
 const CAUSES: DeathCause[] = [
@@ -166,16 +167,16 @@ export async function POST(req: NextRequest) {
       animalId: a.id,
       type: isCulling ? ("CULLING" as const) : ("DEATH" as const),
       title: isCulling
-        ? `Culled: ${a.eartag}`
+        ? `Slaughtered: ${a.eartag}`
         : `Death recorded: ${a.eartag}`,
-      description: [
-        `Cause: ${cause}`,
+      description: formatMortalityEventDescription({
+        cause,
         causeDetail,
-        `Disposal: ${disposalMethod}`,
-        "bulk",
-      ]
-        .filter(Boolean)
-        .join(" · "),
+        disposalMethod,
+        disposalNotes,
+        isCulling,
+        extra: ["bulk"],
+      }),
       occurredAt: date,
       recordedById: result.user.id,
       metadata: {

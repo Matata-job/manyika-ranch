@@ -49,19 +49,25 @@ export async function GET(req: NextRequest) {
     },
   });
 
+  const cullings = records.filter((r) => r.isCulling).length;
+  const deaths = records.length - cullings;
+  const insuranceClaims = records.filter((r) => r.insuranceClaim).length;
+
   const byCause = records.reduce(
     (acc, r) => {
-      acc[r.cause] = (acc[r.cause] || 0) + 1;
+      const key =
+        r.cause === "OTHER" && r.causeDetail?.trim()
+          ? r.causeDetail.trim()
+          : r.cause;
+      acc[key] = (acc[key] || 0) + 1;
       return acc;
     },
     {} as Record<string, number>
   );
 
-  const cullings = records.filter((r) => r.isCulling).length;
-  const insuranceClaims = records.filter((r) => r.insuranceClaim).length;
-
   return NextResponse.json({
     total: records.length,
+    deaths,
     cullings,
     insuranceClaims,
     byCause,

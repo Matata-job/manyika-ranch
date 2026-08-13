@@ -21,6 +21,7 @@ import { AnimalActivityPicker } from "@/components/animals/animal-activity-picke
 import type { PickerAnimal } from "@/components/animals/animal-activity-picker";
 import { SelectedAnimalsList } from "@/components/animals/selected-animals-list";
 import { DeathCausePicker } from "@/components/animals/death-cause-picker";
+import { DisposalMethodPicker } from "@/components/animals/disposal-method-picker";
 import {
   MortalitySetupPanel,
   buildMortalityPresetOptions,
@@ -31,9 +32,8 @@ import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 import {
   deathCauseKey,
-  DISPOSAL_METHODS,
-  disposalMethodKey,
   parseDeathCauseFormValue,
+  parseDisposalFormValue,
 } from "@/lib/death-causes";
 
 export default function DeadAnimalRecordPage() {
@@ -86,7 +86,7 @@ export default function DeadAnimalRecordPage() {
       setCauseValue,
       setDisposalMethod: (v) => setForm((f) => ({ ...f, disposalMethod: v })),
       setIsCulling,
-    });
+    }, causeValue);
   }
 
   function clearPreset() {
@@ -100,6 +100,7 @@ export default function DeadAnimalRecordPage() {
       return;
     }
     const parsed = parseDeathCauseFormValue(causeValue);
+    const parsedDisposal = parseDisposalFormValue(form.disposalMethod);
     const causeLabel =
       parsed.cause === "OTHER" && parsed.causeDetail
         ? parsed.causeDetail
@@ -115,8 +116,7 @@ export default function DeadAnimalRecordPage() {
       return;
     }
 
-    const submitCulling =
-      isCulling || parsed.isCulling || parsed.cause === "CULLING";
+    const submitCulling = isCulling || parsed.isCulling;
 
     setSaving(true);
     setResult(null);
@@ -129,8 +129,9 @@ export default function DeadAnimalRecordPage() {
         cause: parsed.cause,
         causeDetail:
           parsed.causeDetail || form.causeDetail.trim() || null,
-        disposalMethod: form.disposalMethod,
-        disposalNotes: form.disposalNotes || null,
+        disposalMethod: parsedDisposal.method,
+        disposalNotes:
+          parsedDisposal.disposalNotes || form.disposalNotes.trim() || null,
         location: form.location || null,
         notes: form.notes || null,
         isCulling: submitCulling,
@@ -286,27 +287,14 @@ export default function DeadAnimalRecordPage() {
             )}
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>{t("disposal")} *</Label>
-                <Select
-                  value={form.disposalMethod}
-                  onValueChange={(v) => {
-                    clearPreset();
-                    setForm({ ...form, disposalMethod: v });
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DISPOSAL_METHODS.map((d) => (
-                      <SelectItem key={d} value={d}>
-                        {t(disposalMethodKey(d))}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <DisposalMethodPicker
+                key={`disposal-${setupVersion}`}
+                value={form.disposalMethod}
+                onChange={(v) => {
+                  clearPreset();
+                  setForm((f) => ({ ...f, disposalMethod: v }));
+                }}
+              />
               <div className="space-y-2">
                 <Label>{t("date")}</Label>
                 <Input

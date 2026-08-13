@@ -40,13 +40,16 @@ import { PhotoSourcePicker } from "@/components/photo-source-picker";
 import { useObjectUrls } from "@/hooks/use-object-urls";
 import { uploadPhotoFile } from "@/lib/client/upload-photo";
 import { DeathCausePicker } from "@/components/animals/death-cause-picker";
+import { DisposalMethodPicker } from "@/components/animals/disposal-method-picker";
 import { ChoicePills } from "@/components/choice-pills";
 import {
+  animalEventTypeLabelKey,
   deathCauseFormValue,
   deathCauseKey,
-  DISPOSAL_METHODS,
+  disposalFormValue,
   disposalMethodKey,
   parseDeathCauseFormValue,
+  parseDisposalFormValue,
 } from "@/lib/death-causes";
 
 interface AnimalEvent {
@@ -146,8 +149,6 @@ interface AnimalDetail {
   sales: SaleRecord[];
   photos: AnimalPhoto[];
 }
-
-const DISPOSAL_METHODS_LOCAL = DISPOSAL_METHODS;
 
 function treatmentTypeKey(type: string): TranslationKey {
   switch (type) {
@@ -761,7 +762,10 @@ export default function AnimalDetailPage() {
       date: record.date ? record.date.slice(0, 10) : "",
       cause: record.cause || "UNKNOWN",
       causeDetail: record.causeDetail || "",
-      disposalMethod: record.disposalMethod || "BURIED",
+      disposalMethod: disposalFormValue(
+        record.disposalMethod,
+        record.disposalNotes
+      ),
       disposalNotes: record.disposalNotes || "",
       location: record.location || "",
       weightKg: record.weightKg != null ? String(record.weightKg) : "",
@@ -778,6 +782,7 @@ export default function AnimalDetailPage() {
 
   function deathPayload() {
     const parsed = parseDeathCauseFormValue(deathCauseValue);
+    const parsedDisposal = parseDisposalFormValue(deathForm.disposalMethod);
     return {
       ...deathForm,
       cause: parsed.cause,
@@ -785,6 +790,9 @@ export default function AnimalDetailPage() {
         parsed.causeDetail ||
         (parsed.cause === "OTHER" ? deathForm.causeDetail : deathForm.causeDetail) ||
         null,
+      disposalMethod: parsedDisposal.method,
+      disposalNotes:
+        parsedDisposal.disposalNotes || deathForm.disposalNotes || null,
       date: deathForm.date || undefined,
       weightKg: deathForm.weightKg || null,
       claimAmountTzs: deathForm.claimAmountTzs || null,
@@ -1409,7 +1417,7 @@ export default function AnimalDetailPage() {
                       </Badge>
                     )}
                     {animal.deathRecord?.isCulling && (
-                      <Badge variant="warning">{t("causeCulling")}</Badge>
+                      <Badge variant="warning">{t("recordKindSlaughter")}</Badge>
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground">
@@ -1533,7 +1541,11 @@ export default function AnimalDetailPage() {
                   {animal.events.map((ev) => (
                     <div key={ev.id} className="border-l-2 border-primary/30 pl-4 pb-3">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <Badge variant="outline">{ev.type.replace(/_/g, " ")}</Badge>
+                        <Badge variant="outline">
+                          {animalEventTypeLabelKey(ev.type)
+                            ? t(animalEventTypeLabelKey(ev.type)!)
+                            : ev.type.replace(/_/g, " ")}
+                        </Badge>
                         <span className="font-medium">{ev.title}</span>
                       </div>
                       {ev.description && <p className="text-sm text-muted-foreground mt-1">{ev.description}</p>}
@@ -2286,6 +2298,14 @@ export default function AnimalDetailPage() {
                   )}
                   <div><span className="text-muted-foreground">{t("date")}</span><p className="font-medium">{formatDate(animal.deathRecord.date)}</p></div>
                   <div>
+                    <span className="text-muted-foreground">{t("mortalityKind")}</span>
+                    <p className="font-medium">
+                      {animal.deathRecord.isCulling
+                        ? t("recordKindSlaughter")
+                        : t("recordKindDeath")}
+                    </p>
+                  </div>
+                  <div>
                     <span className="text-muted-foreground">{t("cause")}</span>
                     <p className="font-medium">
                       {animal.deathRecord.cause === "OTHER" &&
@@ -2294,7 +2314,7 @@ export default function AnimalDetailPage() {
                         : t(deathCauseKey(animal.deathRecord.cause))}
                     </p>
                   </div>
-                  <div><span className="text-muted-foreground">{t("disposal")}</span><p className="font-medium">{t(disposalMethodKey(animal.deathRecord.disposalMethod))}</p></div>
+                  <div><span className="text-muted-foreground">{t("disposal")}</span><p className="font-medium">{animal.deathRecord.disposalMethod === "OTHER" && animal.deathRecord.disposalNotes ? animal.deathRecord.disposalNotes : t(disposalMethodKey(animal.deathRecord.disposalMethod))}</p></div>
                   <div><span className="text-muted-foreground">{t("recordedBy")}</span><p className="font-medium">{animal.deathRecord.recordedBy.name}</p></div>
                   {animal.deathRecord.causeDetail &&
                     animal.deathRecord.cause !== "OTHER" && (
@@ -2368,14 +2388,15 @@ export default function AnimalDetailPage() {
                       className="sm:col-span-2"
                     />
                   )}
-                  <Select value={deathForm.disposalMethod} onValueChange={(v) => setDeathForm({ ...deathForm, disposalMethod: v })}>
-                    <SelectTrigger><SelectValue placeholder={t("disposal")} /></SelectTrigger>
-                    <SelectContent>
-                      {DISPOSAL_METHODS_LOCAL.map((m) => (
-                        <SelectItem key={m} value={m}>{t(disposalMethodKey(m))}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="sm:col-span-2">
+                    <DisposalMethodPicker
+                      value={deathForm.disposalMethod}
+                      onChange={(v) =>
+                        setDeathForm({ ...deathForm, disposalMethod: v })
+                      }
+                      disabled={savingDeath}
+                    />
+                  </div>
                   <Input placeholder={t("location")} value={deathForm.location} onChange={(e) => setDeathForm({ ...deathForm, location: e.target.value })} />
                   <Input type="number" placeholder={t("weightAtDeath")} value={deathForm.weightKg} onChange={(e) => setDeathForm({ ...deathForm, weightKg: e.target.value })} />
                   <Input placeholder={t("disposalNotes")} value={deathForm.disposalNotes} onChange={(e) => setDeathForm({ ...deathForm, disposalNotes: e.target.value })} />

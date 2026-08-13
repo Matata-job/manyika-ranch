@@ -6,6 +6,7 @@ import {
 } from "@/lib/auth/api-guard";
 import { createAuditLog } from "@/lib/services/animal-service";
 import { logAnimalEvent } from "@/lib/services/event-service";
+import { formatMortalityEventDescription } from "@/lib/death-causes";
 
 export async function GET(
   _req: NextRequest,
@@ -114,16 +115,16 @@ export async function POST(
     animalId: id,
     type: isCulling ? "CULLING" : "DEATH",
     title: isCulling
-      ? `Culled: ${animal.eartag}`
+      ? `Slaughtered: ${animal.eartag}`
       : `Death recorded: ${animal.eartag}`,
-    description: [
-      `Cause: ${record.cause}`,
-      record.causeDetail,
-      `Disposal: ${record.disposalMethod}`,
-      photoUrl ? "Photo with eartag attached" : null,
-    ]
-      .filter(Boolean)
-      .join(" · "),
+    description: formatMortalityEventDescription({
+      cause: record.cause,
+      causeDetail: record.causeDetail,
+      disposalMethod: record.disposalMethod,
+      disposalNotes: record.disposalNotes,
+      isCulling,
+      extra: [photoUrl ? "Photo with eartag attached" : null],
+    }),
     occurredAt: date,
     recordedById: result.user.id,
     metadata: {

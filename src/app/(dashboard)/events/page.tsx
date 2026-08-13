@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatDate } from "@/lib/utils";
 import { useT } from "@/components/providers/locale-provider";
+import { animalEventTypeLabelKey } from "@/lib/death-causes";
 import {
   DEFAULT_PAGE_SIZE,
   ListPagination,
@@ -119,7 +120,9 @@ export default function EventsPage() {
                 <SelectItem value="all">All types</SelectItem>
                 {EVENT_TYPES.map((ev) => (
                   <SelectItem key={ev} value={ev}>
-                    {ev.replace(/_/g, " ")}
+                    {animalEventTypeLabelKey(ev)
+                      ? t(animalEventTypeLabelKey(ev)!)
+                      : ev.replace(/_/g, " ")}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -198,7 +201,11 @@ export default function EventsPage() {
               {events.map((ev) => (
                 <div key={ev.id} className="border-b pb-3">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline">{ev.type.replace(/_/g, " ")}</Badge>
+                    <Badge variant="outline">
+                      {animalEventTypeLabelKey(ev.type)
+                        ? t(animalEventTypeLabelKey(ev.type)!)
+                        : ev.type.replace(/_/g, " ")}
+                    </Badge>
                     <Link
                       href={`/animals/${ev.animal.id}`}
                       className="font-medium text-primary hover:underline"

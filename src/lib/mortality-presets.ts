@@ -1,5 +1,8 @@
 import type { TranslationKey } from "@/lib/i18n/translations";
-import type { DisposalMethodCode } from "@/lib/death-causes";
+import {
+  isKnownDisposalFormValue,
+  type DisposalMethodCode,
+} from "@/lib/death-causes";
 
 export type MortalityPresetConfig = {
   id: string;
@@ -48,7 +51,8 @@ export type CustomMortalityPreset = {
   id: string;
   label: string;
   causeValue?: string;
-  disposalMethod: DisposalMethodCode;
+  /** System enum or `custom:name`. */
+  disposalMethod: string;
   isCulling: boolean;
 };
 
@@ -63,6 +67,7 @@ export function getCustomMortalityPresets(settings: unknown): CustomMortalityPre
     const label = typeof row.label === "string" ? row.label.trim() : "";
     const disposalMethod = row.disposalMethod;
     if (!id || !label || typeof disposalMethod !== "string") continue;
+    if (!isKnownDisposalFormValue(disposalMethod)) continue;
     out.push({
       id,
       label,
@@ -70,7 +75,7 @@ export function getCustomMortalityPresets(settings: unknown): CustomMortalityPre
         typeof row.causeValue === "string" && row.causeValue
           ? row.causeValue
           : undefined,
-      disposalMethod: disposalMethod as DisposalMethodCode,
+      disposalMethod,
       isCulling: Boolean(row.isCulling),
     });
   }
@@ -84,4 +89,20 @@ export function findPresetById(
   const system = SYSTEM_MORTALITY_PRESETS.find((p) => p.id === id);
   if (system) return system;
   return custom.find((p) => p.id === id) ?? null;
+}
+
+export function remapCustomPresets(
+  presets: CustomMortalityPreset[],
+  field: "causeValue" | "disposalMethod",
+  oldValue: string,
+  newValue: string | null
+): CustomMortalityPreset[] {
+  return presets.map((p) => {
+    if (p[field] !== oldValue) return p;
+    if (field === "causeValue") {
+      return { ...p, causeValue: newValue || undefined };
+    }
+    if (!newValue) return p;
+    return { ...p, disposalMethod: newValue };
+  });
 }

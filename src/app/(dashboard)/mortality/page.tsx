@@ -8,13 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
 import { useT } from "@/components/providers/locale-provider";
-import { disposalMethodKey } from "@/lib/death-causes";
+import { deathCauseKey, disposalMethodKey, SYSTEM_DEATH_CAUSES } from "@/lib/death-causes";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 
 interface MortalityReport {
   total: number;
+  deaths: number;
   cullings: number;
   insuranceClaims: number;
   byCause: Record<string, number>;
@@ -22,7 +23,9 @@ interface MortalityReport {
     id: string;
     date: string;
     cause: string;
+    causeDetail: string | null;
     disposalMethod: string;
+    disposalNotes: string | null;
     isCulling: boolean;
     insuranceClaim: boolean;
     claimAmountTzs: number | null;
@@ -35,6 +38,25 @@ interface MortalityReport {
     };
     recordedBy: { name: string };
   }[];
+}
+
+function causeGroupLabel(
+  key: string,
+  t: (key: TranslationKey) => string
+): string {
+  if ((SYSTEM_DEATH_CAUSES as readonly string[]).includes(key)) {
+    return t(deathCauseKey(key));
+  }
+  return key;
+}
+
+function disposalLabel(
+  method: string,
+  notes: string | null,
+  t: (key: TranslationKey) => string
+): string {
+  if (method === "OTHER" && notes?.trim()) return notes.trim();
+  return t(disposalMethodKey(method));
 }
 
 export default function MortalityPage() {
@@ -67,26 +89,40 @@ export default function MortalityPage() {
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Total Deaths</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold">{data?.total ?? "—"}</p></CardContent>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">{t("mortalityDeaths")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{data?.deaths ?? "—"}</p>
+          </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Cullings</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold">{data?.cullings ?? "—"}</p></CardContent>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">{t("mortalitySlaughters")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{data?.cullings ?? "—"}</p>
+          </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Insurance Claims</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold">{data?.insuranceClaims ?? "—"}</p></CardContent>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">{t("insuranceClaim")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{data?.insuranceClaims ?? "—"}</p>
+          </CardContent>
         </Card>
       </div>
 
       {data && Object.keys(data.byCause).length > 0 && (
         <Card>
-          <CardHeader><CardTitle>By Cause</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>{t("byCause")}</CardTitle>
+          </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
             {Object.entries(data.byCause).map(([cause, count]) => (
               <Badge key={cause} variant="secondary">
-                {cause.replace(/_/g, " ")}: {count}
+                {causeGroupLabel(cause, t)}: {count}
               </Badge>
             ))}
           </CardContent>
@@ -94,7 +130,9 @@ export default function MortalityPage() {
       )}
 
       <Card>
-        <CardHeader><CardTitle>Death Records</CardTitle></CardHeader>
+        <CardHeader>
+            <CardTitle>{t("mortalityTitle")}</CardTitle>
+        </CardHeader>
         <CardContent>
           {!data?.records?.length ? (
             <p className="text-sm text-muted-foreground">{t("noMortality")}</p>
@@ -103,12 +141,13 @@ export default function MortalityPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="p-3 text-left">Date</th>
-                    <th className="p-3 text-left">Animal</th>
-                    <th className="p-3 text-left">Camp</th>
-                    <th className="p-3 text-left">Cause</th>
-                    <th className="p-3 text-left">Disposal</th>
-                    <th className="p-3 text-left">Flags</th>
+                    <th className="p-3 text-left">{t("date")}</th>
+                    <th className="p-3 text-left">{t("animal")}</th>
+                    <th className="p-3 text-left">{t("camp")}</th>
+                    <th className="p-3 text-left">{t("mortalityKind")}</th>
+                    <th className="p-3 text-left">{t("cause")}</th>
+                    <th className="p-3 text-left">{t("disposal")}</th>
+                    <th className="p-3 text-left">{t("insuranceClaim")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -116,19 +155,39 @@ export default function MortalityPage() {
                     <tr key={r.id} className="border-b">
                       <td className="p-3">{formatDate(r.date)}</td>
                       <td className="p-3">
-                        <Link href={`/animals/${r.animal.id}`} className="text-primary hover:underline font-medium">
+                        <Link
+                          href={`/animals/${r.animal.id}`}
+                          className="text-primary hover:underline font-medium"
+                        >
                           {r.animal.eartag}
                         </Link>
-                        <p className="text-xs text-muted-foreground">{r.animal.breed} · {r.animal.sex}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {r.animal.breed} · {r.animal.sex}
+                        </p>
                       </td>
                       <td className="p-3">{r.animal.camp.name}</td>
-                      <td className="p-3">{r.cause.replace(/_/g, " ")}</td>
                       <td className="p-3">
-                        {t(disposalMethodKey(r.disposalMethod) as TranslationKey)}
+                        <Badge variant={r.isCulling ? "warning" : "secondary"}>
+                          {r.isCulling
+                            ? t("recordKindSlaughter")
+                            : t("recordKindDeath")}
+                        </Badge>
+                      </td>
+                      <td className="p-3">
+                        {causeGroupLabel(
+                          r.cause === "OTHER" && r.causeDetail
+                            ? r.causeDetail
+                            : r.cause,
+                          t
+                        )}
+                      </td>
+                      <td className="p-3">
+                        {disposalLabel(r.disposalMethod, r.disposalNotes, t)}
                       </td>
                       <td className="p-3 space-x-1">
-                        {r.isCulling && <Badge variant="warning">Cull</Badge>}
-                        {r.insuranceClaim && <Badge variant="outline">Claim</Badge>}
+                        {r.insuranceClaim && (
+                          <Badge variant="outline">{t("insuranceClaim")}</Badge>
+                        )}
                       </td>
                     </tr>
                   ))}
