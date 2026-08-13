@@ -660,6 +660,11 @@ const en = {
   noAnimalsMatch: "No animals match these filters.",
   animalsSelectedCount: "{selected}/{total} animals selected",
   selectAllOnPage: "Select all on this page",
+  selectAllMatching: "Select all {n} matching",
+  showingAnimalsRange: "Showing {from}–{to} of {total}",
+  previousPage: "Previous",
+  nextPage: "Next",
+  pageOf: "Page {page} of {total}",
   continueToActivity: "Continue to activity",
 
   // Sales
@@ -1865,6 +1870,11 @@ const sw: Dict = {
   noAnimalsMatch: "Hakuna wanyama wanaolingana na vichungi hivi.",
   animalsSelectedCount: "{selected}/{total} wanyama wamechaguliwa",
   selectAllOnPage: "Chagua wote kwenye ukurasa huu",
+  selectAllMatching: "Chagua waliolingana {n}",
+  showingAnimalsRange: "Inaonyesha {from}–{to} kati ya {total}",
+  previousPage: "Iliyotangulia",
+  nextPage: "Ifuatayo",
+  pageOf: "Ukurasa {page} kati ya {total}",
   continueToActivity: "Endelea na shughuli",
 
   salesTitle: "Mauzo",
