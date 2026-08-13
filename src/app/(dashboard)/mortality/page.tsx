@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
 import { useT } from "@/components/providers/locale-provider";
+import { disposalMethodKey } from "@/lib/death-causes";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import { hasPermission } from "@/lib/auth/rbac";
 import type { Role } from "@prisma/client";
 
@@ -121,7 +123,9 @@ export default function MortalityPage() {
                       </td>
                       <td className="p-3">{r.animal.camp.name}</td>
                       <td className="p-3">{r.cause.replace(/_/g, " ")}</td>
-                      <td className="p-3">{r.disposalMethod.replace(/_/g, " ")}</td>
+                      <td className="p-3">
+                        {t(disposalMethodKey(r.disposalMethod) as TranslationKey)}
+                      </td>
                       <td className="p-3 space-x-1">
                         {r.isCulling && <Badge variant="warning">Cull</Badge>}
                         {r.insuranceClaim && <Badge variant="outline">Claim</Badge>}

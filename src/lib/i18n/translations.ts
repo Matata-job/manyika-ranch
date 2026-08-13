@@ -627,6 +627,11 @@ const en = {
   backToSelection: "Back to selection",
   backToMortality: "Back to mortality",
   mortalityDetails: "Cause and disposal",
+  mortalityRecordType: "Record type",
+  mortalityPresetGeneral: "Death / cull",
+  mortalityPresetFamilySlaughter: "Family slaughter (home use)",
+  mortalityPresetFamilySlaughterHelp:
+    "Cull (kuchinja) for household consumption — not a sale or carcass disposal.",
   markAsCulling: "Mark as cull (kuchinja)",
   confirmBulkMortality:
     "Record {cause} for {n} animals? Status will become deceased.",
@@ -1020,6 +1025,7 @@ const en = {
   disposalBurned: "Burned",
   disposalSoldCarcass: "Sold carcass",
   disposalRemoved: "Removed",
+  disposalHomeUse: "Home use (family slaughter)",
   saleRecord: "Sale Record",
   weightAtSale: "Weight at sale",
   pricePerKg: "Price / kg",
@@ -1840,6 +1846,11 @@ const sw: Dict = {
   backToSelection: "Rudi kwenye uteuzi",
   backToMortality: "Rudi kwenye vifo",
   mortalityDetails: "Sababu na utupaji",
+  mortalityRecordType: "Aina ya rekodi",
+  mortalityPresetGeneral: "Kifo / kuchinja",
+  mortalityPresetFamilySlaughter: "Kuchinja kwa matumizi ya nyumbani",
+  mortalityPresetFamilySlaughterHelp:
+    "Kuchinja kwa matumizi ya familia — si mauzo wala utupaji wa mzoga.",
   markAsCulling: "Weka kama kuchinja",
   confirmBulkMortality:
     "Rekodi {cause} kwa wanyama {n}? Hali itakuwa wamefariki.",
@@ -2223,6 +2234,7 @@ const sw: Dict = {
   disposalBurned: "Amechomwa",
   disposalSoldCarcass: "Mzoga umeuzwa",
   disposalRemoved: "Umeondolewa",
+  disposalHomeUse: "Matumizi ya nyumbani (kuchinja kwa familia)",
   saleRecord: "Rekodi ya Mauzo",
   weightAtSale: "Uzito wakati wa mauzo",
   pricePerKg: "Bei / kg",

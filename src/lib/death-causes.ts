@@ -19,6 +19,7 @@ export const DISPOSAL_METHODS = [
   "BURNED",
   "SOLD_CARCASS",
   "REMOVED",
+  "HOME_USE",
   "OTHER",
 ] as const;
 
@@ -91,6 +92,8 @@ export function disposalMethodKey(method: string): TranslationKey {
       return "disposalSoldCarcass";
     case "REMOVED":
       return "disposalRemoved";
+    case "HOME_USE":
+      return "disposalHomeUse";
     default:
       return "other";
   }

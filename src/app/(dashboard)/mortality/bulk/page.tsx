@@ -20,6 +20,7 @@ import { AnimalActivityPicker } from "@/components/animals/animal-activity-picke
 import type { PickerAnimal } from "@/components/animals/animal-activity-picker";
 import { SelectedAnimalsList } from "@/components/animals/selected-animals-list";
 import { DeathCausePicker } from "@/components/animals/death-cause-picker";
+import { ChoicePills } from "@/components/choice-pills";
 import { SuccessDialog } from "@/components/success-dialog";
 import {
   deathCauseKey,
@@ -28,6 +29,8 @@ import {
   parseDeathCauseFormValue,
 } from "@/lib/death-causes";
 
+type MortalityPreset = "general" | "family_slaughter";
+
 export default function DeadAnimalRecordPage() {
   const t = useT();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -35,6 +38,7 @@ export default function DeadAnimalRecordPage() {
     new Map()
   );
   const [saving, setSaving] = useState(false);
+  const [preset, setPreset] = useState<MortalityPreset>("general");
   const [causeValue, setCauseValue] = useState("CULLING");
   const [form, setForm] = useState({
     date: "",
@@ -60,6 +64,23 @@ export default function DeadAnimalRecordPage() {
       animals.forEach((a) => next.set(a.id, a));
       return next;
     });
+  }
+
+  function applyPreset(next: MortalityPreset) {
+    setPreset(next);
+    if (next === "family_slaughter") {
+      setCauseValue("CULLING");
+      setForm((f) => ({
+        ...f,
+        disposalMethod: "HOME_USE",
+        isCulling: true,
+      }));
+      return;
+    }
+    setForm((f) => ({
+      ...f,
+      disposalMethod: f.disposalMethod === "HOME_USE" ? "BURIED" : f.disposalMethod,
+    }));
   }
 
   async function submit(e: React.FormEvent) {
@@ -122,6 +143,7 @@ export default function DeadAnimalRecordPage() {
     });
     setSelected(new Set());
     setCauseValue("CULLING");
+    setPreset("general");
     setForm({
       date: "",
       causeDetail: "",
@@ -202,6 +224,28 @@ export default function DeadAnimalRecordPage() {
         <CardContent>
           <SelectedAnimalsList selected={selected} animalById={animalById} />
           <form onSubmit={submit} className="space-y-4 max-w-2xl mt-4">
+              <div className="space-y-2">
+                <Label>{t("mortalityRecordType")}</Label>
+                <ChoicePills<MortalityPreset>
+                  value={preset}
+                  onChange={applyPreset}
+                  options={[
+                    {
+                      value: "general",
+                      label: t("mortalityPresetGeneral"),
+                    },
+                    {
+                      value: "family_slaughter",
+                      label: t("mortalityPresetFamilySlaughter"),
+                    },
+                  ]}
+                />
+                {preset === "family_slaughter" && (
+                  <p className="text-xs text-muted-foreground">
+                    {t("mortalityPresetFamilySlaughterHelp")}
+                  </p>
+                )}
+              </div>
               <DeathCausePicker
                 value={causeValue}
                 onChange={(v, meta) => {
