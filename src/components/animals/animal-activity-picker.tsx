@@ -56,11 +56,13 @@ type Props = {
   statusFilterDefault?: string;
   onContinue?: () => void;
   continueLabel?: string;
-  /** Animals shown per page; 0 disables pagination */
+  /** Animals shown per page; 0 = show all in a scrollable list */
   pageSize?: number;
+  /** Called when the filtered animal list updates */
+  onAnimalsLoaded?: (animals: PickerAnimal[]) => void;
 };
 
-const DEFAULT_PAGE_SIZE = 15;
+const DEFAULT_PAGE_SIZE = 0;
 
 export function AnimalActivityPicker({
   selected,
@@ -70,6 +72,7 @@ export function AnimalActivityPicker({
   onContinue,
   continueLabel,
   pageSize = DEFAULT_PAGE_SIZE,
+  onAnimalsLoaded,
 }: Props) {
   const t = useT();
   const locale = useLocale().locale;
@@ -156,6 +159,7 @@ export function AnimalActivityPicker({
     setAnimals(list);
     setPage(0);
     setLoading(false);
+    onAnimalsLoaded?.(list);
   }, [
     camp,
     sex,
@@ -167,6 +171,7 @@ export function AnimalActivityPicker({
     statusFilterDefault,
     defaultTagColor,
     yearColors,
+    onAnimalsLoaded,
   ]);
 
   useEffect(() => {
@@ -207,19 +212,16 @@ export function AnimalActivityPicker({
   const allMatchingSelected =
     animals.length > 0 && animals.every((a) => selected.has(a.id));
 
-  function toggleAllPage() {
+  function toggleAllVisible() {
     const next = new Set(selected);
-    if (allPageSelected) {
-      pageAnimals.forEach((a) => next.delete(a.id));
+    const target = paginated ? pageAnimals : animals;
+    const allTargetSelected =
+      target.length > 0 && target.every((a) => selected.has(a.id));
+    if (allTargetSelected) {
+      target.forEach((a) => next.delete(a.id));
     } else {
-      pageAnimals.forEach((a) => next.add(a.id));
+      target.forEach((a) => next.add(a.id));
     }
-    onSelectedChange(next);
-  }
-
-  function selectAllMatching() {
-    const next = new Set(selected);
-    animals.forEach((a) => next.add(a.id));
     onSelectedChange(next);
   }
 
@@ -245,9 +247,29 @@ export function AnimalActivityPicker({
 
   const colVisible = (id: AnimalColumnId) => columns.includes(id);
 
+  const allVisibleSelected = paginated
+    ? allPageSelected
+    : allMatchingSelected;
+  const someVisibleSelected = paginated
+    ? somePageSelected
+    : animals.some((a) => selected.has(a.id)) && !allMatchingSelected;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <Select value={camp} onValueChange={setCamp}>
+          <SelectTrigger className="w-full lg:w-[180px]">
+            <SelectValue placeholder={t("camp")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("allCamps")}</SelectItem>
+            {camps.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -258,19 +280,6 @@ export function AnimalActivityPicker({
           />
         </div>
         <div className="flex flex-wrap gap-2">
-          <Select value={camp} onValueChange={setCamp}>
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder={t("camp")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("allCamps")}</SelectItem>
-              {camps.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
           <Button
             type="button"
             variant="outline"
@@ -368,8 +377,7 @@ export function AnimalActivityPicker({
         <div className="space-y-2">
           <div
             className={cn(
-              "rounded-lg border overflow-x-auto",
-              paginated && "max-h-[32rem] overflow-y-auto"
+              "rounded-lg border overflow-x-auto max-h-[min(24rem,50vh)] overflow-y-auto"
             )}
           >
             <table className="w-full text-sm">
@@ -378,11 +386,11 @@ export function AnimalActivityPicker({
                   <th className="p-2 w-10">
                     <input
                       type="checkbox"
-                      checked={allPageSelected}
+                      checked={allVisibleSelected}
                       ref={(el) => {
-                        if (el) el.indeterminate = somePageSelected;
+                        if (el) el.indeterminate = someVisibleSelected;
                       }}
-                      onChange={toggleAllPage}
+                      onChange={toggleAllVisible}
                       aria-label={t("selectAll")}
                     />
                   </th>
@@ -551,15 +559,19 @@ export function AnimalActivityPicker({
           <button
             type="button"
             className="text-primary hover:underline"
-            onClick={toggleAllPage}
+            onClick={toggleAllVisible}
           >
-            {t("selectAllOnPage")}
+            {paginated ? t("selectAllOnPage") : t("selectAll")}
           </button>
-          {animals.length > pageAnimals.length && (
+          {paginated && animals.length > pageAnimals.length && (
             <button
               type="button"
               className="text-primary hover:underline"
-              onClick={selectAllMatching}
+              onClick={() => {
+                const next = new Set(selected);
+                animals.forEach((a) => next.add(a.id));
+                onSelectedChange(next);
+              }}
               disabled={allMatchingSelected}
             >
               {t("selectAllMatching", { n: animals.length })}

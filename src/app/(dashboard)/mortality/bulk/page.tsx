@@ -17,6 +17,8 @@ import {
 import { ArrowLeft } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 import { AnimalActivityPicker } from "@/components/animals/animal-activity-picker";
+import type { PickerAnimal } from "@/components/animals/animal-activity-picker";
+import { SelectedAnimalsList } from "@/components/animals/selected-animals-list";
 import { DeathCausePicker } from "@/components/animals/death-cause-picker";
 import { SuccessDialog } from "@/components/success-dialog";
 import {
@@ -28,8 +30,10 @@ import {
 
 export default function DeadAnimalRecordPage() {
   const t = useT();
-  const [step, setStep] = useState<"select" | "details">("select");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [animalById, setAnimalById] = useState<Map<string, PickerAnimal>>(
+    new Map()
+  );
   const [saving, setSaving] = useState(false);
   const [causeValue, setCauseValue] = useState("CULLING");
   const [form, setForm] = useState({
@@ -49,6 +53,14 @@ export default function DeadAnimalRecordPage() {
     skipped: number;
     isCulling: boolean;
   } | null>(null);
+
+  function mergeAnimalsLoaded(animals: PickerAnimal[]) {
+    setAnimalById((prev) => {
+      const next = new Map(prev);
+      animals.forEach((a) => next.set(a.id, a));
+      return next;
+    });
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -122,7 +134,6 @@ export default function DeadAnimalRecordPage() {
       claimAmountTzs: "",
       claimReference: "",
     });
-    setStep("select");
   }
 
   return (
@@ -138,9 +149,7 @@ export default function DeadAnimalRecordPage() {
           {t("deadAnimalRecordTitle")}
         </h1>
         <p className="text-muted-foreground mt-1">
-          {step === "select"
-            ? t("deadAnimalRecordSelectHelp")
-            : t("deadAnimalRecordDetailsHelp")}
+          {t("deadAnimalRecordSelectHelp")}
         </p>
       </div>
 
@@ -163,47 +172,36 @@ export default function DeadAnimalRecordPage() {
         />
       )}
 
-      {step === "select" ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("chooseAnimals")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <AnimalActivityPicker
-              selected={selected}
-              onSelectedChange={(next) => {
-                setSelected(next);
-                setResult(null);
-              }}
-              storageKey="manyika.deadAnimal.columns"
-              onContinue={() => setStep("details")}
-              continueLabel={t("continueToActivity")}
-            />
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2">
-            <div>
-              <CardTitle>{t("mortalityDetails")}</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                {t("animalsSelectedCount", {
-                  selected: selected.size,
-                  total: selected.size,
-                })}
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setStep("select")}
-            >
-              {t("backToSelection")}
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={submit} className="space-y-4 max-w-2xl">
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("chooseAnimals")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AnimalActivityPicker
+            selected={selected}
+            onSelectedChange={(next) => {
+              setSelected(next);
+              setResult(null);
+            }}
+            onAnimalsLoaded={mergeAnimalsLoaded}
+            storageKey="manyika.deadAnimal.columns"
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("mortalityDetails")}</CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            {t("animalsSelectedCount", {
+              selected: selected.size,
+              total: selected.size,
+            })}
+          </p>
+        </CardHeader>
+        <CardContent>
+          <SelectedAnimalsList selected={selected} animalById={animalById} />
+          <form onSubmit={submit} className="space-y-4 max-w-2xl mt-4">
               <DeathCausePicker
                 value={causeValue}
                 onChange={(v, meta) => {
@@ -350,9 +348,8 @@ export default function DeadAnimalRecordPage() {
                 {saving ? t("saving") : t("recordBulkMortality")}
               </Button>
             </form>
-          </CardContent>
-        </Card>
-      )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

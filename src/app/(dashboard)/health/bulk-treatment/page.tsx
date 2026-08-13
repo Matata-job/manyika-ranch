@@ -20,6 +20,8 @@ import { ArrowLeft } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 import { SuccessDialog } from "@/components/success-dialog";
 import { AnimalActivityPicker } from "@/components/animals/animal-activity-picker";
+import type { PickerAnimal } from "@/components/animals/animal-activity-picker";
+import { SelectedAnimalsList } from "@/components/animals/selected-animals-list";
 import { ChoicePills } from "@/components/choice-pills";
 import { OptionalSection } from "@/components/optional-section";
 import {
@@ -37,8 +39,10 @@ import {
 
 export default function BulkTreatmentPage() {
   const t = useT();
-  const [step, setStep] = useState<"select" | "details">("select");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [animalById, setAnimalById] = useState<Map<string, PickerAnimal>>(
+    new Map()
+  );
   const [saving, setSaving] = useState(false);
   const [catalog, setCatalog] = useState<HealthCatalogEntry[]>([]);
   const [extrasOpen, setExtrasOpen] = useState(false);
@@ -160,6 +164,14 @@ export default function BulkTreatmentPage() {
     }));
   }
 
+  function mergeAnimalsLoaded(animals: PickerAnimal[]) {
+    setAnimalById((prev) => {
+      const next = new Map(prev);
+      animals.forEach((a) => next.set(a.id, a));
+      return next;
+    });
+  }
+
   const extrasSummary = useMemo(() => {
     if (isVaccination) {
       return form.batchNo.trim() || t("noneSet");
@@ -254,7 +266,6 @@ export default function BulkTreatmentPage() {
     });
     setExtrasOpen(false);
     setSelected(new Set());
-    setStep("select");
   }
 
   return (
@@ -267,20 +278,14 @@ export default function BulkTreatmentPage() {
           <ArrowLeft className="h-4 w-4 mr-1" /> {t("backToHealth")}
         </Link>
         <h1 className="text-3xl font-bold">{t("bulkTreatmentTitle")}</h1>
-        <p className="text-muted-foreground mt-1">
-          {step === "select"
-            ? t("bulkTreatmentSelectHelp")
-            : t("bulkTreatmentDetailsHelp")}
+        <p className="text-muted-foreground mt-1">{t("bulkTreatmentSubtitle")}</p>
+        <p className="text-sm text-muted-foreground mt-2">
+          {t("useScheduleFrom")}{" "}
+          <Link href="/health/schedules" className="text-primary hover:underline">
+            {t("healthSchedules")}
+          </Link>{" "}
+          {t("toSetNextDueAuto")}
         </p>
-        {step === "details" && (
-          <p className="text-sm text-muted-foreground mt-2">
-            {t("useScheduleFrom")}{" "}
-            <Link href="/health/schedules" className="text-primary hover:underline">
-              {t("healthSchedules")}
-            </Link>{" "}
-            {t("toSetNextDueAuto")}
-          </p>
-        )}
       </div>
 
       {result && (
@@ -304,48 +309,37 @@ export default function BulkTreatmentPage() {
         />
       )}
 
-      {step === "select" ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("chooseAnimals")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <AnimalActivityPicker
-              selected={selected}
-              onSelectedChange={(next) => {
-                setSelected(next);
-                setResult(null);
-              }}
-              storageKey="manyika.bulkTreatment.picker.columns"
-              statusFilterDefault="ACTIVE"
-              onContinue={() => setStep("details")}
-              continueLabel={t("continueToActivity")}
-            />
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2">
-            <div>
-              <CardTitle>{t("treatmentDetails")}</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                {t("animalsSelectedCount", {
-                  selected: selected.size,
-                  total: selected.size,
-                })}
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setStep("select")}
-            >
-              {t("backToSelection")}
-            </Button>
-          </CardHeader>
-          <CardContent>
-          <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("chooseAnimals")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AnimalActivityPicker
+            selected={selected}
+            onSelectedChange={(next) => {
+              setSelected(next);
+              setResult(null);
+            }}
+            onAnimalsLoaded={mergeAnimalsLoaded}
+            storageKey="manyika.bulkTreatment.picker.columns"
+            statusFilterDefault="ACTIVE"
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("treatmentDetails")}</CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            {t("animalsSelectedCount", {
+              selected: selected.size,
+              total: selected.size,
+            })}
+          </p>
+        </CardHeader>
+        <CardContent>
+          <SelectedAnimalsList selected={selected} animalById={animalById} />
+          <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2 mt-4">
             <div className="space-y-2 sm:col-span-2">
               <Label>{t("fromSchedule")}</Label>
               <Select value={form.catalogKey} onValueChange={applyCatalogKey}>
@@ -545,9 +539,8 @@ export default function BulkTreatmentPage() {
                   : t("applyToN", { n: selected.size })}
             </Button>
           </form>
-          </CardContent>
-        </Card>
-      )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
