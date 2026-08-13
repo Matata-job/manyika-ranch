@@ -586,6 +586,7 @@ const en = {
   campsSelectedCount: "{n} camps selected",
   noActiveAnimalsInCamps: "No active animals in the selected camps",
   loadingAnimals: "Loading animals...",
+  updatingList: "Updating list…",
   applyToN: "Apply to {n} animal(s)",
   applying: "Applying...",
   scheduleAutoDue: "Schedule interval sets next due automatically for each animal.",
@@ -1799,6 +1800,7 @@ const sw: Dict = {
   campsSelectedCount: "Kambi {n} zimechaguliwa",
   noActiveAnimalsInCamps: "Hakuna wanyama hai katika kambi zilizochaguliwa",
   loadingAnimals: "Inapakia wanyama...",
+  updatingList: "Inasasisha orodha…",
   applyToN: "Tumia kwa wanyama {n}",
   applying: "Inatumia...",
   scheduleAutoDue:

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -78,8 +78,9 @@ export function AnimalActivityPicker({
   const locale = useLocale().locale;
   const [camps, setCamps] = useState<CampOption[]>([]);
   const [breeds, setBreeds] = useState<string[]>([]);
-  const [animals, setAnimals] = useState<PickerAnimal[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [rawAnimals, setRawAnimals] = useState<PickerAnimal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [camp, setCamp] = useState("all");
   const [sex, setSex] = useState("all");
@@ -95,6 +96,39 @@ export function AnimalActivityPicker({
   const [yearColors, setYearColors] = useState<Record<string, string>>({});
   const [defaultTagColor, setDefaultTagColor] = useState<string | null>(null);
   const [page, setPage] = useState(0);
+  const fetchSeq = useRef(0);
+  const hasLoadedRef = useRef(false);
+  const onAnimalsLoadedRef = useRef(onAnimalsLoaded);
+
+  useEffect(() => {
+    onAnimalsLoadedRef.current = onAnimalsLoaded;
+  }, [onAnimalsLoaded]);
+
+  const animals = useMemo(() => {
+    let list = rawAnimals;
+    if (statusFilterDefault === "ACTIVE") {
+      list = list.filter((a) => a.status !== "DECEASED" && a.status !== "SOLD");
+    }
+    if (tagColors.length > 0) {
+      const allowed = new Set(tagColors);
+      list = list.filter((a) => {
+        const resolved = resolveTagColor({
+          animalTagColor: a.tagColor,
+          campTagColor: a.camp?.tagColor,
+          defaultTagColor,
+          dob: a.dateOfBirth,
+          ageMonths: a.ageMonths,
+          yearColors,
+        }).color;
+        return resolved != null && allowed.has(resolved);
+      });
+    }
+    return list;
+  }, [rawAnimals, statusFilterDefault, tagColors, defaultTagColor, yearColors]);
+
+  useEffect(() => {
+    onAnimalsLoadedRef.current?.(animals);
+  }, [animals]);
 
   useEffect(() => {
     fetch("/api/camps")
@@ -124,7 +158,10 @@ export function AnimalActivityPicker({
   }, []);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    const seq = ++fetchSeq.current;
+    setRefreshing(true);
+    if (!hasLoadedRef.current) setLoading(true);
+
     const params = new URLSearchParams({ limit: "5000", sort: "eartag_asc" });
     if (camp !== "all") params.set("camp", camp);
     if (sex !== "all") params.set("sex", sex);
@@ -135,44 +172,21 @@ export function AnimalActivityPicker({
     const tagParam = joinMultiParam(tagColors);
     if (tagParam) params.set("tagColor", tagParam);
     if (herdPlan !== "all") params.set("herdPlan", herdPlan);
-    const res = await fetch(`/api/animals?${params}`);
-    const data = res.ok ? await res.json() : null;
-    let list = parseAnimalsList<PickerAnimal>(data);
-    if (statusFilterDefault === "ACTIVE") {
-      list = list.filter((a) => a.status !== "DECEASED" && a.status !== "SOLD");
+
+    try {
+      const res = await fetch(`/api/animals?${params}`);
+      if (seq !== fetchSeq.current) return;
+      const data = res.ok ? await res.json() : null;
+      setRawAnimals(parseAnimalsList<PickerAnimal>(data));
+      setPage(0);
+    } finally {
+      if (seq === fetchSeq.current) {
+        hasLoadedRef.current = true;
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-    // Client refine by resolved colour (includes year map)
-    if (tagColors.length > 0) {
-      const allowed = new Set(tagColors);
-      list = list.filter((a) => {
-        const resolved = resolveTagColor({
-          animalTagColor: a.tagColor,
-          campTagColor: a.camp?.tagColor,
-          defaultTagColor,
-          dob: a.dateOfBirth,
-          ageMonths: a.ageMonths,
-          yearColors,
-        }).color;
-        return resolved != null && allowed.has(resolved);
-      });
-    }
-    setAnimals(list);
-    setPage(0);
-    setLoading(false);
-    onAnimalsLoaded?.(list);
-  }, [
-    camp,
-    sex,
-    breedsSelected,
-    status,
-    search,
-    tagColors,
-    herdPlan,
-    statusFilterDefault,
-    defaultTagColor,
-    yearColors,
-    onAnimalsLoaded,
-  ]);
+  }, [camp, sex, breedsSelected, status, search, tagColors, herdPlan]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -369,15 +383,19 @@ export function AnimalActivityPicker({
         </div>
       )}
 
-      {loading ? (
+      {loading && animals.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t("loadingAnimals")}</p>
       ) : animals.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t("noAnimalsMatch")}</p>
       ) : (
         <div className="space-y-2">
+          {refreshing && (
+            <p className="text-xs text-muted-foreground">{t("updatingList")}</p>
+          )}
           <div
             className={cn(
-              "rounded-lg border overflow-x-auto max-h-[min(24rem,50vh)] overflow-y-auto"
+              "rounded-lg border overflow-x-auto max-h-[min(24rem,50vh)] overflow-y-auto transition-opacity",
+              refreshing && "opacity-60"
             )}
           >
             <table className="w-full text-sm">
