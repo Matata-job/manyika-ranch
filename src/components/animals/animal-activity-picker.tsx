@@ -296,6 +296,7 @@ export function AnimalActivityPicker({
             <ChoicePills
               options={[
                 { value: "ACTIVE", label: t("statusActive") },
+                { value: "QUARANTINE", label: t("statusQuarantine") },
                 { value: "DECEASED", label: t("statusDeceased") },
                 { value: "SOLD", label: t("statusSold") },
                 { value: "ALL", label: t("all") },

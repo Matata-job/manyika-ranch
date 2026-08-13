@@ -6,14 +6,8 @@ import {
 } from "@/lib/auth/api-guard";
 import { createAuditLog } from "@/lib/services/animal-service";
 import { parseOptionalNonNegative, roundTzs } from "@/lib/money";
+import { isTreatmentType, TREATMENT_TYPE_VALUES } from "@/lib/treatment-types";
 import type { Role, TreatmentType } from "@prisma/client";
-
-const TREATMENT_TYPES: TreatmentType[] = [
-  "DEWORMING",
-  "DIPPING",
-  "ANTIBIOTIC",
-  "OTHER",
-];
 
 export async function POST(req: NextRequest) {
   const result = await requirePermission("manageHealth");
@@ -43,7 +37,151 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const doseKind =
+    body.doseKind === "vaccination" ? ("vaccination" as const) : ("treatment" as const);
   const date = body.date ? new Date(body.date) : new Date();
+  const notes = body.notes?.trim() || null;
+
+  const scope = await buildAnimalScope(
+    result.user.id,
+    result.user.role as Role
+  );
+  if ("error" in scope) return scope.error;
+
+  const animals = await prisma.animal.findMany({
+    where: {
+      id: { in: animalIds },
+      status: { in: ["ACTIVE", "QUARANTINE"] },
+      ...scope,
+    },
+    select: { id: true, eartag: true, campId: true },
+  });
+
+  if (animals.length === 0) {
+    return NextResponse.json(
+      { error: "No accessible active animals found for the selection" },
+      { status: 400 }
+    );
+  }
+
+  let costEach: number | null = null;
+  const totalCost = parseOptionalNonNegative(body.totalCostTzs);
+  if (!totalCost.ok) {
+    return NextResponse.json({ error: totalCost.error }, { status: 400 });
+  }
+  const perCost = parseOptionalNonNegative(body.costTzs);
+  if (!perCost.ok) {
+    return NextResponse.json({ error: perCost.error }, { status: 400 });
+  }
+  if (totalCost.value != null && animals.length > 0) {
+    costEach = roundTzs(totalCost.value / animals.length);
+  } else if (perCost.value != null) {
+    costEach = perCost.value;
+  }
+
+  const {
+    clearPriorTreatmentNextDue,
+    clearPriorVaccinationNextDue,
+    resolveHealthAlertsForDose,
+  } = await import("@/lib/services/health-schedule");
+
+  if (doseKind === "vaccination") {
+    let vaccineName = body.vaccineName?.trim() || body.product?.trim() || "";
+    let vaccineCatalogId: string | null = body.vaccineCatalogId || null;
+    let nextDue = body.nextDue ? new Date(body.nextDue) : null;
+    const batchNo = body.batchNo?.trim() || null;
+
+    if (vaccineCatalogId) {
+      const catalog = await prisma.vaccineCatalog.findUnique({
+        where: { id: vaccineCatalogId },
+      });
+      if (!catalog) {
+        return NextResponse.json({ error: "Vaccine not found" }, { status: 400 });
+      }
+      if (!vaccineName) vaccineName = catalog.name;
+      if (!nextDue && catalog.intervalDays) {
+        nextDue = new Date(date.getTime() + catalog.intervalDays * 86400000);
+      }
+    }
+
+    if (!vaccineName) {
+      return NextResponse.json(
+        { error: "Vaccine name is required" },
+        { status: 400 }
+      );
+    }
+
+    for (const a of animals) {
+      await clearPriorVaccinationNextDue(a.id, vaccineName);
+      await resolveHealthAlertsForDose(a.id, "VACCINATION_DUE", vaccineName);
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.vaccination.createMany({
+        data: animals.map((a) => ({
+          animalId: a.id,
+          vaccineCatalogId,
+          vaccineName,
+          batchNo,
+          nextDue,
+          date,
+          administeredById: result.user.id,
+          notes,
+          costTzs: costEach,
+        })),
+      });
+    });
+
+    const { logAnimalEventsBulk } = await import("@/lib/services/event-service");
+    await logAnimalEventsBulk(
+      animals.map((a) => ({
+        animalId: a.id,
+        type: "HEALTH" as const,
+        title: `Vaccinated: ${vaccineName}`,
+        description: [
+          batchNo ? `Batch: ${batchNo}` : null,
+          nextDue ? `Next due ${nextDue.toISOString().slice(0, 10)}` : null,
+          notes,
+          "bulk",
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        occurredAt: date,
+        recordedById: result.user.id,
+        metadata: {
+          bulk: true,
+          vaccineName,
+          batchNo,
+          nextDue: nextDue ? nextDue.toISOString() : null,
+          vaccineCatalogId,
+          costTzs: costEach,
+        },
+      }))
+    );
+
+    const { syncAllRanchAlerts } = await import("@/lib/services/alert-sync");
+    await syncAllRanchAlerts(result.user.ranchId);
+
+    await createAuditLog(result.user.id, "CREATE", "BulkVaccination", result.user.ranchId, {
+      vaccineName,
+      count: animals.length,
+      animalIds: animals.map((a) => a.id),
+      skipped: animalIds.length - animals.length,
+      vaccineCatalogId,
+    });
+
+    return NextResponse.json(
+      {
+        success: true,
+        applied: animals.length,
+        skipped: animalIds.length - animals.length,
+        doseKind: "vaccination",
+        eartags: animals.map((a) => a.eartag),
+      },
+      { status: 201 }
+    );
+  }
+
   let treatmentType = body.type as TreatmentType | undefined;
   let product = body.product?.trim() || "";
   let withdrawalPeriod =
@@ -76,63 +214,25 @@ export async function POST(req: NextRequest) {
   if (!product) {
     return NextResponse.json({ error: "Product is required" }, { status: 400 });
   }
-  if (!treatmentType || !TREATMENT_TYPES.includes(treatmentType)) {
+  if (!treatmentType || !isTreatmentType(treatmentType)) {
+    return NextResponse.json(
+      { error: "Valid treatment type is required" },
+      { status: 400 }
+    );
+  }
+  if (!(TREATMENT_TYPE_VALUES as readonly string[]).includes(treatmentType)) {
     return NextResponse.json(
       { error: "Valid treatment type is required" },
       { status: 400 }
     );
   }
 
-  const scope = await buildAnimalScope(
-    result.user.id,
-    result.user.role as Role
-  );
-  if ("error" in scope) return scope.error;
-
-  const animals = await prisma.animal.findMany({
-    where: {
-      id: { in: animalIds },
-      status: { in: ["ACTIVE", "QUARANTINE"] },
-      ...scope,
-    },
-    select: { id: true, eartag: true, campId: true },
-  });
-
-  if (animals.length === 0) {
-    return NextResponse.json(
-      { error: "No accessible active animals found for the selection" },
-      { status: 400 }
-    );
-  }
-
   const dose = body.dose?.trim() || null;
-  const notes = body.notes?.trim() || null;
   const withdrawal =
     withdrawalPeriod != null && Number.isFinite(withdrawalPeriod)
       ? withdrawalPeriod
       : null;
 
-  let costEach: number | null = null;
-  const totalCost = parseOptionalNonNegative(body.totalCostTzs);
-  if (!totalCost.ok) {
-    return NextResponse.json({ error: totalCost.error }, { status: 400 });
-  }
-  const perCost = parseOptionalNonNegative(body.costTzs);
-  if (!perCost.ok) {
-    return NextResponse.json({ error: perCost.error }, { status: 400 });
-  }
-  if (totalCost.value != null && animals.length > 0) {
-    costEach = roundTzs(totalCost.value / animals.length);
-  } else if (perCost.value != null) {
-    costEach = perCost.value;
-  }
-
-  const {
-    clearPriorTreatmentNextDue,
-    resolveHealthAlertsForDose,
-  } = await import("@/lib/services/health-schedule");
-
-  // Clear prior nextDue before creating new doses so we don't wipe the new rows.
   for (const a of animals) {
     await clearPriorTreatmentNextDue(a.id, product);
     await resolveHealthAlertsForDose(a.id, "TREATMENT_DUE", product);
@@ -203,6 +303,7 @@ export async function POST(req: NextRequest) {
       success: true,
       applied: animals.length,
       skipped: animalIds.length - animals.length,
+      doseKind: "treatment",
       eartags: animals.map((a) => a.eartag),
     },
     { status: 201 }

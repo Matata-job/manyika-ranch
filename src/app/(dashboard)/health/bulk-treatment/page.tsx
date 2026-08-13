@@ -7,145 +7,170 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ArrowLeft } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
-import type { TranslationKey } from "@/lib/i18n/translations";
-import { parseAnimalsList } from "@/lib/animals-api";
 import { SuccessDialog } from "@/components/success-dialog";
-
-function treatmentTypeKey(type: string): TranslationKey {
-  switch (type) {
-    case "DEWORMING":
-      return "deworming";
-    case "DIPPING":
-      return "dipping";
-    case "ANTIBIOTIC":
-      return "antibiotic";
-    default:
-      return "other";
-  }
-}
-
-interface Camp {
-  id: string;
-  name: string;
-}
-
-interface AnimalRow {
-  id: string;
-  eartag: string;
-  breed: string;
-  sex: string;
-  status: string;
-  camp: { id: string; name: string };
-}
-
-const TREATMENT_TYPE_VALUES = [
-  "DEWORMING",
-  "DIPPING",
-  "ANTIBIOTIC",
-  "OTHER",
-] as const;
+import { AnimalActivityPicker } from "@/components/animals/animal-activity-picker";
+import { ChoicePills } from "@/components/choice-pills";
+import { OptionalSection } from "@/components/optional-section";
+import {
+  buildHealthCatalog,
+  CUSTOM_CATALOG_KEY,
+  parseCatalogKey,
+  type DoseKind,
+  type HealthCatalogEntry,
+} from "@/lib/health-catalog";
+import {
+  isTreatmentType,
+  TREATMENT_TYPE_VALUES,
+  treatmentTypeKey,
+} from "@/lib/treatment-types";
 
 export default function BulkTreatmentPage() {
   const t = useT();
-  const TREATMENT_TYPES = TREATMENT_TYPE_VALUES.map((value) => ({
-    value,
-    label: t(treatmentTypeKey(value)),
-  }));
-  const [camps, setCamps] = useState<Camp[]>([]);
-  const [campId, setCampId] = useState("");
-  const [sex, setSex] = useState("all");
-  const [animals, setAnimals] = useState<AnimalRow[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [loadingAnimals, setLoadingAnimals] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [catalog, setCatalog] = useState<HealthCatalogEntry[]>([]);
+  const [extrasOpen, setExtrasOpen] = useState(false);
   const [form, setForm] = useState({
-    treatmentCatalogId: "",
+    catalogKey: CUSTOM_CATALOG_KEY,
+    doseKind: "treatment" as DoseKind,
     type: "DIPPING",
     product: "",
     dose: "",
+    batchNo: "",
     withdrawalPeriod: "",
     date: "",
     notes: "",
     totalCostTzs: "",
   });
-  const [schedules, setSchedules] = useState<
-    {
-      id: string;
-      name: string;
-      type: string;
-      intervalDays: number | null;
-      withdrawalPeriod: number | null;
-    }[]
-  >([]);
   const [result, setResult] = useState<{
     applied: number;
     skipped: number;
+    doseKind: DoseKind;
   } | null>(null);
 
+  const catalogByKey = useMemo(
+    () => new Map(catalog.map((entry) => [entry.key, entry])),
+    [catalog]
+  );
+
+  const treatmentCatalog = useMemo(
+    () => catalog.filter((c) => c.kind === "treatment"),
+    [catalog]
+  );
+  const vaccineCatalog = useMemo(
+    () => catalog.filter((c) => c.kind === "vaccination"),
+    [catalog]
+  );
+
+  const treatmentTypeOptions = useMemo(() => {
+    const fromCatalog = new Set(
+      treatmentCatalog
+        .map((c) => c.type)
+        .filter((type): type is (typeof TREATMENT_TYPE_VALUES)[number] =>
+          type != null && isTreatmentType(type)
+        )
+    );
+    for (const type of TREATMENT_TYPE_VALUES) fromCatalog.add(type);
+    return [...fromCatalog].map((value) => ({
+      value,
+      label: t(treatmentTypeKey(value)),
+    }));
+  }, [t, treatmentCatalog]);
+
+  const fromCatalog = form.catalogKey !== CUSTOM_CATALOG_KEY;
+  const isVaccination = form.doseKind === "vaccination";
+
   useEffect(() => {
-    fetch("/api/camps")
-      .then((r) => r.json())
-      .then((d) => setCamps(Array.isArray(d) ? d : []));
-    fetch("/api/health/treatment-schedules")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((d) => setSchedules(Array.isArray(d) ? d : []));
+    Promise.all([
+      fetch("/api/health/treatment-schedules").then((r) =>
+        r.ok ? r.json() : []
+      ),
+      fetch("/api/health/vaccines").then((r) => (r.ok ? r.json() : [])),
+    ]).then(([treatments, vaccines]) => {
+      setCatalog(
+        buildHealthCatalog(
+          Array.isArray(treatments) ? treatments : [],
+          Array.isArray(vaccines) ? vaccines : []
+        )
+      );
+    });
   }, []);
 
-  async function loadAnimals(
-    nextCampId: string,
-    nextSex: string,
-    autoSelectAll = true
-  ) {
-    if (!nextCampId) {
-      setAnimals([]);
-      setSelected(new Set());
+  function applyCatalogKey(key: string) {
+    if (key === CUSTOM_CATALOG_KEY) {
+      setForm((prev) => ({
+        ...prev,
+        catalogKey: CUSTOM_CATALOG_KEY,
+        doseKind: "treatment",
+        type: "DIPPING",
+        product: "",
+        dose: "",
+        batchNo: "",
+        withdrawalPeriod: "",
+      }));
       return;
     }
-    setLoadingAnimals(true);
-    const params = new URLSearchParams({
-      camp: nextCampId,
-      limit: "5000",
-    });
-    if (nextSex !== "all") params.set("sex", nextSex);
-    const res = await fetch(`/api/animals?${params}`);
-    const data = res.ok ? await res.json() : null;
-    const list: AnimalRow[] = parseAnimalsList<AnimalRow>(data).filter(
-      (a) => a.status === "ACTIVE" || a.status === "QUARANTINE"
-    );
-    setAnimals(list);
-    setSelected(autoSelectAll ? new Set(list.map((a) => a.id)) : new Set());
-    setLoadingAnimals(false);
+    const entry = catalogByKey.get(key);
+    if (!entry) return;
+    if (entry.kind === "vaccination") {
+      setForm((prev) => ({
+        ...prev,
+        catalogKey: key,
+        doseKind: "vaccination",
+        product: entry.name,
+        dose: "",
+        batchNo: "",
+        withdrawalPeriod: "",
+      }));
+      return;
+    }
+    setForm((prev) => ({
+      ...prev,
+      catalogKey: key,
+      doseKind: "treatment",
+      type: entry.type && isTreatmentType(entry.type) ? entry.type : "OTHER",
+      product: entry.name,
+      withdrawalPeriod:
+        entry.withdrawalPeriod != null
+          ? String(entry.withdrawalPeriod)
+          : prev.withdrawalPeriod,
+    }));
   }
 
-  useEffect(() => {
-    if (campId) loadAnimals(campId, sex);
-  }, [campId, sex]);
-
-  const allSelected = animals.length > 0 && selected.size === animals.length;
-  const someSelected = selected.size > 0 && selected.size < animals.length;
-
-  function toggleAll() {
-    if (allSelected) setSelected(new Set());
-    else setSelected(new Set(animals.map((a) => a.id)));
+  function setCustomDoseKind(kind: DoseKind) {
+    setForm((prev) => ({
+      ...prev,
+      catalogKey: CUSTOM_CATALOG_KEY,
+      doseKind: kind,
+      ...(kind === "vaccination"
+        ? { dose: "", withdrawalPeriod: "", type: "OTHER" }
+        : {}),
+    }));
   }
 
-  function toggleOne(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  const selectedLabel = useMemo(
-    () => t("selectedOf", { selected: selected.size, total: animals.length }),
-    [selected.size, animals.length, t]
-  );
+  const extrasSummary = useMemo(() => {
+    if (isVaccination) {
+      return form.batchNo.trim() || t("noneSet");
+    }
+    const parts = [
+      form.dose.trim() || null,
+      form.withdrawalPeriod.trim()
+        ? t("withdrawalDaysSuffix", { n: form.withdrawalPeriod })
+        : null,
+    ].filter(Boolean);
+    return parts.length > 0 ? parts.join(" · ") : t("noneSet");
+  }, [form.batchNo, form.dose, form.withdrawalPeriod, isVaccination, t]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -154,13 +179,22 @@ export default function BulkTreatmentPage() {
       return;
     }
     if (!form.product.trim()) {
-      alert(t("productRequired"));
+      alert(isVaccination ? t("selectVaccineOrName") : t("productRequired"));
       return;
     }
+
+    const parsed = parseCatalogKey(form.catalogKey);
+    const confirmKey = isVaccination
+      ? "confirmApplyVaccination"
+      : "confirmApplyTreatment";
+    const confirmLabel = isVaccination
+      ? form.product.trim()
+      : t(treatmentTypeKey(form.type));
+
     if (
       !confirm(
-        t("confirmApplyTreatment", {
-          type: t(treatmentTypeKey(form.type)),
+        t(confirmKey, {
+          type: confirmLabel,
           n: selected.size,
         })
       )
@@ -174,12 +208,18 @@ export default function BulkTreatmentPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        doseKind: form.doseKind,
         animalIds: [...selected],
-        treatmentCatalogId: form.treatmentCatalogId || null,
-        type: form.type,
-        product: form.product,
+        treatmentCatalogId:
+          parsed?.kind === "treatment" ? parsed.catalogId : null,
+        vaccineCatalogId:
+          parsed?.kind === "vaccination" ? parsed.catalogId : null,
+        type: isVaccination ? undefined : form.type,
+        product: isVaccination ? undefined : form.product,
+        vaccineName: isVaccination ? form.product : undefined,
         dose: form.dose || null,
-        withdrawalPeriod: form.withdrawalPeriod || null,
+        batchNo: form.batchNo || null,
+        withdrawalPeriod: isVaccination ? null : form.withdrawalPeriod || null,
         date: form.date || undefined,
         notes: form.notes || null,
         totalCostTzs: form.totalCostTzs || null,
@@ -194,23 +234,29 @@ export default function BulkTreatmentPage() {
     }
 
     const data = await res.json();
-    setResult({ applied: data.applied, skipped: data.skipped });
+    setResult({
+      applied: data.applied,
+      skipped: data.skipped,
+      doseKind: form.doseKind,
+    });
     setForm({
-      treatmentCatalogId: "",
+      catalogKey: CUSTOM_CATALOG_KEY,
+      doseKind: "treatment",
       type: "DIPPING",
       product: "",
       dose: "",
+      batchNo: "",
       withdrawalPeriod: "",
       date: "",
       notes: "",
       totalCostTzs: "",
     });
+    setExtrasOpen(false);
     setSelected(new Set());
-    if (campId) loadAnimals(campId, sex, false);
   }
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 max-w-5xl">
       <div>
         <Link
           href="/health"
@@ -231,7 +277,11 @@ export default function BulkTreatmentPage() {
       {result && (
         <SuccessDialog
           open
-          title={t("bulkTreatmentSuccessTitle")}
+          title={
+            result.doseKind === "vaccination"
+              ? t("bulkVaccinationSuccessTitle")
+              : t("bulkTreatmentSuccessTitle")
+          }
           message={
             <>
               {t("appliedToN", { n: result.applied })}
@@ -249,88 +299,13 @@ export default function BulkTreatmentPage() {
         <CardHeader>
           <CardTitle>{t("chooseAnimals")}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>{t("camp")} *</Label>
-              <Select
-                value={campId || undefined}
-                onValueChange={(v) => {
-                  setCampId(v);
-                  setResult(null);
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t("selectCamp")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {camps.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>{t("sexFilter")}</Label>
-              <Select value={sex} onValueChange={setSex}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t("all")}</SelectItem>
-                  <SelectItem value="MALE">{t("male")}</SelectItem>
-                  <SelectItem value="FEMALE">{t("female")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {!campId ? (
-            <p className="text-sm text-muted-foreground">{t("selectCampLoad")}</p>
-          ) : loadingAnimals ? (
-            <p className="text-sm text-muted-foreground">{t("loadingAnimals")}</p>
-          ) : animals.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {t("noActiveAnimalsCamp")}
-            </p>
-          ) : (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm font-medium">
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    ref={(el) => {
-                      if (el) el.indeterminate = someSelected;
-                    }}
-                    onChange={toggleAll}
-                  />
-                  {t("selectAll")}
-                </label>
-                <Badge variant="secondary">{selectedLabel}</Badge>
-              </div>
-              <div className="rounded-lg border max-h-72 overflow-y-auto divide-y">
-                {animals.map((a) => (
-                  <label
-                    key={a.id}
-                    className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-muted/50 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected.has(a.id)}
-                      onChange={() => toggleOne(a.id)}
-                    />
-                    <span className="font-medium">{a.eartag}</span>
-                    <span className="text-muted-foreground">
-                      {a.breed} · {a.sex}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
+        <CardContent>
+          <AnimalActivityPicker
+            selected={selected}
+            onSelectedChange={setSelected}
+            storageKey="manyika.bulkTreatment.picker.columns"
+            statusFilterDefault="ACTIVE"
+          />
         </CardContent>
       </Card>
 
@@ -340,105 +315,162 @@ export default function BulkTreatmentPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
-            {schedules.length > 0 && (
+            <div className="space-y-2 sm:col-span-2">
+              <Label>{t("fromSchedule")}</Label>
+              <Select value={form.catalogKey} onValueChange={applyCatalogKey}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t("optionalSchedule")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={CUSTOM_CATALOG_KEY}>
+                    {t("customOneOff")}
+                  </SelectItem>
+                  {treatmentCatalog.length > 0 && (
+                    <SelectGroup>
+                      <SelectLabel>{t("healthCatalogTreatments")}</SelectLabel>
+                      {treatmentCatalog.map((entry) => (
+                        <SelectItem key={entry.key} value={entry.key}>
+                          {entry.name}
+                          {entry.intervalDays
+                            ? ` (${t("everyNDays", { n: entry.intervalDays })})`
+                            : ""}
+                          {entry.type
+                            ? ` · ${t(treatmentTypeKey(entry.type))}`
+                            : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  )}
+                  {vaccineCatalog.length > 0 && (
+                    <SelectGroup>
+                      <SelectLabel>{t("healthCatalogVaccines")}</SelectLabel>
+                      {vaccineCatalog.map((entry) => (
+                        <SelectItem key={entry.key} value={entry.key}>
+                          {entry.name}
+                          {entry.intervalDays
+                            ? ` (${t("everyNDays", { n: entry.intervalDays })})`
+                            : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  )}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {t("scheduleAutoDue")}
+              </p>
+            </div>
+
+            {!fromCatalog && (
               <div className="space-y-2 sm:col-span-2">
-                <Label>{t("fromSchedule")}</Label>
+                <Label>{t("bulkDoseKind")}</Label>
+                <ChoicePills<DoseKind>
+                  value={form.doseKind}
+                  onChange={setCustomDoseKind}
+                  options={[
+                    { value: "treatment", label: t("healthPillTreatments") },
+                    { value: "vaccination", label: t("healthPillVaccinations") },
+                  ]}
+                />
+              </div>
+            )}
+
+            {!isVaccination && (
+              <div className="space-y-2">
+                <Label>{t("type")} *</Label>
                 <Select
-                  value={form.treatmentCatalogId || "__custom__"}
-                  onValueChange={(v) => {
-                    if (v === "__custom__") {
-                      setForm({ ...form, treatmentCatalogId: "" });
-                      return;
-                    }
-                    const s = schedules.find((x) => x.id === v);
-                    setForm({
-                      ...form,
-                      treatmentCatalogId: v,
-                      type: s?.type || form.type,
-                      product: s?.name || form.product,
-                      withdrawalPeriod:
-                        s?.withdrawalPeriod != null
-                          ? String(s.withdrawalPeriod)
-                          : form.withdrawalPeriod,
-                    });
-                  }}
+                  value={form.type}
+                  onValueChange={(v) => setForm({ ...form, type: v })}
+                  disabled={fromCatalog}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={t("optionalSchedule")} />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__custom__">
-                      {t("customOneOff")}
-                    </SelectItem>
-                    {schedules.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name}
-                        {s.intervalDays
-                          ? ` (${t("everyNDays", { n: s.intervalDays })})`
-                          : ""}
+                    {treatmentTypeOptions.map((tt) => (
+                      <SelectItem key={tt.value} value={tt.value}>
+                        {tt.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">
-                  {t("scheduleAutoDue")}
-                </p>
               </div>
             )}
-            <div className="space-y-2">
-              <Label>{t("type")} *</Label>
-              <Select
-                value={form.type}
-                onValueChange={(v) => setForm({ ...form, type: v })}
-                disabled={!!form.treatmentCatalogId}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TREATMENT_TYPES.map((tt) => (
-                    <SelectItem key={tt.value} value={tt.value}>
-                      {tt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>{t("product")} *</Label>
+
+            <div className={`space-y-2 ${isVaccination ? "sm:col-span-2" : ""}`}>
+              <Label>{isVaccination ? t("vaccineName") : t("product")} *</Label>
               <Input
                 value={form.product}
                 onChange={(e) =>
                   setForm({
                     ...form,
                     product: e.target.value,
-                    treatmentCatalogId: "",
+                    catalogKey: CUSTOM_CATALOG_KEY,
                   })
                 }
-                placeholder="e.g. Amitraz, Albendazole"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{t("dose")}</Label>
-              <Input
-                value={form.dose}
-                onChange={(e) => setForm({ ...form, dose: e.target.value })}
-                placeholder="e.g. 10 ml / 100 kg"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{t("withdrawalDays")}</Label>
-              <Input
-                type="number"
-                min={0}
-                value={form.withdrawalPeriod}
-                onChange={(e) =>
-                  setForm({ ...form, withdrawalPeriod: e.target.value })
+                placeholder={
+                  isVaccination ? t("vaccineName") : "e.g. Amitraz, Albendazole"
                 }
-                placeholder="Meat/milk safe after N days"
+                required
+                disabled={fromCatalog}
               />
             </div>
+
+            <div className="sm:col-span-2 rounded-lg border">
+              <OptionalSection
+                embedded
+                open={extrasOpen}
+                onToggle={() => setExtrasOpen((o) => !o)}
+                title={
+                  isVaccination
+                    ? t("doseExtrasVaccination")
+                    : t("doseExtrasTreatment")
+                }
+                summary={extrasSummary}
+              >
+                {isVaccination ? (
+                  <div className="space-y-2">
+                    <Label>{t("batchNo")}</Label>
+                    <Input
+                      value={form.batchNo}
+                      onChange={(e) =>
+                        setForm({ ...form, batchNo: e.target.value })
+                      }
+                      placeholder={t("batchNo")}
+                    />
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>{t("dose")}</Label>
+                      <Input
+                        value={form.dose}
+                        onChange={(e) =>
+                          setForm({ ...form, dose: e.target.value })
+                        }
+                        placeholder="e.g. 10 ml / 100 kg"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>{t("withdrawalDays")}</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={form.withdrawalPeriod}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            withdrawalPeriod: e.target.value,
+                          })
+                        }
+                        placeholder={t("withdrawalDays")}
+                      />
+                    </div>
+                  </div>
+                )}
+              </OptionalSection>
+            </div>
+
             <div className="space-y-2">
               <Label>{t("date")}</Label>
               <Input
@@ -472,12 +504,14 @@ export default function BulkTreatmentPage() {
             </div>
             <Button
               type="submit"
-              disabled={saving || selected.size === 0 || !campId}
+              disabled={saving || selected.size === 0}
               className="sm:col-span-2"
             >
               {saving
                 ? t("applying")
-                : t("applyToN", { n: selected.size })}
+                : isVaccination
+                  ? t("applyVaccinationToN", { n: selected.size })
+                  : t("applyToN", { n: selected.size })}
             </Button>
           </form>
         </CardContent>
