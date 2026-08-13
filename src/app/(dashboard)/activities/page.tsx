@@ -144,16 +144,6 @@ const CARDS: ActivityCard[] = [
     anyPermission: ["manageMortality", "viewReports"],
   },
   {
-    id: "bulk-cull",
-    href: "/mortality/bulk",
-    titleKey: "activityBulkCull",
-    helpKey: "activityBulkCullHelp",
-    category: "sales",
-    categoryLabelKey: "activityCatSales",
-    icon: Skull,
-    permission: "manageMortality",
-  },
-  {
     id: "events",
     href: "/events",
     titleKey: "activityEvents",

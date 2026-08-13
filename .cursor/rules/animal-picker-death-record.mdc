@@ -1,16 +1,16 @@
 ---
-description: Animal picker columns/filters (eartag colour) and Dead Animal Record / kuchinja flow
+description: Animal picker columns/filters (eartag colour) and Death records / kuchinja flow
 alwaysApply: true
 ---
 
-# Animal pickers & Dead Animal Record
+# Animal pickers & Death records
 
 When changing animal lists, bulk activities, or death/culling flows, follow this pattern.
 
-## Dead Animal Record (bulk cull / death)
+## Death records (bulk cull / death)
 
-- Activity name: **Dead Animal Record** (EN). Cull = **kuchinja** in Swahili (not “uteuzi”).
-- Route: `/mortality/bulk` — select animals → **Continue** → shared death details (cause, disposal, date).
+- Activity name: **Death records** (EN) / **Rekodi za vifo** (SW). Cull = **kuchinja** in Swahili (not “uteuzi”).
+- Hub: `/mortality` with **New death** → `/mortality/bulk` — select animals → **Continue** → shared death details (cause, disposal, date).
 - Single animal: Death tab **Record Death / Culling** (`/animals/[id]`) must use the same cause picker (system list + **add new** custom cause).
 - Custom causes live in ranch `settings.customDeathCauses` (string[]); persist as `DeathCause.OTHER` + `causeDetail` = cause name. `CULLING` / kuchinja sets `isCulling`.
 

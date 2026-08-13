@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
+import { Plus } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 import { deathCauseKey, disposalMethodKey, SYSTEM_DEATH_CAUSES } from "@/lib/death-causes";
 import type { TranslationKey } from "@/lib/i18n/translations";
@@ -82,7 +83,10 @@ export default function MortalityPage() {
         </div>
         {canManageMortality && (
           <Button asChild>
-            <Link href="/mortality/bulk">{t("bulkMortality")}</Link>
+            <Link href="/mortality/bulk">
+              <Plus className="h-4 w-4 mr-2" />
+              {t("newDeath")}
+            </Link>
           </Button>
         )}
       </div>

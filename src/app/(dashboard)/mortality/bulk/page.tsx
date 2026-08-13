@@ -172,10 +172,10 @@ export default function DeadAnimalRecordPage() {
     <div className="space-y-6 max-w-5xl pb-8">
       <div>
         <Link
-          href="/activities"
+          href="/mortality"
           className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-2"
         >
-          <ArrowLeft className="h-4 w-4 mr-1" /> {t("backToActivities")}
+          <ArrowLeft className="h-4 w-4 mr-1" /> {t("backToMortality")}
         </Link>
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>

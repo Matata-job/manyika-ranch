@@ -50,7 +50,7 @@ All / Health / Breeding / Movement / Sales & records — cards gate by existing 
 
 ## Dead Animal Record & animal pickers
 
-- Activity **Dead Animal Record** (`/mortality/bulk`): select → Continue → death details. Cull = **kuchinja** (SW).
+- Activity **Death records** (`/mortality`): list + **New death** → `/mortality/bulk` (select → Continue → death details). Cull = **kuchinja** (SW).
 - Shared picker: customize columns, filters, **ear-tag colour** swatches (`src/components/animals/`).
 - Death causes: system list + **Add new** (`settings.customDeathCauses`); same picker on animal Death tab.
 - See `.cursor/rules/animal-picker-death-record.mdc` for ongoing work.
