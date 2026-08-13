@@ -37,6 +37,7 @@ import {
 
 export default function BulkTreatmentPage() {
   const t = useT();
+  const [step, setStep] = useState<"select" | "details">("select");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [catalog, setCatalog] = useState<HealthCatalogEntry[]>([]);
@@ -253,10 +254,11 @@ export default function BulkTreatmentPage() {
     });
     setExtrasOpen(false);
     setSelected(new Set());
+    setStep("select");
   }
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 max-w-5xl pb-8">
       <div>
         <Link
           href="/health"
@@ -265,13 +267,20 @@ export default function BulkTreatmentPage() {
           <ArrowLeft className="h-4 w-4 mr-1" /> {t("backToHealth")}
         </Link>
         <h1 className="text-3xl font-bold">{t("bulkTreatmentTitle")}</h1>
-        <p className="text-muted-foreground">
-          {t("bulkTreatmentSubtitle")} {t("useScheduleFrom")}{" "}
-          <Link href="/health/schedules" className="text-primary hover:underline">
-            {t("healthSchedules")}
-          </Link>{" "}
-          {t("toSetNextDueAuto")}
+        <p className="text-muted-foreground mt-1">
+          {step === "select"
+            ? t("bulkTreatmentSelectHelp")
+            : t("bulkTreatmentDetailsHelp")}
         </p>
+        {step === "details" && (
+          <p className="text-sm text-muted-foreground mt-2">
+            {t("useScheduleFrom")}{" "}
+            <Link href="/health/schedules" className="text-primary hover:underline">
+              {t("healthSchedules")}
+            </Link>{" "}
+            {t("toSetNextDueAuto")}
+          </p>
+        )}
       </div>
 
       {result && (
@@ -295,25 +304,47 @@ export default function BulkTreatmentPage() {
         />
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("chooseAnimals")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AnimalActivityPicker
-            selected={selected}
-            onSelectedChange={setSelected}
-            storageKey="manyika.bulkTreatment.picker.columns"
-            statusFilterDefault="ACTIVE"
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("treatmentDetails")}</CardTitle>
-        </CardHeader>
-        <CardContent>
+      {step === "select" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("chooseAnimals")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AnimalActivityPicker
+              selected={selected}
+              onSelectedChange={(next) => {
+                setSelected(next);
+                setResult(null);
+              }}
+              storageKey="manyika.bulkTreatment.picker.columns"
+              statusFilterDefault="ACTIVE"
+              onContinue={() => setStep("details")}
+              continueLabel={t("continueToActivity")}
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <div>
+              <CardTitle>{t("treatmentDetails")}</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                {t("animalsSelectedCount", {
+                  selected: selected.size,
+                  total: selected.size,
+                })}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setStep("select")}
+            >
+              {t("backToSelection")}
+            </Button>
+          </CardHeader>
+          <CardContent>
           <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
               <Label>{t("fromSchedule")}</Label>
@@ -514,8 +545,9 @@ export default function BulkTreatmentPage() {
                   : t("applyToN", { n: selected.size })}
             </Button>
           </form>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

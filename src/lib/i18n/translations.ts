@@ -558,6 +558,10 @@ const en = {
   bulkTreatmentTitle: "Bulk treatment",
   bulkTreatmentSubtitle:
     "Apply a treatment or vaccination to many animals at once (dip, deworm, vaccines, etc.).",
+  bulkTreatmentSelectHelp:
+    "Filter and select animals for this crush session, then continue to enter dose details.",
+  bulkTreatmentDetailsHelp:
+    "Choose a schedule or enter treatment/vaccination details for the selected animals.",
   chooseAnimals: "1. Choose animals",
   treatmentDetails: "2. Treatment details",
   healthCatalogTreatments: "Treatment schedules",
@@ -1760,6 +1764,10 @@ const sw: Dict = {
   bulkTreatmentTitle: "Matibabu ya kundi",
   bulkTreatmentSubtitle:
     "Tumia matibabu au chanjo kwa wanyama wengi kwa mara moja (kuogea, minyoo, chanjo, n.k.).",
+  bulkTreatmentSelectHelp:
+    "Chuja na chagua wanyama kwa kipindi hiki cha crush, kisha endelea kuweka maelezo ya dozi.",
+  bulkTreatmentDetailsHelp:
+    "Chagua ratiba au weka maelezo ya matibabu/chanjo kwa wanyama waliochaguliwa.",
   chooseAnimals: "1. Chagua wanyama",
   treatmentDetails: "2. Maelezo ya matibabu",
   healthCatalogTreatments: "Ratiba za matibabu",
