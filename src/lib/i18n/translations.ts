@@ -56,7 +56,8 @@ const en = {
   activityMovement: "Camp movement",
   activityMovementHelp: "Move animals between camps.",
   activitySale: "Sales",
-  activitySaleHelp: "Record sales and see sell-next-cycle priorities.",
+  activitySaleHelp:
+    "Animal sales history, priorities, and bulk sale from this screen.",
   activityBulkSale: "Bulk sale",
   activityBulkSaleHelp: "Sell several animals in one camp batch.",
   activityBuyers: "Buyers",
@@ -1381,7 +1382,8 @@ const sw: Dict = {
   activityMovement: "Uhamisho wa kambi",
   activityMovementHelp: "Hamisha wanyama kati ya kambi.",
   activitySale: "Mauzo",
-  activitySaleHelp: "Rekodi mauzo na uone kipaumbele cha kuuza mzunguko ujao.",
+  activitySaleHelp:
+    "Historia ya mauzo ya wanyama, vipaumbele, na mauzo ya kundi kutoka skrini hii.",
   activityBulkSale: "Mauzo kwa wingi",
   activityBulkSaleHelp: "Uza wanyama wengi katika kundi la kambi moja.",
   activityBuyers: "Wanunuzi",

@@ -14,7 +14,6 @@ import {
   Plus,
   Skull,
   Activity,
-  Layers,
 } from "lucide-react";
 import { useT } from "@/components/providers/locale-provider";
 import { hasPermission, type Permission } from "@/lib/auth/rbac";
@@ -112,16 +111,6 @@ const CARDS: ActivityCard[] = [
     categoryLabelKey: "activityCatSales",
     icon: CircleDollarSign,
     permission: "viewSales",
-  },
-  {
-    id: "bulk-sale",
-    href: "/sales/bulk",
-    titleKey: "activityBulkSale",
-    helpKey: "activityBulkSaleHelp",
-    category: "sales",
-    categoryLabelKey: "activityCatSales",
-    icon: Layers,
-    permission: "manageSales",
   },
   {
     id: "buyers",
