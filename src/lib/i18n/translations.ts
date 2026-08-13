@@ -1897,7 +1897,7 @@ const sw: Dict = {
   mortalityQuickPreset: "Chaguo la haraka",
   mortalityQuickPresetHelp:
     "Chagua chaguo la kujaza sababu na utupaji, kisha rekebisha ikiwa inahitajika. Chagua Mkono kwa kuweka mwenyewe.",
-  mortalityPresetManual: "Mkono",
+  mortalityPresetManual: "Jaza moja moja",
   mortalityPresetFamilySlaughter: "Kuchinja kwa familia",
   mortalityPresetCampSlaughter: "Kuchinja kambini",
   mortalityPresetSlaughterUsedFood: "Kuchinja — alitumika kwa chakula",
